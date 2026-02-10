@@ -40,7 +40,7 @@ export function Header() {
     >
       <div className={cn(
         "container mx-auto flex items-center justify-between px-6 transition-all duration-500",
-        isScrolled ? "bg-white/80 backdrop-blur-md rounded-b-3xl py-1 shadow-sm" : ""
+        isScrolled ? "bg-background/80 backdrop-blur-md rounded-b-3xl py-1 shadow-sm" : ""
       )}>
         <Link to="/" className="group">
           <Logo className={cn("origin-left transition-all duration-500", isScrolled ? "h-20" : "")} />
