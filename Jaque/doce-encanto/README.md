@@ -52,13 +52,28 @@ pnpm build
 npm run build
 ```
 
-## Deploy
+## Deploy (Cloudflare Pages)
 
-A maneira mais fácil de fazer o deploy é usando a [Vercel](https://vercel.com/):
+Este projeto está configurado para deploy no **Cloudflare Pages** usando o adaptador `@cloudflare/next-on-pages`.
 
-1. Crie um repositório no GitHub/GitLab com este código.
-2. Importe o projeto na Vercel.
-3. As configurações padrão do Next.js funcionarão automaticamente.
+### Configuração Obrigatória no Cloudflare:
+
+1. Acesse o painel do seu projeto no **Cloudflare Pages**.
+2. Vá em **Settings** > **Builds & deployments** > **Build configuration**.
+3. Clique em **Edit configuration** e preencha exatamente assim:
+
+| Campo | Valor |
+|-------|-------|
+| **Framework preset** | `None` |
+| **Build command** | `npm run pages:build` |
+| **Build output directory** | `.vercel/output/static` |
+| **Root directory** | `Jaque/doce-encanto` |
+
+4. Salve e vá na aba **Deployments** para tentar novamente.
+
+---
+
+## Deploy (Vercel)
 
 ## Estrutura do Projeto
 
