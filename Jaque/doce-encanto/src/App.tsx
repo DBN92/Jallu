@@ -40,7 +40,7 @@ function Layout() {
 }
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => !window.location.pathname.startsWith('/admin'))
 
   return (
     <Router>
