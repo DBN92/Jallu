@@ -1,15 +1,12 @@
+"use client"
 
-import { Link } from "react-router-dom"
+import Link from "next/link"
 import { Facebook, Instagram, Twitter, MapPin, Phone, Mail } from "lucide-react"
 import { Logo } from "@/components/logo"
-import { useConfigStore } from "@/store/config-store"
 
 export function Footer() {
-  const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
-  const displayPhone = whatsappNumber.replace(/^55/, '').replace(/^(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
-
   return (
-    <footer id="contact" className="bg-primary py-12 text-white relative overflow-hidden">
+    <footer className="bg-primary py-12 text-white relative overflow-hidden">
        {/* Background pattern */}
        <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.03] pointer-events-none" />
 
@@ -21,13 +18,13 @@ export function Footer() {
             A excelência da confeitaria artesanal em cada detalhe.
           </p>
           <div className="flex gap-4">
-            <Link to="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
+            <Link href="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
               <Instagram className="h-5 w-5 group-hover:scale-110 transition-transform" />
             </Link>
-            <Link to="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
+            <Link href="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
               <Facebook className="h-5 w-5 group-hover:scale-110 transition-transform" />
             </Link>
-            <Link to="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
+            <Link href="#" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white hover:text-primary border border-white/10 transition-all duration-300 group">
               <Twitter className="h-5 w-5 group-hover:scale-110 transition-transform" />
             </Link>
           </div>
@@ -42,14 +39,7 @@ export function Footer() {
             </li>
             <li className="flex items-center gap-3 group">
               <Phone className="h-5 w-5 text-white/80 shrink-0 group-hover:text-white transition-colors" />
-              <a 
-                href={`https://wa.me/${whatsappNumber}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:text-white transition-colors"
-              >
-                {displayPhone}
-              </a>
+              <span>(11) 99999-9999</span>
             </li>
             <li className="flex items-center gap-3 group">
               <Mail className="h-5 w-5 text-white/80 shrink-0 group-hover:text-white transition-colors" />
@@ -80,8 +70,8 @@ export function Footer() {
       <div className="container mx-auto px-4 mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/60 uppercase tracking-widest">
         <p>&copy; {new Date().getFullYear()} Jallu Confeitaria.</p>
         <div className="flex gap-8">
-          <Link to="#" className="hover:text-white transition-colors">Privacidade</Link>
-          <Link to="#" className="hover:text-white transition-colors">Termos</Link>
+          <Link href="#" className="hover:text-white transition-colors">Privacidade</Link>
+          <Link href="#" className="hover:text-white transition-colors">Termos</Link>
         </div>
       </div>
     </footer>

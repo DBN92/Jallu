@@ -1,12 +1,14 @@
+"use client"
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { useProductStore } from "@/store/product-store"
 import { useCartStore } from "@/store/cart-store"
 import { ShoppingBag } from "lucide-react"
+import Image from "next/image"
 
 export function ProductGrid() {
   const [selectedCategory, setSelectedCategory] = useState("Todos")
@@ -74,10 +76,11 @@ export function ProductGrid() {
                   <div className="relative aspect-square overflow-hidden bg-secondary/10">
                     <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
                     {product.image && (product.image.startsWith("http") || product.image.startsWith("/")) ? (
-                      <img
+                      <Image
                         src={product.image}
                         alt={product.name}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-primary/20">
@@ -95,24 +98,29 @@ export function ProductGrid() {
                     </div>
                   </div>
                   <CardHeader className="p-6 pb-2">
-                    <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                         <p className="text-xs font-bold text-accent uppercase tracking-wider mb-1">{product.category}</p>
-                         <h3 className="font-serif text-xl font-bold text-foreground group-hover:text-primary transition-colors">{product.name}</h3>
+                         <p className="text-xs font-bold tracking-wider text-accent uppercase mb-2">{product.category}</p>
+                         <h3 className="font-serif text-xl font-bold line-clamp-1 text-primary">{product.name}</h3>
                       </div>
-                      <p className="font-bold text-lg text-primary whitespace-nowrap">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(product.price)}
-                      </p>
+                      <span className="font-bold text-lg text-primary bg-secondary/30 px-3 py-1 rounded-full whitespace-nowrap">
+                        R$ {product.price.toFixed(2)}
+                      </span>
                     </div>
                   </CardHeader>
-                  <CardContent className="px-6 pb-6">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                  <CardContent className="p-6 pt-2">
+                    <p className="text-muted-foreground line-clamp-2 leading-relaxed">
                       {product.description}
                     </p>
                   </CardContent>
+                  <CardFooter className="p-6 pt-0 sm:hidden">
+                    <Button
+                      className="w-full gap-2 rounded-xl"
+                      onClick={() => addItem(product)}
+                    >
+                      <ShoppingBag className="h-4 w-4" /> Adicionar
+                    </Button>
+                  </CardFooter>
                 </Card>
               </motion.div>
             ))}

@@ -10,6 +10,12 @@ const loginSchema = z.object({
 type LoginData = z.infer<typeof loginSchema>
 
 export async function validateCredentials(data: LoginData) {
+  const result = loginSchema.safeParse(data)
+  
+  if (!result.success) {
+    return { success: false, message: "Dados inválidos." }
+  }
+
   const envUsername = process.env.ADMIN_USERNAME
   const envPassword = process.env.ADMIN_PASSWORD
 

@@ -1,3 +1,4 @@
+"use client"
 
 import { ShoppingBag, Trash2, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/sheet"
 import { useCartStore } from "@/store/cart-store"
 import { useConfigStore } from "@/store/config-store"
+import Image from "next/image"
 
 export function CartDrawer() {
   const { items, removeItem, updateQuantity, total } = useCartStore()
@@ -85,10 +87,11 @@ Ponto de Referência:
                 >
                   <div className="relative h-16 w-16 overflow-hidden rounded-md bg-secondary/10">
                     {item.image ? (
-                      <img
+                      <Image
                         src={item.image}
                         alt={item.name}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-primary/20">
@@ -97,43 +100,44 @@ Ponto de Referência:
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <h3 className="font-medium leading-none">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL'
-                      }).format(item.price)}
+                    <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
+                    <p className="text-sm font-semibold">
+                      R$ {item.price.toFixed(2)}
                     </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
+                        onClick={() =>
+                          updateQuantity(item.id, item.quantity - 1)
+                        }
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-4 text-center text-sm">{item.quantity}</span>
+                      <span className="text-sm w-4 text-center">
+                        {item.quantity}
+                      </span>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() =>
+                          updateQuantity(item.id, item.quantity + 1)
+                        }
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive hover:text-destructive/90"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive/90"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
@@ -144,14 +148,12 @@ Ponto de Referência:
             <div className="w-full space-y-4">
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL'
-                  }).format(total())}
-                </span>
+                <span>R$ {total().toFixed(2)}</span>
               </div>
-              <Button className="w-full h-12 text-lg" onClick={handleCheckout}>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleCheckout}
+              >
                 Finalizar no WhatsApp
               </Button>
             </div>

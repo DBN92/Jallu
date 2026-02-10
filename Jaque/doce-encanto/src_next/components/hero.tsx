@@ -1,12 +1,12 @@
+"use client"
 
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { ArrowRight, Clock, Star } from "lucide-react"
-import { useConfigStore } from "@/store/config-store"
+import Image from "next/image"
+import Link from "next/link"
 
 export function Hero() {
-  const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
-
   return (
     <section
       id="hero"
@@ -32,18 +32,12 @@ export function Hero() {
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
             <Button size="lg" className="h-14 rounded-full px-8 text-lg shadow-xl shadow-primary/20 transition-transform hover:scale-105" asChild>
-              <a href="#menu">
+              <Link href="#menu">
                 Ver cardápio <ArrowRight className="ml-2 h-5 w-5" />
-              </a>
+              </Link>
             </Button>
             <Button size="lg" variant="outline" className="h-14 rounded-full border-primary/20 px-8 text-lg hover:bg-primary/5" asChild>
-              <a 
-                href={`https://wa.me/${whatsappNumber}?text=Olá! Gostaria de fazer uma encomenda.`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                Fazer encomenda
-              </a>
+              <Link href="#contact">Fazer encomenda</Link>
             </Button>
           </div>
         </motion.div>
@@ -57,10 +51,12 @@ export function Hero() {
           {/* Main Image Container */}
           <div className="relative h-full w-full rounded-[2.5rem] overflow-hidden shadow-2xl ring-1 ring-white/20 transform transition-transform hover:scale-[1.02] duration-500">
              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent z-10" />
-             <img
+             <Image
               src="https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=1200&q=80"
               alt="Jallu Confeitaria"
-              className="absolute inset-0 w-full h-full object-cover"
+              fill
+              className="object-cover"
+              priority
             />
             
             {/* Decorative Border */}

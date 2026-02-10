@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Pinyon+Script&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Creme Baunilha (#FFF4EE) - 70% da composição */
+  --background: 22 55% 97%;
+  /* Cacau (#3B2B2B) - 10% (Texto e contraste) */
+  --foreground: 0 16% 20%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 16% 20%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 16% 20%;
+
+  /* Rosé Jallu (#D98BA6) - 20% (Destaque principal) */
+  --primary: 339 48% 70%;
+  --primary-foreground: 22 55% 97%;
+
+  /* Rosé Jallu (Variação mais clara para fundos secundários) */
+  --secondary: 339 48% 95%;
+  --secondary-foreground: 339 48% 40%;
+
+  --muted: 22 30% 94%;
+  --muted-foreground: 0 6% 45%;
+
+  /* Dourado Suave (#C9A46A) - Detalhes */
+  --accent: 37 47% 60%;
+  --accent-foreground: 22 55% 97%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 339 20% 90%;
+  --input: 339 20% 90%;
+  --ring: 339 48% 70%;
+
+  --radius: 1rem; /* Soft corners */
+
+  --font-sans: 'Montserrat', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-script: 'Pinyon Script', cursive;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20;
+    font-family: var(--font-sans);
+    background-image: radial-gradient(at 0% 0%, hsla(var(--secondary) / 0.3) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, hsla(var(--accent) / 0.1) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .font-script {
+    font-family: var(--font-script);
+  }
+  .glass {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm;
+  }
+}

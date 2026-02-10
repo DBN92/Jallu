@@ -1,7 +1,9 @@
+"use client"
 
 import { useProductStore } from "@/store/product-store"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
+import Link from "next/link"
 
 export function CategoryCards() {
   const categories = useProductStore((state) => state.categories)
@@ -32,7 +34,7 @@ export function CategoryCards() {
               viewport={{ once: true }}
               className="min-w-[160px] flex-1"
             >
-              <a href="#menu" className="block h-full">
+              <Link href="#menu" className="block h-full">
                 <div className="group relative h-full flex flex-col items-center justify-center rounded-3xl bg-muted/30 p-8 text-center transition-all duration-300 hover:bg-white hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-2 border border-transparent hover:border-primary/5">
                   <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
                     {/* Emoji based on category for simplicity, or use icons */}
@@ -49,7 +51,7 @@ export function CategoryCards() {
                     Ver opções <ArrowRight className="ml-1 h-3 w-3" />
                   </div>
                 </div>
-              </a>
+              </Link>
             </motion.div>
           ))}
         </div>

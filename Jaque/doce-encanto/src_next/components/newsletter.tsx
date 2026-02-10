@@ -2,11 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useConfigStore } from "@/store/config-store"
 
 export function Newsletter() {
-  const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
-
   return (
     <section className="py-24 px-4">
       <div className="container mx-auto">
@@ -27,14 +24,8 @@ export function Newsletter() {
                 placeholder="Seu melhor e-mail" 
                 className="h-12 rounded-full border-0 bg-white/90 px-6 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-accent" 
               />
-              <Button size="lg" className="h-12 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 px-8 font-bold shadow-lg" asChild>
-                <a 
-                  href={`https://wa.me/${whatsappNumber}?text=Olá! Quero meu desconto de 10%.`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  Quero meu desconto
-                </a>
+              <Button size="lg" className="h-12 rounded-full bg-accent text-accent-foreground hover:bg-accent/90 px-8 font-bold shadow-lg">
+                Quero meu desconto
               </Button>
             </div>
             <p className="mt-4 text-xs text-primary-foreground/50">

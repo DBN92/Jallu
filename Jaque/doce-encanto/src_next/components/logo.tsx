@@ -1,4 +1,6 @@
+"use client"
 
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 export function Logo({ className, variant = "default" }: { className?: string, variant?: "default" | "footer" }) {
@@ -6,13 +8,15 @@ export function Logo({ className, variant = "default" }: { className?: string, v
 
   return (
     <div className={cn("relative h-32 w-auto aspect-[3/1]", className)}>
-      <img
+      <Image
         src={logoSrc}
         alt="Jallu Confeitaria"
+        fill
         className={cn(
-          "absolute inset-0 w-full h-full object-contain object-left",
+          "object-contain object-left",
           // variant === "footer" && "brightness-0 invert", // Removed filter as we now use a white logo image
         )}
+        priority
       />
     </div>
   )

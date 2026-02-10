@@ -13,6 +13,8 @@ import { Lock } from "lucide-react"
 
 import { validateCredentials } from "./actions"
 
+export const runtime = 'edge';
+
 const loginSchema = z.object({
   username: z.string().min(1, "Usuário é obrigatório"),
   password: z.string().min(1, "Senha é obrigatória"),
@@ -43,7 +45,7 @@ export default function LoginPage() {
       } else {
         toast.error(result.message || "Credenciais inválidas")
       }
-    } catch (error) {
+    } catch (_) {
       toast.error("Erro ao realizar login. Tente novamente.")
     }
   }
