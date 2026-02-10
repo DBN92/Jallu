@@ -35,12 +35,15 @@ export function Header() {
         "fixed top-0 z-40 w-full transition-all duration-500 ease-in-out",
         isScrolled
           ? "py-0"
-          : "py-2 bg-transparent"
+          : "py-0 md:py-2 bg-transparent"
       )}
     >
       <div className={cn(
         "container mx-auto flex items-center justify-between px-6 transition-all duration-500",
-        isScrolled ? "bg-background/80 backdrop-blur-md rounded-b-3xl py-1 shadow-sm" : ""
+        "bg-background/80 backdrop-blur-md shadow-sm",
+        isScrolled 
+          ? "md:bg-background/80 md:backdrop-blur-md md:rounded-b-3xl md:py-1 md:shadow-sm" 
+          : "md:bg-transparent md:backdrop-blur-none md:shadow-none"
       )}>
         <Link to="/" className="group">
           <Logo className={cn("origin-left transition-all duration-500", isScrolled ? "h-20" : "")} />
