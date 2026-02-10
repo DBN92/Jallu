@@ -2,6 +2,8 @@
   "name": "doce-encanto",
   "compatibility_date": "2026-02-10",
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "main": "src/worker.ts"
 }
