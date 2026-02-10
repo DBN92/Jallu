@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Trash2, Edit, LogOut, Package, ArrowLeft, Settings, Phone } from "lucide-react"
+import { Plus, Trash2, Edit, LogOut, Package, ArrowLeft, Phone } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                   Adicione, edite ou remova produtos do catálogo
                 </p>
               </div>
-              <Sheet open={isOpen} onOpenChange={(open) => {
+              <Sheet open={isOpen} onOpenChange={(open: boolean) => {
                 setIsOpen(open)
                 if (!open) {
                   reset()
@@ -192,8 +192,8 @@ export default function DashboardPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              {cat.name}
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>
-                          {categories.find(c => c.id === product.category)?.name || product.category}
+                          {product.category}
                         </TableCell>
                         <TableCell>
                           {new Intl.NumberFormat('pt-BR', {
@@ -340,12 +340,12 @@ export default function DashboardPage() {
                       type="tel" 
                       placeholder="5511999999999"
                       value={phoneInput}
-                      onChange={(e) => setPhoneInput(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhoneInput(e.target.value)}
                     />
                     <Button onClick={handleSavePhone}>Salvar</Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Este número será usado em todos os botões de "Encomendar" do site.
+                    Este número será usado em todos os botões de &quot;Encomendar&quot; do site.
                     Formato recomendado: 55 + DDD + Número (apenas números).
                   </p>
                 </div>
