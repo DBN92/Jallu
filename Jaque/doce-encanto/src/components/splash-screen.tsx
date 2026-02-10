@@ -9,7 +9,7 @@ export function SplashScreen({ finishLoading }: SplashScreenProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       finishLoading()
-    }, 2500)
+    }, 1500)
 
     return () => clearTimeout(timer)
   }, [finishLoading])
@@ -42,7 +42,7 @@ export function SplashScreen({ finishLoading }: SplashScreenProps) {
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/60 backdrop-blur-xl"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
     >
         {/* Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-pink-50/50 to-white/20 opacity-50" />
