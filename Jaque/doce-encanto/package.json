@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "pages:build": "npm run build",
     "pages:dev": "wrangler pages dev -- vite",
     "pages:deploy": "npm run build && wrangler pages deploy dist"
   },
