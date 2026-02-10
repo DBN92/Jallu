@@ -1,0 +1,92 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+:root {
+  /* Creme Baunilha (#FFF4EE) - 70% da composição */
+  --background: 22 55% 97%;
+  /* Cacau (#3B2B2B) - 10% (Texto e contraste) */
+  --foreground: 0 16% 20%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 16% 20%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 16% 20%;
+
+  /* Rosé Jallu (#D98BA6) - 20% (Destaque principal) */
+  --primary: 339 48% 70%;
+  --primary-foreground: 22 55% 97%;
+
+  /* Rosé Jallu (Variação mais clara para fundos secundários) */
+  --secondary: 339 48% 95%;
+  --secondary-foreground: 339 48% 40%;
+
+  --muted: 22 30% 94%;
+  --muted-foreground: 0 6% 45%;
+
+  /* Dourado Suave (#C9A46A) - Detalhes */
+  --accent: 37 47% 60%;
+  --accent-foreground: 22 55% 97%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 339 20% 90%;
+  --input: 339 20% 90%;
+  --ring: 339 48% 70%;
+
+  --radius: 1rem; /* Soft corners */
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  --font-sans: var(--font-montserrat);
+  --font-serif: var(--font-playfair);
+  --font-script: var(--font-pinyon);
+}
+
+.font-script {
+  font-family: var(--font-script), cursive;
+}
+
+body {
+  @apply bg-background text-foreground antialiased selection:bg-primary/20;
+  font-family: var(--font-sans), sans-serif;
+  background-image: radial-gradient(at 0% 0%, hsla(var(--secondary) / 0.3) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, hsla(var(--accent) / 0.1) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif), serif;
+  letter-spacing: -0.02em;
+}
+
+.glass {
+  @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-sm;
+}
