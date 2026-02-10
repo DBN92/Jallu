@@ -1,7 +1,7 @@
 import { ExecutionContext } from '@cloudflare/workers-types';
 
 export default {
-  async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: any, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     
     // Tenta buscar o asset solicitado
