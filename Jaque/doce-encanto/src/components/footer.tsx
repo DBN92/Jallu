@@ -81,7 +81,6 @@ export function Footer() {
         <p>&copy; {new Date().getFullYear()} Jallu Confeitaria.</p>
         <div className="flex gap-8">
           <a href="https://dbn.dbncustom.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">desenvolvido por Syvops</a>
-          <Link to="#" className="hover:text-white transition-colors">Termos</Link>
         </div>
       </div>
     </footer>
