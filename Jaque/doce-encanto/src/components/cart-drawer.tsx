@@ -66,14 +66,14 @@ Ponto de Referência:
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
+      <SheetContent className="flex w-full flex-col sm:max-w-md bg-primary text-primary-foreground border-l-primary-foreground/10">
         <SheetHeader>
-          <SheetTitle>Seu Carrinho</SheetTitle>
+          <SheetTitle className="text-primary-foreground">Seu Carrinho</SheetTitle>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto py-4">
           {items.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center space-y-2 text-muted-foreground">
-              <ShoppingBag className="h-12 w-12 opacity-20" />
+            <div className="flex h-full flex-col items-center justify-center space-y-2 text-primary-foreground/60">
+              <ShoppingBag className="h-12 w-12 opacity-50" />
               <p>Seu carrinho está vazio.</p>
             </div>
           ) : (
@@ -81,9 +81,9 @@ Ponto de Referência:
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center space-x-4 rounded-lg border p-3"
+                  className="flex items-center space-x-4 rounded-lg border border-primary-foreground/10 bg-primary-foreground/5 p-3"
                 >
-                  <div className="relative h-16 w-16 overflow-hidden rounded-md bg-secondary/10">
+                  <div className="relative h-16 w-16 overflow-hidden rounded-md bg-white/10">
                     {item.image ? (
                       <img
                         src={item.image}
@@ -91,14 +91,14 @@ Ponto de Referência:
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-primary/20">
+                      <div className="flex h-full w-full items-center justify-center text-primary-foreground/20">
                         <ShoppingBag className="h-6 w-6" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <h3 className="font-medium leading-none">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="font-medium leading-none text-primary-foreground">{item.name}</h3>
+                    <p className="text-sm text-primary-foreground/80">
                       {new Intl.NumberFormat('pt-BR', {
                         style: 'currency',
                         currency: 'BRL'
@@ -110,16 +110,16 @@ Ponto de Referência:
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-6 w-6 border-primary-foreground/20 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground"
                         onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-4 text-center text-sm">{item.quantity}</span>
+                      <span className="w-4 text-center text-sm text-primary-foreground">{item.quantity}</span>
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-6 w-6 border-primary-foreground/20 bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                       >
                         <Plus className="h-3 w-3" />
@@ -128,7 +128,7 @@ Ponto de Referência:
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-destructive hover:text-destructive/90"
+                      className="h-6 w-6 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
                       onClick={() => removeItem(item.id)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -140,9 +140,9 @@ Ponto de Referência:
           )}
         </div>
         {items.length > 0 && (
-          <SheetFooter className="border-t pt-4">
+          <SheetFooter className="border-t border-primary-foreground/10 pt-4 sm:justify-center">
             <div className="w-full space-y-4">
-              <div className="flex items-center justify-between text-lg font-bold">
+              <div className="flex items-center justify-between text-lg font-bold text-primary-foreground">
                 <span>Total</span>
                 <span>
                   {new Intl.NumberFormat('pt-BR', {
@@ -151,7 +151,7 @@ Ponto de Referência:
                   }).format(total())}
                 </span>
               </div>
-              <Button className="w-full h-12 text-lg" onClick={handleCheckout}>
+              <Button className="w-full h-12 text-lg bg-white text-primary hover:bg-white/90" onClick={handleCheckout}>
                 Finalizar no WhatsApp
               </Button>
             </div>
