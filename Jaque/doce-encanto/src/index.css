@@ -5,38 +5,44 @@
 @tailwind utilities;
 
 :root {
-  /* Creme Baunilha (#FFF4EE) - 70% da composição */
-  --background: 22 55% 97%;
-  /* Cacau (#3B2B2B) - 10% (Texto e contraste) */
-  --foreground: 0 16% 20%;
+  /* Rosa quase branco (fundo) - #FBEAEF */
+  --background: 342 57% 95%;
+  /* Bordô (principal) - #7E1A1E - Texto principal */
+  --foreground: 358 66% 30%;
 
   --card: 0 0% 100%;
-  --card-foreground: 0 16% 20%;
+  --card-foreground: 358 66% 30%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 0 16% 20%;
+  --popover-foreground: 358 66% 30%;
 
-  /* Rosé Jallu (#D98BA6) - 20% (Destaque principal) */
-  --primary: 339 48% 70%;
-  --primary-foreground: 22 55% 97%;
+  /* Bordô (principal) - #7E1A1E */
+  --primary: 358 66% 30%;
+  --primary-foreground: 342 57% 95%;
 
-  /* Rosé Jallu (Variação mais clara para fundos secundários) */
-  --secondary: 339 48% 95%;
-  --secondary-foreground: 339 48% 40%;
+  /* Rosa blush claro - #F2CAD6 */
+  --secondary: 342 57% 87%;
+  --secondary-foreground: 358 66% 30%;
 
-  --muted: 22 30% 94%;
-  --muted-foreground: 0 6% 45%;
+  /* Rosa apoio - #F8DBE4 */
+  --muted: 341 68% 92%;
+  --muted-foreground: 358 40% 50%;
 
-  /* Dourado Suave (#C9A46A) - Detalhes */
-  --accent: 37 47% 60%;
-  --accent-foreground: 22 55% 97%;
+  /* Amarelo coração (acento) - #EBE62A */
+  --accent: 58 81% 54%;
+  --accent-foreground: 358 66% 30%;
+
+  /* Dourado quente - #C59663 */
+  --gold: 31 46% 58%;
 
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 339 20% 90%;
-  --input: 339 20% 90%;
-  --ring: 339 48% 70%;
+  /* Rosa apoio para bordas */
+  --border: 341 68% 92%;
+  --input: 341 68% 92%;
+  /* Dourado quente para rings */
+  --ring: 31 46% 58%;
 
   --radius: 1rem; /* Soft corners */
 
