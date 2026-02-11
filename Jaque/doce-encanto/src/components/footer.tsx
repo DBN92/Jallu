@@ -15,7 +15,7 @@ export function Footer() {
 
       <div className="container mx-auto px-4 grid gap-10 md:grid-cols-4 relative z-10">
         <div className="md:col-span-2 space-y-6 flex flex-col justify-start">
-          <Logo variant="footer" className="h-32 w-auto -ml-2" />
+          <Logo variant="footer" className="h-16 w-auto -ml-2" />
           <p className="text-white/90 max-w-sm text-sm leading-relaxed -mt-2">
             Transformando açúcar e afeto em momentos inesquecíveis. 
             A excelência da confeitaria artesanal em cada detalhe.
