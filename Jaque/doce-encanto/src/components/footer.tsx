@@ -80,7 +80,7 @@ export function Footer() {
       <div className="container mx-auto px-4 mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/60 uppercase tracking-widest">
         <p>&copy; {new Date().getFullYear()} Jallu Confeitaria.</p>
         <div className="flex gap-8">
-          <Link to="#" className="hover:text-white transition-colors">Privacidade</Link>
+          <a href="https://dbn.dbncustom.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">desenvolvido por Syvops</a>
           <Link to="#" className="hover:text-white transition-colors">Termos</Link>
         </div>
       </div>
