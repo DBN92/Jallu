@@ -3,6 +3,7 @@ import { Toaster } from 'sonner'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { CupcakeCursor } from '@/components/cupcake-cursor'
+import { WorkopsChatWidget } from '@/components/workops-chat-widget'
 import { SplashScreen } from '@/components/splash-screen'
 import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
@@ -35,6 +36,7 @@ function Layout() {
         <Outlet />
       </main>
       {!isAdmin && <Footer />}
+      {!isAdmin && <WorkopsChatWidget />}
     </div>
   )
 }

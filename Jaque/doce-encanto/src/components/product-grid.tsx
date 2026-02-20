@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useProductStore } from "@/store/product-store"
 import { useCartStore } from "@/store/cart-store"
 import { ShoppingBag } from "lucide-react"
+import { workopsIngest } from "@/lib/workops-agent"
 
 export function ProductGrid() {
   const [selectedCategory, setSelectedCategory] = useState("Todos")
@@ -17,6 +18,22 @@ export function ProductGrid() {
     selectedCategory === "Todos"
       ? products
       : products.filter((p) => p.category === selectedCategory)
+
+  const handleAddToCart = (product: (typeof products)[number]) => {
+    addItem(product)
+    workopsIngest(
+      "add_to_cart",
+      {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        category: product.category,
+      },
+      undefined,
+      String(product.id)
+    ).catch(() => {
+    })
+  }
 
   return (
     <section id="menu" className="py-24 bg-muted/20 relative">
@@ -88,7 +105,7 @@ export function ProductGrid() {
                       <Button
                         size="icon"
                         className="h-12 w-12 rounded-full bg-white text-primary hover:bg-white/90 shadow-lg"
-                        onClick={() => addItem(product)}
+                        onClick={() => handleAddToCart(product)}
                       >
                          <ShoppingBag className="h-5 w-5" />
                       </Button>
