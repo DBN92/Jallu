@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,13 @@ import { workopsIngest } from "@/lib/workops-agent"
 export function ProductGrid() {
   const [selectedCategory, setSelectedCategory] = useState("Todos")
   const { addItem } = useCartStore()
-  const { products, categories } = useProductStore()
+  const { products, categories, loadFromWorkops, initializedFromWorkops } = useProductStore()
+
+  useEffect(() => {
+    if (!initializedFromWorkops) {
+      loadFromWorkops()
+    }
+  }, [initializedFromWorkops, loadFromWorkops])
 
   const filteredProducts =
     selectedCategory === "Todos"

@@ -1,24 +1,26 @@
 
 import { useProductStore } from "@/store/product-store"
+import { useConfigStore } from "@/store/config-store"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 
 export function CategoryCards() {
   const categories = useProductStore((state) => state.categories)
-  
+  const categoryTitle = useConfigStore((state) => state.categoryTitle)
+  const categorySubtitle = useConfigStore((state) => state.categorySubtitle)
+
   return (
     <section className="py-24 bg-white relative overflow-hidden">
-      {/* Decorative Circles */}
       <div className="absolute top-10 left-10 h-32 w-32 rounded-full bg-secondary/20 blur-3xl" />
       <div className="absolute bottom-10 right-10 h-32 w-32 rounded-full bg-accent/10 blur-3xl" />
 
       <div className="container mx-auto px-4 relative">
         <div className="mb-16 text-center max-w-2xl mx-auto">
           <h2 className="font-serif text-3xl font-bold text-primary sm:text-4xl mb-4">
-            Nossas Especialidades
+            {categoryTitle}
           </h2>
           <p className="text-muted-foreground text-lg">
-            Descubra o que fazemos de melhor, com ingredientes selecionados e muito carinho
+            {categorySubtitle}
           </p>
         </div>
 
@@ -35,7 +37,6 @@ export function CategoryCards() {
               <a href="#menu" className="block h-full">
                 <div className="group relative h-full flex flex-col items-center justify-center rounded-3xl bg-muted/30 p-8 text-center transition-all duration-300 hover:bg-white hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-2 border border-transparent hover:border-primary/5">
                   <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
-                    {/* Emoji based on category for simplicity, or use icons */}
                     {category === "Bolos" && "🎂"}
                     {category === "Brigadeiros" && "🍫"}
                     {category === "Tortas" && "🥧"}

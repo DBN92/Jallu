@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion"
 import { ChefHat, Leaf, Truck, Gift } from "lucide-react"
+import { useConfigStore } from "@/store/config-store"
 
-const benefits = [
+const baseBenefits = [
   {
     icon: Leaf,
     title: "Ingredientes Selecionados",
@@ -27,6 +28,17 @@ const benefits = [
 ]
 
 export function Benefits() {
+  const benefitsConfig = useConfigStore((state) => state.benefits)
+  const benefits = baseBenefits.map((benefit, index) => {
+    const config = benefitsConfig[index]
+    if (!config) return benefit
+    return {
+      ...benefit,
+      title: config.title,
+      description: config.description,
+    }
+  })
+
   return (
     <section className="py-24 relative overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">

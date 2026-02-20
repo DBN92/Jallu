@@ -6,7 +6,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, Star, Clock, Heart } from "lucid
 import { useConfigStore } from "@/store/config-store"
 import { cn } from "@/lib/utils"
 
-const slides = [
+const baseSlides = [
   {
     id: 1,
     title: "Doces que transformam ",
@@ -48,6 +48,22 @@ const slides = [
 export function Hero() {
   const [current, setCurrent] = useState(0)
   const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
+  const heroSlides = useConfigStore((state) => state.heroSlides)
+
+  const slides = baseSlides.map((slide, index) => {
+    const config = heroSlides[index]
+    if (!config) return slide
+    return {
+      ...slide,
+      title: config.title,
+      highlight: config.highlight,
+      titleEnd: config.titleEnd,
+      description: config.description,
+      image: config.image,
+      cta: config.cta,
+      link: config.link,
+    }
+  })
 
   useEffect(() => {
     const timer = setInterval(() => {
