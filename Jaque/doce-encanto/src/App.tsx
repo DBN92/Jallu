@@ -13,6 +13,7 @@ import HomePage from '@/pages/Home'
 import LoginPage from '@/pages/admin/Login'
 import DashboardPage from '@/pages/admin/Dashboard'
 import AdminLayout from '@/pages/admin/Layout'
+import OrdersPage from '@/pages/Orders'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -53,6 +54,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="orders" element={<OrdersPage />} />
         </Route>
         
         <Route path="/admin" element={<AdminLayout />}>

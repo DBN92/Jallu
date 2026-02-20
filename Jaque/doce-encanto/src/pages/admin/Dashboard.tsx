@@ -7,6 +7,7 @@ import { Product } from "@/data/products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
   Sheet,
@@ -37,6 +38,8 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { Link, useNavigate } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useOrdersStore, type OrderStatus } from "@/store/orders-store"
+import { workopsIngest } from "@/lib/workops-agent"
 
 const productSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -246,8 +249,9 @@ export default function DashboardPage() {
 
       <main className="p-6 max-w-7xl mx-auto space-y-8">
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
             <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="orders">Pedidos</TabsTrigger>
             <TabsTrigger value="settings">Configurações</TabsTrigger>
             <TabsTrigger value="content">Conteúdo</TabsTrigger>
           </TabsList>
@@ -413,6 +417,39 @@ export default function DashboardPage() {
                     )}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Pedidos</h2>
+                <p className="text-muted-foreground">
+                  Acompanhe e atualize o status dos pedidos
+                </p>
+              </div>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Visão geral
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OrdersAdminStats />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Lista de pedidos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <OrdersAdminTable />
               </CardContent>
             </Card>
           </TabsContent>
@@ -932,6 +969,446 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </main>
+    </div>
+  )
+}
+
+function OrdersAdminStats() {
+  const orders = useOrdersStore((s) => s.orders)
+  const totalOrders = orders.length
+  const statusCount = orders.reduce<Record<OrderStatus, number>>((acc, o) => {
+    const st = (o.status ?? "pending") as OrderStatus
+    acc[st] = (acc[st] ?? 0) + 1
+    return acc
+  }, { pending: 0, accepted: 0, rejected: 0, processing: 0, completed: 0, unknown: 0 })
+  const revenue = orders
+    .filter((o) => ["accepted", "processing", "completed"].includes(String(o.status ?? "")))
+    .reduce((sum, o) => sum + (o.total ?? 0), 0)
+  const cancelled = statusCount.rejected ?? 0
+  const cancellationRate = totalOrders > 0 ? Math.round((cancelled / totalOrders) * 100) : 0
+  const pending = statusCount.pending ?? 0
+  const asCurrency = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v)
+  const pct = (count: number) => (totalOrders > 0 ? Math.max(4, Math.round((count / totalOrders) * 100)) : 0)
+  const nowTs = new Date().getTime()
+  const pendingAgesMs = orders
+    .filter((o) => (o.status ?? "pending") === "pending")
+    .map((o) => {
+      const t = o.createdAt ? new Date(o.createdAt).getTime() : nowTs
+      return nowTs - t
+    })
+  const avgPendingMs = pendingAgesMs.length ? Math.round(pendingAgesMs.reduce((a, b) => a + b, 0) / pendingAgesMs.length) : 0
+  const avgPendingHours = avgPendingMs ? Math.max(0, Math.round(avgPendingMs / 36e5)) : 0
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="rounded-lg border p-4">
+          <p className="text-xs text-muted-foreground">Pedidos</p>
+          <p className="text-2xl font-semibold">{totalOrders}</p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <p className="text-xs text-muted-foreground">Receita (aceitos+)</p>
+          <p className="text-2xl font-semibold">{asCurrency(revenue)}</p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <p className="text-xs text-muted-foreground">Taxa de cancelamento</p>
+          <p className="text-2xl font-semibold">{cancellationRate}%</p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <p className="text-xs text-muted-foreground">Pendentes</p>
+          <p className="text-2xl font-semibold">{pending}</p>
+        </div>
+        <div className="rounded-lg border p-4 md:col-span-2">
+          <p className="text-xs text-muted-foreground">Tempo médio em pendente</p>
+          <p className="text-2xl font-semibold">{avgPendingHours}h</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="rounded-lg border p-4 space-y-2">
+          <p className="text-sm font-medium">Distribuição por status</p>
+          <div className="text-xs">
+            Pendente ({statusCount.pending ?? 0})
+            <div className="h-2 w-full rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${pct(statusCount.pending ?? 0)}%` }} />
+            </div>
+          </div>
+          <div className="text-xs">
+            Aceito ({statusCount.accepted ?? 0})
+            <div className="h-2 w-full rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${pct(statusCount.accepted ?? 0)}%` }} />
+            </div>
+          </div>
+          <div className="text-xs">
+            Em preparação ({statusCount.processing ?? 0})
+            <div className="h-2 w-full rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${pct(statusCount.processing ?? 0)}%` }} />
+            </div>
+          </div>
+          <div className="text-xs">
+            Concluído ({statusCount.completed ?? 0})
+            <div className="h-2 w-full rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${pct(statusCount.completed ?? 0)}%` }} />
+            </div>
+          </div>
+          <div className="text-xs">
+            Rejeitado ({statusCount.rejected ?? 0})
+            <div className="h-2 w-full rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${pct(statusCount.rejected ?? 0)}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border p-4 space-y-2">
+          <p className="text-sm font-medium">Atalhos</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Voltar ao topo</Button>
+            <Button variant="outline" size="sm" onClick={() => document.querySelector('[data-orders-list]')?.scrollIntoView({ behavior: "smooth" })}>Ir para lista</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OrdersAdminTable() {
+  const orders = useOrdersStore((s) => s.orders)
+  const updateOrderStatus = useOrdersStore((s) => s.updateOrderStatus)
+  const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all")
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "pix" | "cartao" | "dinheiro">("all")
+  const [dateFrom, setDateFrom] = useState<string>("")
+  const [dateTo, setDateTo] = useState<string>("")
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "value_desc">("newest")
+  const whatsappNumber = useConfigStore((s) => s.whatsappNumber)
+  const [open, setOpen] = useState(false)
+  const [selectedCode, setSelectedCode] = useState<string | null>(null)
+  const onChangeStatus = async (idOrCodigo: string, status: OrderStatus) => {
+    updateOrderStatus(idOrCodigo, status)
+    toast.success("Status atualizado")
+    try {
+      await workopsIngest("order_status_admin_update", { code: idOrCodigo, status }, undefined, idOrCodigo)
+    } catch {
+    }
+  }
+  const selectedOrder = orders.find((o) => String(o.codigo ?? o.id ?? "") === selectedCode)
+  const filtered = orders.filter((o) => {
+    const code = String(o.codigo ?? o.id ?? "").toLowerCase()
+    const matchCode = query.trim() ? code.includes(query.trim().toLowerCase()) : true
+    const matchStatus = statusFilter === "all" ? true : (o.status ?? "pending") === statusFilter
+    const pm = (o.paymentMethod ?? "").toString().toLowerCase()
+    const matchPayment =
+      paymentFilter === "all"
+        ? true
+        : paymentFilter === "pix"
+        ? pm.includes("pix")
+        : paymentFilter === "cartao"
+        ? pm.includes("cart") || pm.includes("cartão")
+        : pm.includes("dinheiro") || pm.includes("cash")
+    const t = o.createdAt ? new Date(o.createdAt).getTime() : null
+    const fromOk = dateFrom ? (t ? t >= new Date(dateFrom).getTime() : false) : true
+    const toOk = dateTo ? (t ? t <= new Date(dateTo + "T23:59:59").getTime() : false) : true
+    return matchCode && matchStatus && matchPayment && fromOk && toOk
+  })
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "value_desc") {
+      const av = a.total ?? 0
+      const bv = b.total ?? 0
+      return bv - av
+    }
+    const at = a.createdAt ? new Date(a.createdAt).getTime() : 0
+    const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0
+    return sortBy === "newest" ? bt - at : at - bt
+  })
+  const buildWhatsAppMessage = (order: { codigo?: string | null; id?: string | null; status?: OrderStatus; items?: { name?: string | null; quantity?: number | null; price?: number | null }[]; total?: number | null; payment_link?: string | null; customerName?: string | null }) => {
+    const code = String(order.codigo ?? order.id ?? "")
+    const greetName = order.customerName ? `Olá, ${order.customerName}!` : "Olá!"
+    const header = `${greetName} Aqui é a Jallu Confeitaria. Seguem os detalhes do seu pedido ${code}:`
+    const itemsLines = (order.items ?? [])
+      .map((it) => {
+        const q = it.quantity ?? 1
+        const nm = it.name ?? "Item"
+        const price = typeof it.price === "number" ? it.price : undefined
+        const subtotal = price != null ? q * price : undefined
+        const priceStr = subtotal != null ? ` — ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(subtotal)}` : ""
+        return `• ${q}x ${nm}${priceStr}`
+      })
+      .join("\n")
+    const totalLine =
+      typeof order.total === "number"
+        ? `Total: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(order.total)}`
+        : ""
+    const trackUrl = `${window.location.origin}/orders?code=${encodeURIComponent(code)}`
+    const byStatus: Record<OrderStatus, string> = {
+      pending: "Recebemos seu pedido e estamos analisando.",
+      accepted: "Seu pedido foi aceito e entra em preparação em breve.",
+      rejected: "Infelizmente não conseguimos atender ao seu pedido agora.",
+      processing: "Seu pedido está em preparação.",
+      completed: "Seu pedido foi concluído. Obrigado!",
+      unknown: "Atualização do seu pedido.",
+    }
+    const statusText = byStatus[order.status ?? "pending"]
+    const payment = order.payment_link ? `Pagamento: ${order.payment_link}` : ""
+    const cleanShop = (whatsappNumber ?? "").replace(/\D+/g, "")
+    const replyAccept = `https://wa.me/${cleanShop}?text=${encodeURIComponent(`Confirmo meu pedido ${code}`)}`
+    const replyQuestion = `https://wa.me/${cleanShop}?text=${encodeURIComponent(`Tenho uma dúvida sobre o pedido ${code}`)}`
+    const replyCancel = `https://wa.me/${cleanShop}?text=${encodeURIComponent(`Quero cancelar o pedido ${code}`)}`
+    const quickReplies = `Respostas rápidas:\n- Confirmar: ${replyAccept}\n- Tirar dúvida: ${replyQuestion}\n- Cancelar: ${replyCancel}`
+    return [header, itemsLines, totalLine, statusText, `Acompanhe: ${trackUrl}`, payment, quickReplies].filter(Boolean).join("\n")
+  }
+  const openWhatsApp = (phone: string, message: string) => {
+    const clean = phone.replace(/\D+/g, "")
+    const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`
+    window.open(url, "_blank", "noopener")
+  }
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="flex gap-2 w-full">
+          <Input
+            placeholder="Buscar por código"
+            value={query}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="w-full">
+          <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v === "all" ? "all" : (v as OrderStatus))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+              <SelectItem value="accepted">Aceito</SelectItem>
+              <SelectItem value="rejected">Rejeitado</SelectItem>
+              <SelectItem value="processing">Em preparação</SelectItem>
+              <SelectItem value="completed">Concluído</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full">
+          <Select value={paymentFilter} onValueChange={(v: string) => setPaymentFilter(v as "all" | "pix" | "cartao" | "dinheiro")}>
+            <SelectTrigger>
+              <SelectValue placeholder="Forma de pagamento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="pix">Pix</SelectItem>
+              <SelectItem value="cartao">Cartão</SelectItem>
+              <SelectItem value="dinheiro">Dinheiro</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="w-full">
+          <Select value={sortBy} onValueChange={(v: string) => setSortBy(v as "newest" | "oldest" | "value_desc")}>
+            <SelectTrigger>
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Mais recentes</SelectItem>
+              <SelectItem value="oldest">Mais antigos</SelectItem>
+              <SelectItem value="value_desc">Maior valor</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const rows = sorted.map((o) => ({
+                codigo: String(o.codigo ?? o.id ?? ""),
+                criado_em: o.createdAt ?? "",
+                status: o.status ?? "",
+                cliente: o.customerName ?? "",
+                telefone: o.customerPhone ?? "",
+                pagamento: o.paymentMethod ?? "",
+                entrega_retirada: o.fulfillment ?? "",
+                total: typeof o.total === "number" ? o.total.toFixed(2) : "",
+              }))
+              const header = ["codigo","criado_em","status","cliente","telefone","pagamento","entrega_retirada","total"]
+              const csv = [header.join(";")]
+                .concat(
+                  rows.map((r) => header.map((h) => String((r as Record<string,string>)[h] ?? "")).join(";"))
+                )
+                .join("\n")
+              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.href = url
+              a.download = "pedidos.csv"
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            Exportar CSV
+          </Button>
+        </div>
+      </div>
+      <Table data-orders-list="true">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Código</TableHead>
+            <TableHead>Criado em</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Ação</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sorted.map((o) => {
+            const code = String(o.codigo ?? o.id ?? "")
+            return (
+              <TableRow key={code}>
+                <TableCell className="font-mono">{code}</TableCell>
+                <TableCell>{o.createdAt ? new Date(o.createdAt).toLocaleString("pt-BR") : "-"}</TableCell>
+                <TableCell className="max-w-[220px]">
+                  <Select defaultValue={o.status ?? "pending"} onValueChange={(val) => onChangeStatus(code, val as OrderStatus)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="accepted">Aceito</SelectItem>
+                      <SelectItem value="rejected">Rejeitado</SelectItem>
+                      <SelectItem value="processing">Em preparação</SelectItem>
+                      <SelectItem value="completed">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const targetPhone = o.customerPhone ?? prompt("Informe o WhatsApp do cliente (ex.: 5511999999999)") ?? ""
+                        if (!targetPhone.trim()) return
+                        const msg = buildWhatsAppMessage(o)
+                        openWhatsApp(targetPhone, msg)
+                      }}
+                    >
+                      WhatsApp
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedCode(code)
+                        setOpen(true)
+                      }}
+                    >
+                      Detalhes
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+          {filtered.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="text-muted-foreground text-sm py-6 text-center">Nenhum pedido encontrado.</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="w-[540px] sm:w-[640px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Detalhes do pedido</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 mt-4">
+            {!selectedOrder ? (
+              <p className="text-sm text-muted-foreground">Nenhum pedido selecionado.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Código</p>
+                    <p className="font-mono">{selectedOrder.codigo ?? selectedOrder.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Criado em</p>
+                    <p>{selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString("pt-BR") : "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Cliente</p>
+                    <p>{selectedOrder.customerName ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Telefone</p>
+                    <p>{selectedOrder.customerPhone ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Forma de pagamento</p>
+                    <div>
+                      {selectedOrder.paymentMethod ? (
+                        <Badge variant="secondary">{selectedOrder.paymentMethod}</Badge>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Entrega/retirada</p>
+                    <div>
+                      {selectedOrder.fulfillment ? (
+                        <Badge variant="outline">{selectedOrder.fulfillment === "delivery" ? "Entrega" : "Retirada"}</Badge>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Itens</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead className="w-20">Qtde</TableHead>
+                        <TableHead className="w-28 text-right">Subtotal</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(selectedOrder.items ?? []).map((it, idx) => {
+                        const q = it.quantity ?? 1
+                        const price = it.price ?? 0
+                        const subtotal = q * price
+                        return (
+                          <TableRow key={`${it.id ?? idx}`}>
+                            <TableCell>{it.name ?? "Item"}</TableCell>
+                            <TableCell>{q}</TableCell>
+                            <TableCell className="text-right">
+                              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(subtotal)}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <div className="flex items-center justify-between border-t pt-2 text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-medium">
+                      {typeof selectedOrder.total === "number"
+                        ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(selectedOrder.total)
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => selectedOrder && onChangeStatus(String(selectedOrder.codigo ?? selectedOrder.id), "rejected")}
+                  >
+                    Rejeitar
+                  </Button>
+                  <Button
+                    onClick={() => selectedOrder && onChangeStatus(String(selectedOrder.codigo ?? selectedOrder.id), "accepted")}
+                  >
+                    Aprovar
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

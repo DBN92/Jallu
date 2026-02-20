@@ -3,6 +3,10 @@ const WORKOPS_AGENT_URL =
 
 const WORKOPS_INGEST_URL =
   "https://xwcwklsszcekbkpgqfzr.supabase.co/functions/v1/ecommerce-ingest"
+const WORKOPS_ORDERS_STATUS_URL =
+  import.meta.env.VITE_WORKOPS_ORDERS_STATUS_URL as string | undefined
+const WORKOPS_ORDERS_LIST_URL =
+  import.meta.env.VITE_WORKOPS_ORDERS_LIST_URL as string | undefined
 
 type JsonPrimitive = string | number | boolean | null
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
@@ -74,4 +78,79 @@ export async function workopsIngest(
   }
 
   return json.id as string
+}
+
+export async function workopsGetOrderStatus(
+  orderId: string,
+  externalUserId?: string | null
+): Promise<{ status: string; updated_at?: string } | null> {
+  if (!WORKOPS_TOKEN) {
+    throw new Error("Token do WorkOps não configurado (VITE_WORKOPS_AGENT_TOKEN)")
+  }
+  if (!WORKOPS_ORDERS_STATUS_URL) {
+    return null
+  }
+  try {
+    const resp = await fetch(WORKOPS_ORDERS_STATUS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: WORKOPS_TOKEN,
+        orderId,
+        externalUserId: externalUserId ?? null,
+      }),
+    })
+    const json = await resp.json()
+    if (!resp.ok || !json.success) return null
+    return json.data as { status: string; updated_at?: string }
+  } catch {
+    return null
+  }
+}
+
+export async function workopsListOrders(
+  externalUserId?: string | null
+): Promise<
+  Array<{
+    id?: string
+    codigo?: string
+    status?: string
+    total?: number
+    payment_link?: string
+    created_at?: string
+    updated_at?: string
+  }>
+> {
+  if (!WORKOPS_TOKEN) {
+    throw new Error("Token do WorkOps não configurado (VITE_WORKOPS_AGENT_TOKEN)")
+  }
+  if (!WORKOPS_ORDERS_LIST_URL) {
+    return []
+  }
+  try {
+    const resp = await fetch(WORKOPS_ORDERS_LIST_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: WORKOPS_TOKEN,
+        externalUserId: externalUserId ?? null,
+      }),
+    })
+    const json: {
+      success?: boolean
+      data?: Array<{
+        id?: string
+        codigo?: string
+        status?: string
+        total?: number
+        payment_link?: string
+        created_at?: string
+        updated_at?: string
+      }>
+    } = await resp.json()
+    if (!resp.ok || !json.success) return []
+    return json.data ?? []
+  } catch {
+    return []
+  }
 }

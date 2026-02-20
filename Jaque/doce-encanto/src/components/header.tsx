@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CartDrawer } from "@/components/cart-drawer"
@@ -20,6 +20,8 @@ const navigation = [
 export function Header() {
   const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
   const [isScrolled, setIsScrolled] = React.useState(false)
+  const location = useLocation()
+  const resolveHref = (hash: string) => (location.pathname === "/" ? hash : `/${hash}`)
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -52,18 +54,21 @@ export function Header() {
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
           {navigation.map((item) => (
-            <a
+            <Link
               key={item.name}
-              href={item.href}
+              to={resolveHref(item.href)}
               className="relative text-sm font-medium text-foreground/80 hover:text-primary transition-colors after:absolute after:bottom-0 after:left-0 after:h-[1px] after:w-0 after:bg-primary after:transition-all hover:after:w-full"
             >
               {item.name}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="flex items-center gap-4">
           <CartDrawer />
+          <Button variant="ghost" className="hidden md:inline-flex rounded-full px-4 shadow-none hover:shadow-lg" asChild>
+            <Link to="/orders">Meus pedidos</Link>
+          </Button>
           <Button className="hidden md:inline-flex rounded-full px-6 shadow-none hover:shadow-lg transition-all" asChild>
             <a 
               href={`https://wa.me/${whatsappNumber}?text=Olá! Gostaria de fazer uma encomenda.`} 
@@ -81,21 +86,24 @@ export function Header() {
                 <Menu className="h-6 w-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right">
+            <SheetContent side="right" className="bg-rose-900 text-white border-rose-950/60">
               <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
+                <SheetTitle className="text-white">Menu</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-6 mt-8">
                 {navigation.map((item) => (
-                  <a
+                  <Link
                     key={item.name}
-                    href={item.href}
-                    className="text-lg font-medium"
+                    to={resolveHref(item.href)}
+                    className="text-lg font-medium text-white/90 hover:text-white"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 ))}
-                <Button className="w-full" asChild>
+                <Button variant="outline" className="w-full border-white text-white hover:bg-white/10" asChild>
+                  <Link to="/orders">Meus pedidos</Link>
+                </Button>
+                <Button className="w-full bg-white text-rose-900 hover:bg-white/90" asChild>
                   <a 
                     href={`https://wa.me/${whatsappNumber}?text=Olá! Gostaria de fazer uma encomenda.`} 
                     target="_blank" 
