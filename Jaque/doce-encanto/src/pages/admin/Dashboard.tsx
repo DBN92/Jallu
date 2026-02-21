@@ -1116,7 +1116,6 @@ export default function DashboardPage() {
                         },
                       ])
                     }}
-                    disabled={isSubmitting}
                   >
                     Adicionar depoimento
                   </Button>
