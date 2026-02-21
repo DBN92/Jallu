@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
@@ -55,18 +55,32 @@ function Layout() {
   )
 }
 
-function App() {
+function AppShell() {
   const fetchProducts = useProductStore((state) => state.fetchProducts)
   const fetchConfig = useConfigStore((state) => state.fetchConfig)
   const [isLoading, setIsLoading] = useState(() => !window.location.pathname.startsWith('/admin'))
+  const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchProducts()
     fetchConfig()
   }, [fetchProducts, fetchConfig])
 
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+
+    if (!isStandalone) return
+
+    if (location.pathname === '/' || location.pathname === '/index.html') {
+      navigate('/admin/mobile', { replace: true })
+    }
+  }, [location.pathname, navigate])
+
   return (
-    <Router>
+    <>
       <AnimatePresence mode="wait">
         {isLoading && <SplashScreen finishLoading={() => setIsLoading(false)} />}
       </AnimatePresence>
@@ -76,7 +90,7 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="orders" element={<OrdersPage />} />
         </Route>
-        
+
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="login" element={<LoginPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -84,6 +98,14 @@ function App() {
         </Route>
       </Routes>
       <Toaster position="bottom-right" richColors />
+    </>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <AppShell />
     </Router>
   )
 }
