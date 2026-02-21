@@ -123,7 +123,7 @@ Endereço: ${addressText || "-"}
         items: orderItems,
         total: totalValue,
         customerName: customerName.trim() || null,
-        customerPhone: customerPhone.replace(/\D+/g) || null,
+        customerPhone: customerPhone.replace(/\D+/g, "") || null,
         fulfillment,
         shippingFee: fulfillment === "delivery" ? shippingFee : 0,
         zipCode: zipCode || null,
