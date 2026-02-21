@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Star, Quote } from "lucide-react"
 import { useConfigStore } from "@/store/config-store"
 
+const MAX_TESTIMONIALS = 6
+
 export function Testimonials() {
   const testimonialsTitle = useConfigStore((state) => state.testimonialsTitle)
   const testimonialsSubtitle = useConfigStore((state) => state.testimonialsSubtitle)
-  const testimonials = useConfigStore((state) => state.testimonials)
+  const testimonials = useConfigStore((state) => state.testimonials).slice(0, MAX_TESTIMONIALS)
 
   return (
     <section id="testimonials" className="py-24 bg-white relative">

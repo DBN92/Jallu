@@ -51,6 +51,9 @@ const productSchema = z.object({
 
 type ProductForm = z.infer<typeof productSchema>
 
+const MAX_HERO_SLIDES = 6
+const MAX_TESTIMONIALS = 6
+
 const sectionLabels: Record<string, string> = {
   hero: "Banner principal",
   categories: "Categorias",
@@ -921,11 +924,62 @@ export default function DashboardPage() {
                         />
                       </div>
                     </div>
+                    {localHeroSlides.length > 1 && (
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const updated = localHeroSlides.filter((_, i) => i !== index)
+                            setLocalHeroSlides(updated)
+                          }}
+                        >
+                          Remover slide
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
-                <Button type="button" onClick={saveHeroSlides} disabled={isSubmitting}>
-                  {isSubmitting ? "Salvando..." : "Salvar banner"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting || localHeroSlides.length >= MAX_HERO_SLIDES}
+                    onClick={() => {
+                      if (localHeroSlides.length >= MAX_HERO_SLIDES) {
+                        toast.error(`Você pode cadastrar no máximo ${MAX_HERO_SLIDES} slides.`)
+                        return
+                      }
+                      const fallback = heroSlides[heroSlides.length - 1] ?? heroSlides[0] ?? {
+                        title: "",
+                        highlight: "",
+                        titleEnd: "",
+                        description: "",
+                        image: "",
+                        cta: "",
+                        link: "#menu",
+                      }
+                      setLocalHeroSlides([
+                        ...localHeroSlides,
+                        {
+                          title: fallback.title,
+                          highlight: fallback.highlight,
+                          titleEnd: fallback.titleEnd,
+                          description: fallback.description,
+                          image: fallback.image,
+                          cta: fallback.cta,
+                          link: fallback.link,
+                        },
+                      ])
+                    }}
+                  >
+                    Adicionar slide
+                  </Button>
+                  <Button type="button" onClick={saveHeroSlides} disabled={isSubmitting}>
+                    {isSubmitting ? "Salvando..." : "Salvar banner"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -1026,11 +1080,50 @@ export default function DashboardPage() {
                         }}
                       />
                     </div>
+                    {localTestimonials.length > 1 && (
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const updated = localTestimonials.filter((_, i) => i !== index)
+                            setLocalTestimonials(updated)
+                          }}
+                        >
+                          Remover depoimento
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
-                <Button type="button" onClick={saveTestimonials} disabled={isSubmitting}>
-                  {isSubmitting ? "Salvando..." : "Salvar depoimentos"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting || localTestimonials.length >= MAX_TESTIMONIALS}
+                    onClick={() => {
+                      if (localTestimonials.length >= MAX_TESTIMONIALS) {
+                        toast.error(`Você pode cadastrar no máximo ${MAX_TESTIMONIALS} depoimentos.`)
+                        return
+                      }
+                      setLocalTestimonials([
+                        ...localTestimonials,
+                        {
+                          name: "",
+                          comment: "",
+                          stars: 5,
+                        },
+                      ])
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Adicionar depoimento
+                  </Button>
+                  <Button type="button" onClick={saveTestimonials} disabled={isSubmitting}>
+                    {isSubmitting ? "Salvando..." : "Salvar depoimentos"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

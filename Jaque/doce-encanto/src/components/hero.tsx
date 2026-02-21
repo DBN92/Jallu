@@ -6,6 +6,8 @@ import { ArrowRight, ChevronLeft, ChevronRight, Star, Clock, Heart } from "lucid
 import { useConfigStore } from "@/store/config-store"
 import { cn } from "@/lib/utils"
 
+const MAX_HERO_SLIDES = 6
+
 const baseSlides = [
   {
     id: 1,
@@ -48,22 +50,26 @@ const baseSlides = [
 export function Hero() {
   const [current, setCurrent] = useState(0)
   const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
-  const heroSlides = useConfigStore((state) => state.heroSlides)
+  const heroSlides = useConfigStore((state) => state.heroSlides).slice(0, MAX_HERO_SLIDES)
 
-  const slides = baseSlides.map((slide, index) => {
-    const config = heroSlides[index]
-    if (!config) return slide
-    return {
-      ...slide,
-      title: config.title,
-      highlight: config.highlight,
-      titleEnd: config.titleEnd,
-      description: config.description,
-      image: config.image,
-      cta: config.cta,
-      link: config.link,
-    }
-  })
+  const slides =
+    heroSlides && heroSlides.length > 0
+      ? heroSlides.map((config, index) => {
+          const base = baseSlides[index % baseSlides.length]
+          return {
+            id: index + 1,
+            title: config.title,
+            highlight: config.highlight,
+            titleEnd: config.titleEnd,
+            description: config.description,
+            image: config.image,
+            cta: config.cta,
+            link: config.link,
+            badge: base.badge,
+            badge2: base.badge2,
+          }
+        })
+      : baseSlides
 
   useEffect(() => {
     const timer = setInterval(() => {
