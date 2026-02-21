@@ -1,38 +1,44 @@
 
-import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useProductStore } from "@/store/product-store"
-import { useCartStore } from "@/store/cart-store"
 import { ShoppingBag } from "lucide-react"
 import { workopsIngest } from "@/lib/workops-agent"
 
 export function ProductGrid() {
-  const [selectedCategory, setSelectedCategory] = useState("Todos")
-  const { addItem } = useCartStore()
-  const { products, categories } = useProductStore()
+  const { products, categories, activeCategory, setActiveCategory } = useProductStore()
+
+  const selectedCategory = activeCategory || "Todos"
 
   const filteredProducts =
     selectedCategory === "Todos"
       ? products
       : products.filter((p) => p.category === selectedCategory)
 
-  const handleAddToCart = (product: (typeof products)[number]) => {
-    addItem(product)
-    workopsIngest(
-      "add_to_cart",
-      {
-        productId: product.id,
+  const handleSelectProduct = (product: (typeof products)[number]) => {
+    if (window.openAgentWithProduct) {
+      window.openAgentWithProduct({
+        id: product.id,
         name: product.name,
         price: product.price,
         category: product.category,
-      },
-      undefined,
-      String(product.id)
-    ).catch(() => {
-    })
+      })
+      workopsIngest(
+        "add_to_cart",
+        {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          category: product.category,
+          source: "site_grid",
+        },
+        undefined,
+        String(product.id)
+      ).catch(() => {
+      })
+    }
   }
 
   return (
@@ -50,9 +56,9 @@ export function ProductGrid() {
         </div>
 
         <Tabs
-          defaultValue="Todos"
+          defaultValue={selectedCategory}
           className="mb-16 flex flex-col items-center"
-          onValueChange={setSelectedCategory}
+          onValueChange={setActiveCategory}
         >
           <TabsList className="h-auto flex-wrap gap-2 bg-transparent p-0">
             <TabsTrigger
@@ -90,7 +96,7 @@ export function ProductGrid() {
                 <Card className="group h-full overflow-hidden border-none bg-white shadow-sm hover:shadow-xl transition-all duration-300 rounded-3xl">
                   <div className="relative aspect-square overflow-hidden bg-secondary/10">
                     <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                    {product.image && (product.image.startsWith("http") || product.image.startsWith("/")) ? (
+                    {product.image ? (
                       <img
                         src={product.image}
                         alt={product.name}
@@ -105,9 +111,9 @@ export function ProductGrid() {
                       <Button
                         size="icon"
                         className="h-12 w-12 rounded-full bg-white text-primary hover:bg-white/90 shadow-lg"
-                        onClick={() => handleAddToCart(product)}
+                        onClick={() => handleSelectProduct(product)}
                       >
-                         <ShoppingBag className="h-5 w-5" />
+                        <ShoppingBag className="h-5 w-5" />
                       </Button>
                     </div>
                   </div>

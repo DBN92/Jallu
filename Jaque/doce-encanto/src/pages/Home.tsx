@@ -19,9 +19,14 @@ const sectionComponents: Record<string, () => JSX.Element> = {
 export default function Home() {
   const homeSectionsOrder = useConfigStore((state) => state.homeSectionsOrder)
 
+  const sections =
+    homeSectionsOrder && homeSectionsOrder.length > 0
+      ? homeSectionsOrder
+      : ['hero', 'categories', 'benefits', 'products', 'testimonials', 'newsletter']
+
   return (
     <div className="relative">
-      {homeSectionsOrder.map((section) => {
+      {sections.map((section) => {
         const Component = sectionComponents[section]
         if (!Component) return null
         return <Component key={section} />

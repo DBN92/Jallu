@@ -61,6 +61,7 @@ export default function OrdersPage() {
   const orders = useOrdersStore((state) => state.orders)
   const updateOrderStatus = useOrdersStore((state) => state.updateOrderStatus)
   const upsertOrders = useOrdersStore((state) => state.upsertOrders)
+  const fetchOrders = useOrdersStore((state) => state.fetchOrders)
   const [codeInput, setCodeInput] = useState('')
   const [lookupMsg, setLookupMsg] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -78,6 +79,10 @@ export default function OrdersPage() {
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)

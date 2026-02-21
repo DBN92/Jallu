@@ -8,6 +8,9 @@ import { SplashScreen } from '@/components/splash-screen'
 import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 
+import { useProductStore } from '@/store/product-store'
+import { useConfigStore } from '@/store/config-store'
+
 // Pages
 import HomePage from '@/pages/Home'
 import LoginPage from '@/pages/admin/Login'
@@ -52,7 +55,14 @@ function Layout() {
 }
 
 function App() {
+  const fetchProducts = useProductStore((state) => state.fetchProducts)
+  const fetchConfig = useConfigStore((state) => state.fetchConfig)
   const [isLoading, setIsLoading] = useState(() => !window.location.pathname.startsWith('/admin'))
+
+  useEffect(() => {
+    fetchProducts()
+    fetchConfig()
+  }, [fetchProducts, fetchConfig])
 
   return (
     <Router>

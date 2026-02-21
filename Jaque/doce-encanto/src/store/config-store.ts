@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { supabase } from '@/lib/supabase'
 
 type HomeSectionId =
   | 'hero'
@@ -75,11 +76,16 @@ interface ConfigState {
   setAgentSource: (value: string) => void
   shippingFee: number
   setShippingFee: (value: number) => void
+  
+  // Integração Supabase
+  isLoading: boolean
+  fetchConfig: () => Promise<void>
+  saveConfig: () => Promise<void>
 }
 
 export const useConfigStore = create<ConfigState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       whatsappNumber: '5511999999999',
       setWhatsappNumber: (number) => set({ whatsappNumber: number }),
       homeSectionsOrder: [
@@ -205,9 +211,106 @@ export const useConfigStore = create<ConfigState>()(
       setAgentWelcomeMessage: (value) => set({ agentWelcomeMessage: value }),
       setAgentInputPlaceholder: (value) => set({ agentInputPlaceholder: value }),
       setAgentSource: (value) => set({ agentSource: value }),
+
+      isLoading: false,
+      
+      fetchConfig: async () => {
+        set({ isLoading: true })
+        try {
+          const { data, error } = await supabase
+            .from('site_config')
+            .select('*')
+            .eq('id', 1)
+            .single()
+
+          if (error) throw error
+
+          if (data) {
+            const current = get()
+
+            const heroSlides =
+              Array.isArray(data.hero_slides) && data.hero_slides.length > 0
+                ? data.hero_slides
+                : current.heroSlides
+
+            const homeSectionsOrder =
+              Array.isArray(data.home_sections) && data.home_sections.length > 0
+                ? data.home_sections
+                : current.homeSectionsOrder
+
+            const benefits =
+              Array.isArray(data.benefits) && data.benefits.length > 0
+                ? data.benefits
+                : current.benefits
+
+            const testimonials =
+              Array.isArray(data.testimonials) && data.testimonials.length > 0
+                ? data.testimonials
+                : current.testimonials
+
+            set({
+              whatsappNumber: data.whatsapp_number ?? current.whatsappNumber,
+              shippingFee:
+                data.shipping_fee !== null && data.shipping_fee !== undefined
+                  ? Number(data.shipping_fee)
+                  : current.shippingFee,
+              heroSlides,
+              homeSectionsOrder,
+              benefits,
+              testimonials,
+              agentName: data.agent_name ?? current.agentName,
+              agentSubtitle: data.agent_subtitle ?? current.agentSubtitle,
+              agentAvatarUrl: data.agent_avatar_url ?? current.agentAvatarUrl,
+              agentWelcomeMessage:
+                data.agent_welcome_message ?? current.agentWelcomeMessage,
+            })
+          }
+        } catch (err) {
+          console.error('Erro ao buscar configurações:', err)
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      
+      saveConfig: async () => {
+         set({ isLoading: true })
+         const state = get()
+         try {
+            const payload = {
+               whatsapp_number: state.whatsappNumber,
+               shipping_fee: state.shippingFee,
+               hero_slides: state.heroSlides,
+               home_sections: state.homeSectionsOrder,
+               benefits: state.benefits,
+               testimonials: state.testimonials,
+               agent_name: state.agentName,
+               agent_subtitle: state.agentSubtitle,
+               agent_avatar_url: state.agentAvatarUrl,
+               agent_welcome_message: state.agentWelcomeMessage,
+               updated_at: new Date().toISOString()
+            }
+            
+            const { error } = await supabase
+               .from('site_config')
+               .upsert({ id: 1, ...payload })
+            
+            if (error) throw error
+         } catch (err) {
+            console.error('Erro ao salvar configurações:', err)
+         } finally {
+            set({ isLoading: false })
+         }
+      }
     }),
     {
-      name: 'config-storage',
+      name: 'config-storage-v2',
+      partialize: (state) => {
+         const rest: Partial<ConfigState> = { ...state }
+         delete rest.isLoading
+         delete rest.fetchConfig
+         delete rest.saveConfig
+         return rest
+      }
     }
   )
 )

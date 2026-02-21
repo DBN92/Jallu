@@ -16,7 +16,6 @@ import { useOrdersStore } from "@/store/orders-store"
 
 export function CartDrawer() {
   const { items, removeItem, updateQuantity, total } = useCartStore()
-  const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
   const shippingFee = useConfigStore((state) => state.shippingFee)
   const addOrderFromAgent = useOrdersStore((state) => state.addOrderFromAgent)
   const [customerName, setCustomerName] = useState("")
@@ -46,66 +45,6 @@ export function CartDrawer() {
       .catch(() => {
         setAddressText("")
       })
-  }
-
-  const handleCheckout = () => {
-    const name = customerName.trim()
-    const phoneDigits = customerPhone.replace(/\D+/g, "")
-    if (!name || phoneDigits.length < 10) {
-      alert("Informe nome completo e WhatsApp válido.")
-      return
-    }
-    if (fulfillment === "delivery") {
-      const zipDigits = zipCode.replace(/\D+/g, "")
-      if (zipDigits.length < 8 || !addressNumber.trim()) {
-        alert("Informe CEP e número para entrega.")
-        return
-      }
-    }
-    const phoneNumber = whatsappNumber || "5511999999999"
-    
-    const itemsList = items
-      .map(
-        (item) =>
-          `▪️ *${item.quantity}x* ${item.name}\n   _Subtotal: R$ ${(item.price * item.quantity).toFixed(2)}_`
-      )
-      .join("\n\n")
-
-    const itemsTotal = total()
-    const totalWithShipping = itemsTotal + (fulfillment === "delivery" ? shippingFee : 0)
-    const itemsTotalText = itemsTotal.toFixed(2)
-    const shippingText = (fulfillment === "delivery" ? shippingFee : 0).toFixed(2)
-    const totalValue = totalWithShipping.toFixed(2)
-
-    const finalMessage = `*🍰 NOVO PEDIDO - JALLU CONFEITARIA 🍰*
-
-*🛒 Resumo do Pedido:*
-_____________________________
-
-${itemsList}
-_____________________________
-
-*💰 ITENS: R$ ${itemsTotalText}*
-*🚚 FRETE: R$ ${shippingText}*
-*💰 TOTAL COM FRETE: R$ ${totalValue}*
-
-*📍 Dados do Cliente:*
-Nome: ${name}
-WhatsApp: ${phoneDigits}
-Tipo: ${fulfillment === "delivery" ? "Entrega" : "Retirada"}
-CEP: ${zipCode || "-"}
-Número: ${addressNumber || "-"}
-Endereço: ${addressText || "-"}
-
-*💳 Forma de Pagamento:*
-( ) Pix
-( ) Cartão
-( ) Dinheiro`
-
-    window.open(
-      `https://wa.me/${phoneNumber}?text=${encodeURIComponent(finalMessage)}`,
-      "_blank"
-    )
   }
 
   const handleCheckoutSite = () => {
@@ -288,18 +227,13 @@ Endereço: ${addressText || "-"}
                   }).format(total() + (fulfillment === "delivery" ? shippingFee : 0))}
                 </span>
               </div>
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full h-11 text-sm border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
-                  onClick={handleCheckoutSite}
-                >
-                  Finalizar pelo site
-                </Button>
-                <Button className="w-full h-12 text-lg bg-white text-primary hover:bg-white/90" onClick={handleCheckout}>
-                  Finalizar no WhatsApp
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="w-full h-11 text-sm border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
+                onClick={handleCheckoutSite}
+              >
+                Finalizar pelo site
+              </Button>
             </div>
           </SheetFooter>
         )}

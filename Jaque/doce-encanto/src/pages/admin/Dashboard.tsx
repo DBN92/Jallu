@@ -62,10 +62,11 @@ const sectionLabels: Record<string, string> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { products, categories, deleteProduct, addProduct, updateProduct } =
+  const { products, categories, deleteProduct, addProduct, updateProduct, fetchProducts } =
     useProductStore()
   const logout = useAuthStore((state) => state.logout)
   const {
+    fetchConfig,
     whatsappNumber,
     setWhatsappNumber,
     homeSectionsOrder,
@@ -110,14 +111,24 @@ export default function DashboardPage() {
     setAgentInputPlaceholder,
     setAgentSource,
     setShippingFee,
+    saveConfig,
   } = useConfigStore()
+  const fetchOrders = useOrdersStore((state) => state.fetchOrders)
   const [isOpen, setIsOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [phoneInput, setPhoneInput] = useState(whatsappNumber)
   const [localSectionsOrder, setLocalSectionsOrder] = useState(homeSectionsOrder)
   const [localHeroSlides, setLocalHeroSlides] = useState(heroSlides)
   const [localBenefits, setLocalBenefits] = useState(benefits)
   const [localTestimonials, setLocalTestimonials] = useState(testimonials)
+
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([fetchProducts(), fetchConfig(), fetchOrders()])
+    }
+    loadData()
+  }, [fetchProducts, fetchConfig, fetchOrders])
 
   useEffect(() => {
     setPhoneInput(whatsappNumber)
@@ -149,23 +160,32 @@ export default function DashboardPage() {
     resolver: zodResolver(productSchema),
   })
 
-  const onSubmit = (data: ProductForm) => {
-    // Manually convert price to number for the store
-    const payload = {
-      ...data,
-      price: parseFloat(data.price)
-    } as unknown as Omit<Product, 'id'>
+  const onSubmit = async (data: ProductForm) => {
+    setIsSubmitting(true)
+    try {
+      // Manually convert price to number for the store
+      const payload = {
+        ...data,
+        category: data.category.trim(),
+        price: parseFloat(data.price)
+      } as unknown as Omit<Product, 'id'>
 
-    if (editingId) {
-      updateProduct(editingId, payload)
-      toast.success("Produto atualizado com sucesso!")
-    } else {
-      addProduct(payload)
-      toast.success("Produto criado com sucesso!")
+      if (editingId) {
+        await updateProduct(editingId, payload)
+        toast.success("Produto atualizado com sucesso!")
+      } else {
+        await addProduct(payload)
+        toast.success("Produto criado com sucesso!")
+      }
+      setIsOpen(false)
+      reset()
+      setEditingId(null)
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar produto. Tente novamente.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsOpen(false)
-    reset()
-    setEditingId(null)
   }
 
   const handleEdit = (product: Product) => {
@@ -178,10 +198,15 @@ export default function DashboardPage() {
     setIsOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este produto?")) {
-      deleteProduct(id)
-      toast.success("Produto excluído com sucesso!")
+      try {
+        await deleteProduct(id)
+        toast.success("Produto excluído com sucesso!")
+      } catch (error) {
+        console.error(error)
+        toast.error("Erro ao excluir produto")
+      }
     }
   }
 
@@ -190,13 +215,35 @@ export default function DashboardPage() {
     navigate("/admin/login")
   }
 
-  const handleSavePhone = () => {
+  const handleSavePhone = async () => {
     if (phoneInput.trim().length < 10) {
       toast.error("Número de telefone inválido")
       return
     }
-    setWhatsappNumber(phoneInput)
-    toast.success("Número do WhatsApp atualizado!")
+    setIsSubmitting(true)
+    try {
+      setWhatsappNumber(phoneInput)
+      await saveConfig()
+      toast.success("Número do WhatsApp atualizado!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar WhatsApp")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    setIsSubmitting(true)
+    try {
+      await saveConfig()
+      toast.success("Configurações salvas!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar configurações")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const moveSection = (index: number, direction: "up" | "down") => {
@@ -209,24 +256,60 @@ export default function DashboardPage() {
     setLocalSectionsOrder(newOrder)
   }
 
-  const saveSectionsOrder = () => {
-    setHomeSectionsOrder(localSectionsOrder)
-    toast.success("Ordem das seções atualizada!")
+  const saveSectionsOrder = async () => {
+    setIsSubmitting(true)
+    try {
+      setHomeSectionsOrder(localSectionsOrder)
+      await saveConfig()
+      toast.success("Ordem das seções atualizada!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar ordem")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const saveHeroSlides = () => {
-    setHeroSlides(localHeroSlides)
-    toast.success("Banner atualizado!")
+  const saveHeroSlides = async () => {
+    setIsSubmitting(true)
+    try {
+      setHeroSlides(localHeroSlides)
+      await saveConfig()
+      toast.success("Banner atualizado!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar banner")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const saveBenefits = () => {
-    setBenefits(localBenefits)
-    toast.success("Benefícios atualizados!")
+  const saveBenefits = async () => {
+    setIsSubmitting(true)
+    try {
+      setBenefits(localBenefits)
+      await saveConfig()
+      toast.success("Benefícios atualizados!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar benefícios")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const saveTestimonials = () => {
-    setTestimonials(localTestimonials)
-    toast.success("Depoimentos atualizados!")
+  const saveTestimonials = async () => {
+    setIsSubmitting(true)
+    try {
+      setTestimonials(localTestimonials)
+      await saveConfig()
+      toast.success("Depoimentos atualizados!")
+    } catch (error) {
+      console.error(error)
+      toast.error("Erro ao salvar depoimentos")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -342,8 +425,8 @@ export default function DashboardPage() {
                       {errors.image && <p className="text-sm text-destructive">{errors.image.message}</p>}
                     </div>
 
-                    <Button type="submit" className="w-full">
-                      {editingId ? "Salvar Alterações" : "Adicionar Produto"}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? "Salvando..." : editingId ? "Salvar Alterações" : "Adicionar Produto"}
                     </Button>
                   </form>
                 </SheetContent>
@@ -484,7 +567,9 @@ export default function DashboardPage() {
                       value={phoneInput}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhoneInput(e.target.value)}
                     />
-                    <Button onClick={handleSavePhone}>Salvar</Button>
+                    <Button onClick={handleSavePhone} disabled={isSubmitting}>
+                      {isSubmitting ? "Salvando..." : "Salvar"}
+                    </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Este número será usado em todos os botões de &quot;Encomendar&quot; do site.
@@ -512,6 +597,11 @@ export default function DashboardPage() {
                     setShippingFee(Number(event.target.value) || 0)
                   }
                 />
+                <div className="pt-2">
+                  <Button type="button" onClick={handleSaveSettings} disabled={isSubmitting}>
+                    {isSubmitting ? "Salvando..." : "Salvar configurações"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -833,8 +923,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={saveHeroSlides}>
-                  Salvar banner
+                <Button type="button" onClick={saveHeroSlides} disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar banner"}
                 </Button>
               </CardContent>
             </Card>
@@ -876,8 +966,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={saveBenefits}>
-                  Salvar benefícios
+                <Button type="button" onClick={saveBenefits} disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar benefícios"}
                 </Button>
               </CardContent>
             </Card>
@@ -938,8 +1028,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
-                <Button type="button" onClick={saveTestimonials}>
-                  Salvar depoimentos
+                <Button type="button" onClick={saveTestimonials} disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar depoimentos"}
                 </Button>
               </CardContent>
             </Card>
@@ -984,8 +1074,8 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <Button type="button" onClick={saveSectionsOrder}>
-                  Salvar ordem
+                <Button type="button" onClick={saveSectionsOrder} disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar ordem"}
                 </Button>
               </CardContent>
             </Card>

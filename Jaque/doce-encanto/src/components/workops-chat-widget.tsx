@@ -66,6 +66,12 @@ function extractJson(text: string) {
 
  
 
+declare global {
+  interface Window {
+    openAgentWithProduct?: (product: { id: string; name: string; price: number; category?: string | null }) => void
+  }
+}
+
 export function WorkopsChatWidget() {
   const cartItems = useCartStore((state) => state.items)
   const cartTotal = useCartStore((state) => state.total)
@@ -78,7 +84,6 @@ export function WorkopsChatWidget() {
   const agentWelcomeMessage = useConfigStore((state) => state.agentWelcomeMessage)
   const agentInputPlaceholder = useConfigStore((state) => state.agentInputPlaceholder)
   const agentSource = useConfigStore((state) => state.agentSource)
-  const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
   const shippingFee = useConfigStore((state) => state.shippingFee)
   const addOrderFromAgent = useOrdersStore((state) => state.addOrderFromAgent)
   const siteProducts = useProductStore((state) => state.products)
@@ -93,6 +98,7 @@ export function WorkopsChatWidget() {
   const [input, setInput] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [highlightAgent, setHighlightAgent] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
@@ -180,99 +186,12 @@ export function WorkopsChatWidget() {
     ).catch(() => {})
   }
 
-  const handleCheckoutWhatsApp = () => {
-    const name = customerName.trim()
-    const phoneDigits = customerPhone.replace(/\D+/g, "")
-    if (!name || phoneDigits.length < 10) {
-      alert("Informe nome completo e WhatsApp válido.")
-      setCheckoutOpen(true)
-      return
-    }
-    if (fulfillment === "delivery") {
-      const zipDigits = zipCode.replace(/\D+/g, "")
-      if (zipDigits.length < 8 || !addressNumber.trim()) {
-        alert("Informe CEP e número para entrega.")
-        setCheckoutOpen(true)
-        return
-      }
-    }
-    const phoneNumber = whatsappNumber || "5511999999999"
-    const itemsList = cartItems
-      .map(
-        (item) =>
-          `▪️ *${item.quantity}x* ${item.name}\n   _Subtotal: R$ ${(item.price * item.quantity).toFixed(2)}_`
-      )
-      .join("\n\n")
-    const itemsTotal = cartTotal()
-    const totalWithShipping = itemsTotal + (fulfillment === "delivery" ? shippingFee : 0)
-    const itemsTotalText = itemsTotal.toFixed(2)
-    const shippingText = (fulfillment === "delivery" ? shippingFee : 0).toFixed(2)
-    const totalValue = totalWithShipping.toFixed(2)
-    const finalMessage = `*🍰 PEDIDO - JALLU CONFEITARIA 🍰*
-
-*🛒 Resumo do Pedido:*
-_____________________________
-
-${itemsList}
-_____________________________
-
-*💰 ITENS: R$ ${itemsTotalText}*
-*🚚 FRETE: R$ ${shippingText}*
-*💰 TOTAL COM FRETE: R$ ${totalValue}*
-
-*📍 Dados do Cliente:*
-Nome: ${name}
-WhatsApp: ${phoneDigits}
-Tipo: ${fulfillment === "delivery" ? "Entrega" : "Retirada"}
-CEP: ${zipCode || "-"}
-Número: ${addressNumber || "-"}
-Endereço: ${addressText || "-"}
-
-*💳 Pagamento:*
-( ) Pix
-( ) Cartão
-( ) Dinheiro`
-
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase()
-    const orderPayload = {
-      id: code,
-      codigo: code,
-      items: cartItems.map((it) => ({
-        id: it.id,
-        name: it.name,
-        quantity: it.quantity,
-        price: it.price,
-        category: it.category,
-      })),
-      total: totalWithShipping,
-      customerPhone: phoneDigits,
-      customerName: name,
-      fulfillment,
-      shippingFee,
-      zipCode,
-      addressNumber,
-      addressLine: addressText || null,
-    }
-    try {
-      addOrderFromAgent(orderPayload, { externalUserId, source: agentSource })
-    } catch {}
-    const receiptBlock = `\`\`\`json
-${JSON.stringify({ order: orderPayload }, null, 2)}
-\`\`\``
-    const receiptMsg: ChatMessage = {
-      id: `${Date.now()}-receipt-wa`,
-      from: "agent",
-      text: receiptBlock,
-    }
-    setMessages((prev) => [...prev, receiptMsg])
-    clearCart()
-    setCartOpen(false)
-
-    window.open(
-      `https://wa.me/${phoneNumber}?text=${encodeURIComponent(finalMessage)}`,
-      "_blank",
-      "noopener"
-    )
+  window.openAgentWithProduct = (product) => {
+    addToCartWithQuantity({ id: product.id, name: product.name }, 1)
+    setIsOpen(true)
+    setCartOpen(true)
+    setHighlightAgent(true)
+    setTimeout(() => setHighlightAgent(false), 600)
   }
 
   function ChatProductList({ products }: { products: { id?: string; nome?: string; descricao?: string; preco_por_kg?: number }[] }) {
@@ -647,16 +566,13 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                       </div>
                     </div>
                   ))}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <Button
                       variant={checkoutOpen ? "default" : "outline"}
                       className="h-8 text-xs"
                       onClick={() => setCheckoutOpen((v) => !v)}
                     >
                       Finalizar pelo site
-                    </Button>
-                    <Button className="h-8 text-xs" onClick={handleCheckoutWhatsApp}>
-                      WhatsApp
                     </Button>
                   </div>
                   {checkoutOpen && (
@@ -748,6 +664,9 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                             customerName: customerName.trim() || null,
                             fulfillment,
                             shippingFee,
+                            zipCode: zipCode || null,
+                            addressNumber: addressNumber || null,
+                            addressLine: addressText || null,
                           }
                           try {
                             addOrderFromAgent(orderPayload, { externalUserId, source: agentSource })
@@ -785,15 +704,20 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
               placeholder={agentInputPlaceholder}
               className="h-10 rounded-full bg-background text-xs"
             />
-            <Button
-              variant={cartOpen ? "default" : "outline"}
-              size="icon"
-              className="h-10 w-10 rounded-full p-0"
-              onClick={() => setCartOpen((v) => !v)}
-              title="Ver carrinho"
-            >
-              <ShoppingBag className="h-4 w-4" />
-            </Button>
+      <Button
+        variant={cartOpen ? "default" : "outline"}
+        size="icon"
+        className="h-10 w-10 rounded-full p-0 relative"
+        onClick={() => setCartOpen((v) => !v)}
+        title="Ver carrinho"
+      >
+        <ShoppingBag className="h-4 w-4" />
+        {cartItems.length > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+            {cartItems.length}
+          </span>
+        )}
+      </Button>
             <Button
               size="icon"
               className="h-10 w-10 rounded-full p-0"
@@ -808,7 +732,7 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
 
       <Button
         size="icon"
-        className="h-14 w-14 rounded-full shadow-xl border border-primary/20 bg-white overflow-hidden p-0"
+        className={`h-14 w-14 rounded-full shadow-xl border border-primary/20 bg-white overflow-hidden p-0 ${highlightAgent ? "animate-bounce" : ""}`}
         onClick={handleToggle}
         aria-label={isOpen ? `Fechar chat ${agentName}` : `Abrir chat ${agentName}`}
       >

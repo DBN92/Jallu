@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react"
 
 export function CategoryCards() {
   const categories = useProductStore((state) => state.categories)
+  const setActiveCategory = useProductStore((state) => state.setActiveCategory)
   const categoryTitle = useConfigStore((state) => state.categoryTitle)
   const categorySubtitle = useConfigStore((state) => state.categorySubtitle)
 
@@ -37,18 +38,22 @@ export function CategoryCards() {
               <a href="#menu" className="block h-full">
                 <div className="group relative h-full flex flex-col items-center justify-center rounded-3xl bg-muted/30 p-8 text-center transition-all duration-300 hover:bg-white hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-2 border border-transparent hover:border-primary/5">
                   <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
-                    {category === "Bolos" && "🎂"}
-                    {category === "Brigadeiros" && "🍫"}
-                    {category === "Tortas" && "🥧"}
-                    {category === "Doces Finos" && "🍬"}
-                    {category === "Kits Festa" && "🎁"}
+                    {(category === "Bolos" || category === "Bolos especiais") && "🎂"}
+                    {(category === "Brigadeiros" || category === "Doces finos") && "🍫"}
+                    {(category === "Tortas" || category === "Tortas & cheesecakes") && "🥧"}
+                    {(category === "Doces Finos" || category === "Doces finos") && "🍬"}
+                    {(category === "Kits Festa" || category === "Kits & presentes") && "🎁"}
                   </div>
                   <h3 className="font-serif text-lg font-bold text-primary mb-2">
                     {category}
                   </h3>
-                  <div className="mt-auto flex items-center justify-center text-sm font-medium text-accent opacity-0 transition-all duration-300 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategory(category)}
+                    className="mt-auto flex items-center justify-center text-sm font-medium text-accent opacity-0 transition-all duration-300 transform translate-y-2 group-hover:opacity-100 group-hover:translate-y-0"
+                  >
                     Ver opções <ArrowRight className="ml-1 h-3 w-3" />
-                  </div>
+                  </button>
                 </div>
               </a>
             </motion.div>

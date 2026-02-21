@@ -3,7 +3,6 @@ import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CartDrawer } from "@/components/cart-drawer"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
@@ -70,7 +69,6 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <CartDrawer />
           <Button variant="ghost" className="hidden md:inline-flex rounded-full px-4 shadow-none hover:shadow-lg" asChild>
             <Link to="/orders">Meus pedidos</Link>
           </Button>
