@@ -38,7 +38,6 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "jimp": "^0.22.12",
     "@cloudflare/workers-types": "^4.20260210.0",
     "@eslint/js": "^9.9.0",
     "@types/node": "^22.5.4",
