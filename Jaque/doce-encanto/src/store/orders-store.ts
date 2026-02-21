@@ -22,6 +22,10 @@ export type Order = {
   customerName?: string | null
   paymentMethod?: string | null
   fulfillment?: 'delivery' | 'pickup' | null
+  shippingFee?: number | null
+  zipCode?: string | null
+  addressNumber?: string | null
+  addressLine?: string | null
   externalUserId?: string | null
   source?: string | null
   createdAt?: string
@@ -41,7 +45,7 @@ function generateCode6() {
 
 export const useOrdersStore = create<OrdersState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       orders: [],
       addOrderFromAgent: (order, extra) =>
         set((state) => {
@@ -64,6 +68,10 @@ export const useOrdersStore = create<OrdersState>()(
             customerName: (order as { customerName?: string | null }).customerName ?? null,
             paymentMethod: (order as { paymentMethod?: string | null }).paymentMethod ?? null,
             fulfillment: (order as { fulfillment?: 'delivery' | 'pickup' | null }).fulfillment ?? null,
+            shippingFee: (order as { shippingFee?: number | null }).shippingFee ?? null,
+            zipCode: (order as { zipCode?: string | null }).zipCode ?? null,
+            addressNumber: (order as { addressNumber?: string | null }).addressNumber ?? null,
+            addressLine: (order as { addressLine?: string | null }).addressLine ?? null,
             externalUserId: extra?.externalUserId ?? null,
             source: extra?.source ?? null,
             createdAt: now,

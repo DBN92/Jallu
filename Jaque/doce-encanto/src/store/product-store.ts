@@ -11,24 +11,6 @@ interface ProductState {
   addCategory: (category: string) => void
 }
 
-function extractJson(text: string) {
-  if (!text.includes('```')) {
-    return text.trim()
-  }
-
-  const firstFence = text.indexOf('```')
-  const afterFirst = text.slice(firstFence + 3)
-  const secondFence = afterFirst.indexOf('```')
-  const inside = secondFence === -1 ? afterFirst : afterFirst.slice(0, secondFence)
-  let code = inside.trim()
-
-  if (code.toLowerCase().startsWith('json')) {
-    code = code.slice(4).trimStart()
-  }
-
-  return code
-}
-
 // Catálogo do site é a fonte de verdade. Não há sincronização automática via agente aqui.
 
 export const useProductStore = create<ProductState>()(

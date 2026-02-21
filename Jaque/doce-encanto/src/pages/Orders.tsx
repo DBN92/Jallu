@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { workopsGetOrderStatus } from '@/lib/workops-agent'
 import { Input } from '@/components/ui/input'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 function statusLabel(status: string | undefined) {
   switch (status) {
@@ -40,12 +41,39 @@ function statusColor(status: string | undefined) {
   }
 }
 
+function buildTimeline(status: OrderStatus | undefined) {
+  const steps: { key: OrderStatus; label: string }[] = [
+    { key: 'pending', label: 'Recebido' },
+    { key: 'accepted', label: 'Aceito' },
+    { key: 'processing', label: 'Em preparação' },
+    { key: 'completed', label: 'Concluído' },
+  ]
+  if (status === 'rejected') {
+    return [
+      { key: 'pending', label: 'Recebido' },
+      { key: 'rejected', label: 'Rejeitado' },
+    ]
+  }
+  return steps
+}
+
 export default function OrdersPage() {
   const orders = useOrdersStore((state) => state.orders)
   const updateOrderStatus = useOrdersStore((state) => state.updateOrderStatus)
   const upsertOrders = useOrdersStore((state) => state.upsertOrders)
   const [codeInput, setCodeInput] = useState('')
   const [lookupMsg, setLookupMsg] = useState<string | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [selectedCode, setSelectedCode] = useState<string | null>(null)
+
+  const normalizeCode = (value: string) => value.replace(/\s+/g, '').toUpperCase()
+  const findLocalOrderByCode = (code: string) => {
+    const normalized = normalizeCode(code)
+    return orders.find((order) => normalizeCode(String(order.codigo ?? order.id ?? '')) === normalized)
+  }
+  const selectedOrder = selectedCode
+    ? orders.find((order) => normalizeCode(String(order.codigo ?? order.id ?? '')) === normalizeCode(selectedCode))
+    : null
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -69,8 +97,18 @@ export default function OrdersPage() {
             },
           ])
           setLookupMsg('Pedido localizado/atualizado.')
+          setSelectedCode(code)
+          setDetailsOpen(true)
         } else {
-          setLookupMsg('Não encontramos esse código. Verifique e tente novamente.')
+          const localOrder = findLocalOrderByCode(code)
+          if (localOrder) {
+            upsertOrders([localOrder])
+            setLookupMsg('Pedido localizado.')
+            setSelectedCode(code)
+            setDetailsOpen(true)
+          } else {
+            setLookupMsg('Não encontramos esse código. Verifique e tente novamente.')
+          }
         }
       })()
     }
@@ -109,8 +147,18 @@ export default function OrdersPage() {
         },
       ])
       setLookupMsg('Pedido localizado/atualizado.')
+      setSelectedCode(code)
+      setDetailsOpen(true)
     } else {
-      setLookupMsg('Não encontramos esse código. Verifique e tente novamente.')
+      const localOrder = findLocalOrderByCode(code)
+      if (localOrder) {
+        upsertOrders([localOrder])
+        setLookupMsg('Pedido localizado.')
+        setSelectedCode(code)
+        setDetailsOpen(true)
+      } else {
+        setLookupMsg('Não encontramos esse código. Verifique e tente novamente.')
+      }
     }
   }
 
@@ -138,81 +186,262 @@ export default function OrdersPage() {
         {lookupMsg && <p className="text-xs text-muted-foreground sm:col-span-2">{lookupMsg}</p>}
       </div>
 
-      {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Você ainda não fez pedidos pelo assistente virtual.
-        </p>
-      ) : (
+      {selectedOrder && (
         <div className="space-y-4">
-          {orders.map((order) => (
-            <Card key={order.id ?? order.codigo}>
-              <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <Card>
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-row items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-sm font-semibold">
-                    Pedido {order.codigo ?? order.id}
+                    Pedido {selectedOrder.codigo ?? selectedOrder.id}
                   </CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Criado em {order.createdAt ? new Date(order.createdAt).toLocaleString('pt-BR') : 'data desconhecida'}
+                    Criado em {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString('pt-BR') : 'data desconhecida'}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className={statusColor(order.status)}>{statusLabel(order.status)}</Badge>
-                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => handleRefreshStatus(String(order.codigo ?? order.id))}>
+                  <Badge className={statusColor(selectedOrder.status)}>{statusLabel(selectedOrder.status)}</Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => selectedOrder && handleRefreshStatus(String(selectedOrder.codigo ?? selectedOrder.id))}
+                  >
                     Atualizar status
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                {order.items && order.items.length > 0 && (
-                  <div>
-                    <p className="mb-1 font-medium text-foreground">Itens</p>
-                    <ul className="space-y-1">
-                      {order.items.map((item, index) => (
-                        <li key={item.id ?? index} className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            {item.quantity ?? 1}x {item.name ?? 'Item'}
+              </div>
+              <div className="mt-1">
+                <p className="mb-1 text-[11px] font-medium text-foreground">Linha do tempo</p>
+                <div className="flex items-center gap-2">
+                  {buildTimeline(selectedOrder.status as OrderStatus | undefined).map((step, index, all) => {
+                    const currentStatus = selectedOrder.status ?? 'pending'
+                    const currentIndex = all.findIndex((s) => s.key === currentStatus)
+                    const isDone = currentIndex > index
+                    const isCurrent = currentIndex === index
+                    const isFuture = currentIndex < index
+                    return (
+                      <div key={step.key} className="flex items-center gap-2 text-[11px]">
+                        <div
+                          className={
+                            isDone
+                              ? 'h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center text-[10px]'
+                              : isCurrent
+                              ? 'h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]'
+                              : 'h-5 w-5 rounded-full border border-muted-foreground/40 text-muted-foreground flex items-center justify-center text-[10px]'
+                          }
+                        >
+                          {index + 1}
+                        </div>
+                        <span
+                          className={
+                            isDone
+                              ? 'text-[11px] text-foreground'
+                              : isCurrent
+                              ? 'text-[11px] text-foreground font-medium'
+                              : 'text-[11px] text-muted-foreground'
+                          }
+                        >
+                          {step.label}
+                        </span>
+                        {index < all.length - 1 && (
+                          <div
+                            className={
+                              isFuture
+                                ? 'h-px w-5 bg-muted-foreground/30'
+                                : 'h-px w-5 bg-primary'
+                            }
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 text-xs">
+              {selectedOrder.items && selectedOrder.items.length > 0 && (
+                <div>
+                  <p className="mb-1 font-medium text-foreground">Itens</p>
+                  <ul className="space-y-1">
+                    {selectedOrder.items.map((item, index) => (
+                      <li key={item.id ?? index} className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {item.quantity ?? 1}x {item.name ?? 'Item'}
+                        </span>
+                        {typeof item.price === 'number' && (
+                          <span className="font-medium">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format((item.quantity ?? 1) * item.price)}
                           </span>
-                          {typeof item.price === 'number' && (
-                            <span className="font-medium">
-                              {new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format((item.quantity ?? 1) * item.price)}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-                {typeof order.total === 'number' && (
-                  <div className="flex items-center justify-between border-t border-border/60 pt-2">
-                    <span className="text-xs font-semibold text-foreground">Total</span>
-                    <span className="text-xs font-semibold text-primary">
+              {selectedOrder.fulfillment === 'delivery' && (
+                <div className="border-t border-border/60 pt-2 space-y-1">
+                  <p className="text-xs font-medium text-foreground">Entrega</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {selectedOrder.addressLine ||
+                      [
+                        selectedOrder.zipCode ? `CEP: ${selectedOrder.zipCode}` : '',
+                        selectedOrder.addressNumber ? `Número: ${selectedOrder.addressNumber}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' • ') ||
+                      'Endereço não informado'}
+                  </p>
+                  {typeof selectedOrder.shippingFee === 'number' && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Frete:{' '}
                       {new Intl.NumberFormat('pt-BR', {
                         style: 'currency',
                         currency: 'BRL',
-                      }).format(order.total)}
-                    </span>
-                  </div>
-                )}
+                      }).format(selectedOrder.shippingFee)}
+                    </p>
+                  )}
+                </div>
+              )}
 
-                {order.payment_link && (
-                  <a
-                    href={order.payment_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-full items-center justify-center rounded-full bg-primary px-3 py-2 text-[11px] font-medium text-primary-foreground mt-2"
-                  >
-                    Abrir link de pagamento
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+              {typeof selectedOrder.total === 'number' && (
+                <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                  <span className="text-xs font-semibold text-foreground">Total</span>
+                  <span className="text-xs font-semibold text-primary">
+                    {new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    }).format(selectedOrder.total)}
+                  </span>
+                </div>
+              )}
+
+              {selectedOrder.payment_link && (
+                <a
+                  href={selectedOrder.payment_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-3 py-2 text-[11px] font-medium text-primary-foreground mt-2"
+                >
+                  Abrir link de pagamento
+                </a>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
+      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <SheetContent side="bottom" className="sm:max-w-lg mx-auto w-full">
+          <SheetHeader>
+            <SheetTitle>Detalhes do pedido</SheetTitle>
+          </SheetHeader>
+          {!selectedOrder ? (
+            <p className="mt-4 text-sm text-muted-foreground">Nenhum pedido selecionado.</p>
+          ) : (
+            <div className="mt-4 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-muted-foreground">Código</p>
+                  <p className="font-mono text-sm">{selectedOrder.codigo ?? selectedOrder.id}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Criado em</p>
+                  <p>{selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString('pt-BR') : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Cliente</p>
+                  <p>{selectedOrder.customerName ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Telefone</p>
+                  <p>{selectedOrder.customerPhone ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Entrega/retirada</p>
+                  <p>
+                    {selectedOrder.fulfillment
+                      ? selectedOrder.fulfillment === 'delivery'
+                        ? 'Entrega'
+                        : 'Retirada'
+                      : '—'}
+                  </p>
+                </div>
+                {selectedOrder.fulfillment === 'delivery' && (
+                  <div className="col-span-2 space-y-1">
+                    <p className="text-muted-foreground">Endereço de entrega</p>
+                    <p className="text-[11px]">
+                      {selectedOrder.addressLine ||
+                        [
+                          selectedOrder.zipCode ? `CEP: ${selectedOrder.zipCode}` : '',
+                          selectedOrder.addressNumber ? `Número: ${selectedOrder.addressNumber}` : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' • ') ||
+                        'Endereço não informado'}
+                    </p>
+                    {typeof selectedOrder.shippingFee === 'number' && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Frete:{' '}
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(selectedOrder.shippingFee)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+              {selectedOrder.items && selectedOrder.items.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Itens</p>
+                  <ul className="space-y-1">
+                    {selectedOrder.items.map((item, index) => (
+                      <li key={item.id ?? index} className="flex justify-between">
+                        <span className="text-muted-foreground">
+                          {item.quantity ?? 1}x {item.name ?? 'Item'}
+                        </span>
+                        {typeof item.price === 'number' && (
+                          <span className="font-medium">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL',
+                            }).format((item.quantity ?? 1) * item.price)}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-border/60 pt-2 text-sm">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-medium">
+                  {typeof selectedOrder.total === 'number'
+                    ? new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(selectedOrder.total)
+                    : '—'}
+                </span>
+              </div>
+              {selectedOrder.payment_link && (
+                <a
+                  href={selectedOrder.payment_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-3 py-2 text-[11px] font-medium text-primary-foreground mt-2"
+                >
+                  Abrir link de pagamento
+                </a>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </section>
   )
 }

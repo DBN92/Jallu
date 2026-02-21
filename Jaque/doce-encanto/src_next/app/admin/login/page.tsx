@@ -45,7 +45,7 @@ export default function LoginPage() {
       } else {
         toast.error(result.message || "Credenciais inválidas")
       }
-    } catch (_) {
+    } catch {
       toast.error("Erro ao realizar login. Tente novamente.")
     }
   }

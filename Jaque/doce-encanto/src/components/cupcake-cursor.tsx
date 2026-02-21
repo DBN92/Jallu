@@ -17,7 +17,6 @@ export function CupcakeCursor() {
   useEffect(() => {
     // Apenas ativa em desktop
     const mediaQuery = window.matchMedia("(pointer: fine)")
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsVisible(mediaQuery.matches)
 
     const handleResize = () => setIsVisible(mediaQuery.matches)

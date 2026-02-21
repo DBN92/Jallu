@@ -102,12 +102,14 @@ export default function DashboardPage() {
     agentWelcomeMessage,
     agentInputPlaceholder,
     agentSource,
+    shippingFee,
     setAgentName,
     setAgentSubtitle,
     setAgentAvatarUrl,
     setAgentWelcomeMessage,
     setAgentInputPlaceholder,
     setAgentSource,
+    setShippingFee,
   } = useConfigStore()
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -489,6 +491,27 @@ export default function DashboardPage() {
                     Formato recomendado: 55 + DDD + Número (apenas números).
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Frete padrão
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 max-w-sm">
+                <Label htmlFor="shippingFee">Valor do frete (R$)</Label>
+                <Input
+                  id="shippingFee"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={shippingFee}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setShippingFee(Number(event.target.value) || 0)
+                  }
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -1064,6 +1087,83 @@ function OrdersAdminStats() {
           </div>
         </div>
       </div>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-medium">Pedidos por dia (14 dias)</p>
+          {(() => {
+            const days = 14
+            const dayMs = 86400000
+            const now = new Date()
+            const base = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+            const buckets = Array.from({ length: days }).map((_, i) => base - (days - 1 - i) * dayMs)
+            const counts = buckets.map((t) => {
+              const d = new Date(t).toISOString().slice(0, 10)
+              return orders.filter((o) => (o.createdAt ?? "").slice(0, 10) === d).length
+            })
+            const maxV = Math.max(1, ...counts)
+            const w = 600
+            const h = 160
+            const pad = 24
+            const sx = (i: number) => pad + (i / (days - 1)) * (w - pad * 2)
+            const sy = (v: number) => h - pad - (v / maxV) * (h - pad * 2)
+            const pts = counts.map((v, i) => `${sx(i)},${sy(v)}`).join(" ")
+            const bars = counts.map((v, i) => {
+              const x = sx(i) - 6
+              const y = sy(v)
+              const bh = h - pad - y
+              return { x, y, bh }
+            })
+            return (
+              <div className="w-full overflow-x-auto">
+                <svg width={w} height={h} className="max-w-full">
+                  <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="currentColor" className="text-muted-foreground/30" />
+                  <polyline points={pts} fill="none" stroke="currentColor" className="text-primary" strokeWidth={2} />
+                  {bars.map((b, i) => (
+                    <rect key={i} x={b.x} y={b.y} width={12} height={b.bh} className="fill-primary/20" />
+                  ))}
+                </svg>
+              </div>
+            )
+          })()}
+        </div>
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-medium">Receita por dia (14 dias)</p>
+          {(() => {
+            const days = 14
+            const dayMs = 86400000
+            const now = new Date()
+            const base = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+            const buckets = Array.from({ length: days }).map((_, i) => base - (days - 1 - i) * dayMs)
+            const totals = buckets.map((t) => {
+              const d = new Date(t).toISOString().slice(0, 10)
+              return orders
+                .filter((o) => (o.createdAt ?? "").slice(0, 10) === d)
+                .reduce((sum, o) => sum + (o.total ?? 0), 0)
+            })
+            const maxV = Math.max(1, ...totals)
+            const w = 600
+            const h = 160
+            const pad = 24
+            const sx = (i: number) => pad + (i / (days - 1)) * (w - pad * 2)
+            const sy = (v: number) => h - pad - (v / maxV) * (h - pad * 2)
+            const pts = totals.map((v, i) => `${sx(i)},${sy(v)}`).join(" ")
+            return (
+              <div className="w-full overflow-x-auto">
+                <svg width={w} height={h} className="max-w-full">
+                  <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="currentColor" className="text-muted-foreground/30" />
+                  <polyline points={pts} fill="none" stroke="currentColor" className="text-accent" strokeWidth={2} />
+                  {totals.map((v, i) => {
+                    const x = sx(i) - 6
+                    const y = sy(v)
+                    const bh = h - pad - y
+                    return <rect key={i} x={x} y={y} width={12} height={bh} className="fill-accent/20" />
+                  })}
+                </svg>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1157,6 +1257,21 @@ function OrdersAdminTable() {
     const clean = phone.replace(/\D+/g, "")
     const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`
     window.open(url, "_blank", "noopener")
+  }
+  const buildTimeline = (status: OrderStatus | undefined) => {
+    const steps: { key: OrderStatus; label: string }[] = [
+      { key: "pending", label: "Recebido" },
+      { key: "accepted", label: "Aceito" },
+      { key: "processing", label: "Em preparação" },
+      { key: "completed", label: "Concluído" },
+    ]
+    if (status === "rejected") {
+      return [
+        { key: "pending", label: "Recebido" },
+        { key: "rejected", label: "Rejeitado" },
+      ]
+    }
+    return steps
   }
   return (
     <div className="space-y-4">
@@ -1353,6 +1468,75 @@ function OrdersAdminTable() {
                         <span>—</span>
                       )}
                     </div>
+                  </div>
+                  {selectedOrder.fulfillment === "delivery" && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground">Endereço de entrega</p>
+                      <p className="text-sm">
+                        {selectedOrder.addressLine ||
+                          [
+                            selectedOrder.zipCode ? `CEP: ${selectedOrder.zipCode}` : "",
+                            selectedOrder.addressNumber ? `Número: ${selectedOrder.addressNumber}` : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" • ") ||
+                          "Endereço não informado"}
+                      </p>
+                      {typeof selectedOrder.shippingFee === "number" && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Frete:{" "}
+                          {new Intl.NumberFormat("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          }).format(selectedOrder.shippingFee)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-foreground mb-1">Linha do tempo</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {buildTimeline(selectedOrder.status).map((step, index, all) => {
+                      const currentStatus = selectedOrder.status ?? "pending"
+                      const currentIndex = all.findIndex((s) => s.key === currentStatus)
+                      const isDone = currentIndex > index
+                      const isCurrent = currentIndex === index
+                      const isFuture = currentIndex < index
+                      return (
+                        <div key={step.key} className="flex items-center gap-2 text-[11px]">
+                          <div
+                            className={
+                              isDone
+                                ? "h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center text-[10px]"
+                                : isCurrent
+                                ? "h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]"
+                                : "h-5 w-5 rounded-full border border-muted-foreground/40 text-muted-foreground flex items-center justify-center text-[10px]"
+                            }
+                          >
+                            {index + 1}
+                          </div>
+                          <span
+                            className={
+                              isDone
+                                ? "text-[11px] text-foreground"
+                                : isCurrent
+                                ? "text-[11px] text-foreground font-medium"
+                                : "text-[11px] text-muted-foreground"
+                            }
+                          >
+                            {step.label}
+                          </span>
+                          {index < all.length - 1 && (
+                            <div
+                              className={
+                                isFuture ? "h-px w-5 bg-muted-foreground/30" : "h-px w-5 bg-primary"
+                              }
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
                 <div className="space-y-2">

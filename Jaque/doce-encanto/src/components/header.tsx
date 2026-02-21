@@ -37,7 +37,7 @@ export function Header() {
         "fixed top-0 z-40 w-full transition-all duration-500 ease-in-out",
         isScrolled
           ? "py-0"
-          : "py-0 md:py-2 bg-transparent"
+          : "py-0 md:py-1 bg-transparent"
       )}
     >
       <div className={cn(
@@ -48,7 +48,12 @@ export function Header() {
           : "md:bg-transparent md:backdrop-blur-none md:shadow-none"
       )}>
         <Link to="/" className="group">
-          <Logo className={cn("origin-left transition-all duration-500", isScrolled ? "h-20" : "")} />
+          <Logo
+            className={cn(
+              "origin-left transition-all duration-500",
+              isScrolled ? "h-16" : "h-20"
+            )}
+          />
         </Link>
 
         {/* Desktop Nav */}

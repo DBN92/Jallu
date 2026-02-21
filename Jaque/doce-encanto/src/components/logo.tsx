@@ -5,7 +5,7 @@ export function Logo({ className, variant = "default" }: { className?: string, v
   const logoSrc = variant === "footer" ? "/logo-white.png" : "/logo.png"
 
   return (
-    <div className={cn("relative h-32 w-auto aspect-[3/1]", className)}>
+    <div className={cn("relative h-24 w-auto aspect-[3/1]", className)}>
       <img
         src={logoSrc}
         alt="Jallu Confeitaria"

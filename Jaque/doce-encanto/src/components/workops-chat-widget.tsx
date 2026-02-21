@@ -64,174 +64,14 @@ function extractJson(text: string) {
   return code
 }
 
-function renderMessageContent(text: string) {
-  if (!text.includes("```")) return text
-
-  const parts = text.split("```")
-
-  return parts.map((part, index) => {
-    const trimmed = part.trim()
-
-    if (!trimmed) {
-      return null
-    }
-
-    if (index % 2 === 0) {
-      return (
-        <p key={index}>
-          {trimmed}
-        </p>
-      )
-    }
-
-    let code = trimmed
-
-    if (code.toLowerCase().startsWith("json")) {
-      code = code.slice(4).trimStart()
-    }
-
-    try {
-      const parsed = JSON.parse(code) as unknown
-
-      if (parsed && typeof parsed === "object") {
-        if (
-          "products" in parsed &&
-          Array.isArray((parsed as { products: unknown }).products)
-        ) {
-          const products = (parsed as { products: { nome?: string; descricao?: string; preco_por_kg?: number }[] }).products
-
-          return (
-            <div
-              key={index}
-              className="mt-2 space-y-2"
-            >
-              {products.map((product, i) => (
-                <div
-                  key={product.nome ?? i}
-                  className="rounded-xl border border-border bg-background/80 px-3 py-2 text-[11px] leading-relaxed"
-                >
-                  <p className="font-semibold text-foreground">
-                    {product.nome ?? "Produto"}
-                  </p>
-                  {product.descricao && (
-                    <p className="mt-1 text-[10px] text-muted-foreground">
-                      {product.descricao}
-                    </p>
-                  )}
-                  {typeof product.preco_por_kg === "number" && (
-                    <p className="mt-1 text-[10px] font-medium text-primary">
-                      {new Intl.NumberFormat("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      }).format(product.preco_por_kg)}{" "}
-                      / kg
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-        }
-
-        if (
-          "order" in parsed &&
-          parsed.order &&
-          typeof (parsed as { order: unknown }).order === "object"
-        ) {
-          const order = (parsed as { order: WorkopsOrder }).order
-          const items = Array.isArray(order.items) ? order.items : []
-          const orderId = order.id ?? order.codigo ?? "Pedido"
-          const total =
-            order.total ??
-            order.total_valor ??
-            items.reduce((acc, item) => {
-              const quantity = item.quantity ?? item.quantidade ?? 1
-              const price = item.price ?? item.preco ?? 0
-              return acc + quantity * price
-            }, 0)
-
-          return (
-            <div
-              key={index}
-              className="mt-2 space-y-2 rounded-xl border border-border bg-background/90 px-3 py-2 text-[11px] leading-relaxed"
-            >
-              <p className="text-[11px] font-semibold text-foreground">
-                Comprovante do pedido
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {String(orderId)}
-              </p>
-
-              <div className="mt-2 space-y-1">
-                {items.map((item, i) => {
-                  const quantity = item.quantity ?? item.quantidade ?? 1
-                  const price = item.price ?? item.preco ?? 0
-                  const subtotal = quantity * price
-
-                  return (
-                    <div
-                      key={`${item.id ?? i}`}
-                      className="flex items-center justify-between text-[10px]"
-                    >
-                      <span className="text-muted-foreground">
-                        {quantity}x {item.name ?? item.nome ?? "Item"}
-                      </span>
-                      <span className="font-medium">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(subtotal)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1">
-                <span className="text-[10px] font-semibold text-foreground">
-                  Total
-                </span>
-                <span className="text-[10px] font-semibold text-primary">
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(total)}
-                </span>
-              </div>
-
-              {order.payment_link && (
-                <a
-                  href={order.payment_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-primary px-3 py-1 text-[10px] font-medium text-primary-foreground"
-                >
-                  Abrir pagamento
-                </a>
-              )}
-            </div>
-          )
-        }
-      }
-    } catch {
-    }
-
-    return (
-      <pre
-        key={index}
-        className="mt-2 rounded-xl bg-black/80 px-3 py-2 text-[10px] leading-relaxed text-white overflow-x-auto"
-      >
-        <code>{code}</code>
-      </pre>
-    )
-  })
-}
+ 
 
 export function WorkopsChatWidget() {
   const cartItems = useCartStore((state) => state.items)
   const cartTotal = useCartStore((state) => state.total)
   const addItem = useCartStore((state) => state.addItem)
   const updateQuantity = useCartStore((state) => state.updateQuantity)
+  const clearCart = useCartStore((state) => state.clearCart)
   const agentName = useConfigStore((state) => state.agentName)
   const agentSubtitle = useConfigStore((state) => state.agentSubtitle)
   const agentAvatarUrl = useConfigStore((state) => state.agentAvatarUrl)
@@ -239,6 +79,7 @@ export function WorkopsChatWidget() {
   const agentInputPlaceholder = useConfigStore((state) => state.agentInputPlaceholder)
   const agentSource = useConfigStore((state) => state.agentSource)
   const whatsappNumber = useConfigStore((state) => state.whatsappNumber)
+  const shippingFee = useConfigStore((state) => state.shippingFee)
   const addOrderFromAgent = useOrdersStore((state) => state.addOrderFromAgent)
   const siteProducts = useProductStore((state) => state.products)
   const [isOpen, setIsOpen] = useState(false)
@@ -255,6 +96,10 @@ export function WorkopsChatWidget() {
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
+  const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery")
+  const [zipCode, setZipCode] = useState("")
+  const [addressNumber, setAddressNumber] = useState("")
+  const [addressText, setAddressText] = useState("")
   const [externalUserId] = useState(() => {
     const key = "workops-external-user-id"
     const existing = window.localStorage.getItem(key)
@@ -266,6 +111,28 @@ export function WorkopsChatWidget() {
 
   const handleToggle = () => {
     setIsOpen((prev) => !prev)
+  }
+
+  const handleCepBlur = () => {
+    const cepDigits = zipCode.replace(/\D+/g, "")
+    if (cepDigits.length !== 8) return
+    fetch(`https://viacep.com.br/ws/${cepDigits}/json/`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data || data.erro) {
+          setAddressText("")
+          return
+        }
+        const parts = [
+          data.logradouro || "",
+          data.bairro || "",
+          data.localidade && data.uf ? `${data.localidade}/${data.uf}` : "",
+        ].filter(Boolean)
+        setAddressText(parts.join(" - "))
+      })
+      .catch(() => {
+        setAddressText("")
+      })
   }
 
   const findSiteProduct = (hint: { id?: string; name?: string | null; nome?: string | null }) => {
@@ -314,6 +181,21 @@ export function WorkopsChatWidget() {
   }
 
   const handleCheckoutWhatsApp = () => {
+    const name = customerName.trim()
+    const phoneDigits = customerPhone.replace(/\D+/g, "")
+    if (!name || phoneDigits.length < 10) {
+      alert("Informe nome completo e WhatsApp válido.")
+      setCheckoutOpen(true)
+      return
+    }
+    if (fulfillment === "delivery") {
+      const zipDigits = zipCode.replace(/\D+/g, "")
+      if (zipDigits.length < 8 || !addressNumber.trim()) {
+        alert("Informe CEP e número para entrega.")
+        setCheckoutOpen(true)
+        return
+      }
+    }
     const phoneNumber = whatsappNumber || "5511999999999"
     const itemsList = cartItems
       .map(
@@ -321,8 +203,11 @@ export function WorkopsChatWidget() {
           `▪️ *${item.quantity}x* ${item.name}\n   _Subtotal: R$ ${(item.price * item.quantity).toFixed(2)}_`
       )
       .join("\n\n")
-    const totalValueNum = cartTotal()
-    const totalValue = totalValueNum.toFixed(2)
+    const itemsTotal = cartTotal()
+    const totalWithShipping = itemsTotal + (fulfillment === "delivery" ? shippingFee : 0)
+    const itemsTotalText = itemsTotal.toFixed(2)
+    const shippingText = (fulfillment === "delivery" ? shippingFee : 0).toFixed(2)
+    const totalValue = totalWithShipping.toFixed(2)
     const finalMessage = `*🍰 PEDIDO - JALLU CONFEITARIA 🍰*
 
 *🛒 Resumo do Pedido:*
@@ -331,19 +216,23 @@ _____________________________
 ${itemsList}
 _____________________________
 
-*💰 TOTAL: R$ ${totalValue}*
+*💰 ITENS: R$ ${itemsTotalText}*
+*🚚 FRETE: R$ ${shippingText}*
+*💰 TOTAL COM FRETE: R$ ${totalValue}*
 
-*📍 Entrega:*
-Nome:
-Endereço:
-Ponto de Referência:
+*📍 Dados do Cliente:*
+Nome: ${name}
+WhatsApp: ${phoneDigits}
+Tipo: ${fulfillment === "delivery" ? "Entrega" : "Retirada"}
+CEP: ${zipCode || "-"}
+Número: ${addressNumber || "-"}
+Endereço: ${addressText || "-"}
 
 *💳 Pagamento:*
 ( ) Pix
 ( ) Cartão
 ( ) Dinheiro`
 
-    // Cria pedido local, gera comprovante e limpa carrinho
     const code = Math.random().toString(36).slice(2, 8).toUpperCase()
     const orderPayload = {
       id: code,
@@ -355,7 +244,14 @@ Ponto de Referência:
         price: it.price,
         category: it.category,
       })),
-      total: totalValueNum,
+      total: totalWithShipping,
+      customerPhone: phoneDigits,
+      customerName: name,
+      fulfillment,
+      shippingFee,
+      zipCode,
+      addressNumber,
+      addressLine: addressText || null,
     }
     try {
       addOrderFromAgent(orderPayload, { externalUserId, source: agentSource })
@@ -425,7 +321,10 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                 <Button
                   size="sm"
                   className="h-7 rounded-full"
-                  onClick={() => addToCartWithQuantity({ id: product.id, name: product.nome }, currentQty(key))}
+                  onClick={() => {
+                    addToCartWithQuantity({ id: product.id, name: product.nome }, currentQty(key))
+                    setCartOpen(true)
+                  }}
                 >
                   Adicionar
                 </Button>
@@ -543,24 +442,7 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
         category: item.category,
       }))
 
-      const cartSummary =
-        cartItemsPayload.length > 0
-          ? `Carrinho atual do cliente:\n${cartItemsPayload
-              .map(
-                (item) =>
-                  `- ${item.quantity}x ${item.name} (categoria: ${item.category}) por R$ ${item.price?.toFixed(2)}`
-              )
-              .join("\n")}\nTotal aproximado: R$ ${cartTotal().toFixed(2)}`
-          : "Carrinho atual do cliente está vazio."
-
-      const catalogLines = siteProducts.map(
-        (p) =>
-          `- [${p.id}] ${p.name} (${p.category}) - R$ ${Number(p.price).toFixed(2)}`
-      )
-      const catalogSummary =
-        catalogLines.length > 0
-          ? `Catálogo do site (use apenas estes produtos):\n${catalogLines.join("\n")}`
-          : "Catálogo do site está vazio."
+      // noop
 
       const instructionMessage = [
         "Você é o assistente virtual da confeitaria Jallu.",
@@ -655,7 +537,7 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
         text: reply,
       }
       setMessages((prev) => [...prev, agentMessage])
-    } catch (_error) {
+    } catch {
       const agentMessage: ChatMessage = {
         id: `${Date.now()}-error`,
         from: "agent",
@@ -766,15 +648,15 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                     </div>
                   ))}
                   <div className="grid grid-cols-2 gap-2">
-                    <Button className="h-8 text-xs" onClick={handleCheckoutWhatsApp}>
-                      WhatsApp
-                    </Button>
                     <Button
                       variant={checkoutOpen ? "default" : "outline"}
                       className="h-8 text-xs"
                       onClick={() => setCheckoutOpen((v) => !v)}
                     >
                       Finalizar pelo site
+                    </Button>
+                    <Button className="h-8 text-xs" onClick={handleCheckoutWhatsApp}>
+                      WhatsApp
                     </Button>
                   </div>
                   {checkoutOpen && (
@@ -791,6 +673,48 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         className="h-8"
                       />
+                      <div className="flex gap-2 text-[10px]">
+                        <Button
+                          type="button"
+                          variant={fulfillment === "delivery" ? "default" : "outline"}
+                          className="h-7 flex-1"
+                          onClick={() => setFulfillment("delivery")}
+                        >
+                          Entrega
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={fulfillment === "pickup" ? "default" : "outline"}
+                          className="h-7 flex-1"
+                          onClick={() => setFulfillment("pickup")}
+                        >
+                          Retirar
+                        </Button>
+                      </div>
+                      {fulfillment === "delivery" && (
+                        <div className="space-y-1">
+                          <div className="grid grid-cols-[2fr,1fr] gap-2">
+                            <Input
+                              placeholder="CEP"
+                              value={zipCode}
+                              onChange={(e) => setZipCode(e.target.value)}
+                              onBlur={handleCepBlur}
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="Número"
+                              value={addressNumber}
+                              onChange={(e) => setAddressNumber(e.target.value)}
+                              className="h-8"
+                            />
+                          </div>
+                          {addressText && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {addressText}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <Button
                         className="w-full h-8 text-xs"
                         onClick={() => {
@@ -798,6 +722,13 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                           if (digits.length < 10) {
                             alert("Informe um WhatsApp válido")
                             return
+                          }
+                          if (fulfillment === "delivery") {
+                            const zipDigits = zipCode.replace(/\D+/g, "")
+                            if (zipDigits.length < 8 || !addressNumber.trim()) {
+                              alert("Informe CEP e número para entrega.")
+                              return
+                            }
                           }
                           const code = Math.random().toString(36).slice(2, 8).toUpperCase()
                           const items = cartItems.map((it) => ({
@@ -807,7 +738,7 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                             price: it.price,
                             category: it.category,
                           }))
-                          const totalVal = cartTotal()
+                          const totalVal = cartTotal() + (fulfillment === "delivery" ? shippingFee : 0)
                           const orderPayload = {
                             id: code,
                             codigo: code,
@@ -815,6 +746,8 @@ ${JSON.stringify({ order: orderPayload }, null, 2)}
                             total: totalVal,
                             customerPhone: digits,
                             customerName: customerName.trim() || null,
+                            fulfillment,
+                            shippingFee,
                           }
                           try {
                             addOrderFromAgent(orderPayload, { externalUserId, source: agentSource })

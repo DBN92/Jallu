@@ -61,18 +61,20 @@ interface ConfigState {
   contactEmail: string
   setFooterDescription: (value: string) => void
   setContactEmail: (value: string) => void
-   agentName: string
-   agentSubtitle: string
-   agentAvatarUrl: string
-   agentWelcomeMessage: string
-   agentInputPlaceholder: string
-   agentSource: string
-   setAgentName: (value: string) => void
-   setAgentSubtitle: (value: string) => void
-   setAgentAvatarUrl: (value: string) => void
-   setAgentWelcomeMessage: (value: string) => void
-   setAgentInputPlaceholder: (value: string) => void
-   setAgentSource: (value: string) => void
+  agentName: string
+  agentSubtitle: string
+  agentAvatarUrl: string
+  agentWelcomeMessage: string
+  agentInputPlaceholder: string
+  agentSource: string
+  setAgentName: (value: string) => void
+  setAgentSubtitle: (value: string) => void
+  setAgentAvatarUrl: (value: string) => void
+  setAgentWelcomeMessage: (value: string) => void
+  setAgentInputPlaceholder: (value: string) => void
+  setAgentSource: (value: string) => void
+  shippingFee: number
+  setShippingFee: (value: number) => void
 }
 
 export const useConfigStore = create<ConfigState>()(
@@ -195,6 +197,8 @@ export const useConfigStore = create<ConfigState>()(
         'Olá! Posso ajudar com pedidos, status de encomendas e dúvidas sobre os produtos.',
       agentInputPlaceholder: 'Escreva sua mensagem...',
       agentSource: 'jallu-ecommerce',
+      shippingFee: 10,
+      setShippingFee: (value: number) => set({ shippingFee: value }),
       setAgentName: (value) => set({ agentName: value }),
       setAgentSubtitle: (value) => set({ agentSubtitle: value }),
       setAgentAvatarUrl: (value) => set({ agentAvatarUrl: value }),

@@ -16,11 +16,20 @@ import AdminLayout from '@/pages/admin/Layout'
 import OrdersPage from '@/pages/Orders'
 
 function ScrollToTop() {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
 
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [pathname])
+    if (hash) {
+      const id = hash.replace('#', '')
+      const element = document.getElementById(id)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [pathname, hash])
 
   return null
 }

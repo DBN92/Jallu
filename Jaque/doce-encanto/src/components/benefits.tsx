@@ -40,7 +40,7 @@ export function Benefits() {
   })
 
   return (
-    <section className="py-24 relative overflow-hidden">
+    <section id="features" className="py-24 relative overflow-hidden">
       <div className="container mx-auto px-4 relative z-10">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {benefits.map((benefit, index) => (

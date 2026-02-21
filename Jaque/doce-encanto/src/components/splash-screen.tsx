@@ -25,7 +25,6 @@ export function SplashScreen({ finishLoading }: SplashScreenProps) {
   }>>([])
 
   useEffect(() => {
-    // eslint-disable-next-line
     setParticles([...Array(30)].map((_, i) => ({
       id: i,
       color: ['bg-pink-300', 'bg-blue-300', 'bg-yellow-300', 'bg-purple-300'][i % 4],

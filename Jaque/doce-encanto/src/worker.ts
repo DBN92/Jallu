@@ -1,5 +1,3 @@
-import type { ExecutionContext } from '@cloudflare/workers-types';
-
 interface EnvBindings {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>
@@ -7,7 +5,7 @@ interface EnvBindings {
 }
 
 const worker = {
-  async fetch(request: Request, env: EnvBindings, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: EnvBindings): Promise<Response> {
     const url = new URL(request.url);
     let response = await env.ASSETS.fetch(request);
     if (response.status === 404 && !url.pathname.includes('.')) {

@@ -211,7 +211,7 @@ export function Hero() {
             </AnimatePresence>
 
             {/* Navigation Buttons (Desktop) */}
-            <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 -left-12 z-20">
+            <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 -left-4 z-20">
               <Button
                 variant="outline"
                 size="icon"
@@ -221,7 +221,7 @@ export function Hero() {
                 <ChevronLeft className="h-6 w-6" />
               </Button>
             </div>
-            <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 -right-12 z-20">
+            <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 -right-4 z-20">
               <Button
                 variant="outline"
                 size="icon"
