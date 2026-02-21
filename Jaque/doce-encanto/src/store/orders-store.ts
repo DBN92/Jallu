@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
 
+const ALERTZY_ACCOUNT_KEY = import.meta.env.VITE_ALERTZY_ACCOUNT_KEY as string | undefined
+const ALERTZY_GROUP = import.meta.env.VITE_ALERTZY_GROUP as string | undefined
+const ADMIN_ORDERS_URL = import.meta.env.VITE_ADMIN_ORDERS_URL as string | undefined
+
 export type OrderItem = {
   id?: string | null
   name?: string | null
@@ -60,6 +64,70 @@ type OrderItemRow = {
 
 function generateCode6() {
   return Math.random().toString(36).slice(2, 8).toUpperCase()
+}
+
+async function sendAlertzyOrderNotification(order: Order) {
+  if (!ALERTZY_ACCOUNT_KEY) return
+
+  const title = `Novo pedido ${order.codigo ?? order.id ?? ''}`.trim()
+
+  const itemsLines =
+    order.items && order.items.length
+      ? order.items
+          .map((i) => `- ${i.quantity ?? 0}x ${i.name ?? ''}`)
+          .join('\n')
+      : ''
+
+  const totalLine =
+    typeof order.total === 'number'
+      ? `Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}`
+      : ''
+
+  const customerLine =
+    order.customerName || order.customerPhone
+      ? `Cliente: ${order.customerName ?? ''} ${order.customerPhone ? `(${order.customerPhone})` : ''}`.trim()
+      : ''
+
+  const fulfillment =
+    order.fulfillment === 'delivery' ? 'Entrega' : order.fulfillment === 'pickup' ? 'Retirada' : ''
+
+  const fulfillmentLine = fulfillment ? `Tipo: ${fulfillment}` : ''
+
+  const messageParts = [
+    customerLine,
+    fulfillmentLine,
+    totalLine,
+    itemsLines ? 'Itens:' : '',
+    itemsLines,
+  ].filter(Boolean)
+
+  const message = messageParts.join('\n')
+
+  const adminUrl = ADMIN_ORDERS_URL || `${window.location.origin}/admin/dashboard`
+
+  const buttons = JSON.stringify([
+    {
+      text: 'Ver pedidos',
+      link: adminUrl,
+      color: 'success',
+    },
+  ])
+
+  const body = new URLSearchParams()
+  body.append('accountKey', ALERTZY_ACCOUNT_KEY)
+  if (title) body.append('title', title)
+  if (message) body.append('message', message)
+  if (ALERTZY_GROUP) body.append('group', ALERTZY_GROUP)
+  body.append('buttons', buttons)
+
+  try {
+    await fetch('https://alertzy.app/send', {
+      method: 'POST',
+      body,
+    })
+  } catch (err) {
+    console.error('Erro ao enviar notificação Alertzy:', err)
+  }
 }
 
 export const useOrdersStore = create<OrdersState>()(
@@ -226,6 +294,11 @@ export const useOrdersStore = create<OrdersState>()(
                    orders: state.orders.map((o) => o.id === tempId ? { ...o, id: orderData.id } : o)
                 }))
              }
+
+             await sendAlertzyOrderNotification({
+               ...newOrder,
+               id: orderData?.id ?? newOrder.id,
+             })
 
           } catch (err) {
              console.error('Erro ao salvar pedido no Supabase:', err)
