@@ -1,35 +1,85 @@
 # Jallu Confeitaria
 
-Projeto moderno para a Jallu Confeitaria, desenvolvido com Next.js 16, Tailwind CSS e Framer Motion.
+Projeto moderno de e-commerce para a Jallu Confeitaria, desenvolvido com **Vite + React**, **Tailwind CSS** e **Supabase**.
 
-## Configuração do Projeto
+Este projeto inclui uma loja virtual completa para o cliente final e um painel administrativo robusto para gestão de produtos, pedidos e configurações da loja.
 
-1.  **Instalação de dependências:**
+---
+
+## 🚀 Começando
+
+Siga estas instruções para obter uma cópia do projeto em operação na sua máquina local para fins de desenvolvimento e teste.
+
+### Pré-requisitos
+
+Você precisa ter o Node.js instalado (versão 18 ou superior recomendada).
+
+### Instalação
+
+1.  **Clone o repositório:**
     ```bash
+    git clone https://github.com/DBN92/Jallu.git
+    cd doce-encanto
+    ```
+
+2.  **Instale as dependências:**
+    ```bash
+    npm install
+    # ou
     pnpm install
     ```
 
-2.  **Variáveis de Ambiente:**
-    Crie um arquivo `.env.local` na raiz do projeto com as credenciais do admin:
+3.  **Configure as Variáveis de Ambiente:**
+    Crie um arquivo `.env` na raiz do projeto (`doce-encanto/`) com as seguintes chaves (solicite os valores ao administrador do projeto ou configure seu próprio Supabase/WorkOps):
+
     ```env
-    ADMIN_USER=seu_usuario
-    ADMIN_PASSWORD=sua_senha
+    VITE_SUPABASE_URL=sua_url_supabase
+    VITE_SUPABASE_ANON_KEY=sua_key_supabase
+    VITE_WORKOPS_AGENT_TOKEN=seu_token_workops
+    VITE_WORKOPS_AGENT_URL=url_agente
+    VITE_WORKOPS_INGEST_URL=url_ingestao
+    VITE_ALERTZY_ACCOUNT_KEY=sua_key_alertzy
     ```
 
-3.  **Rodar localmente:**
+4.  **Rodar localmente:**
     ```bash
-    pnpm dev
+    npm run dev
     ```
+    Acesse `http://localhost:5173` no seu navegador.
 
-## Deploy no Cloudflare Pages
+---
 
-Para fazer o deploy corretamente no Cloudflare Pages usando a integração com Git:
+## 📖 Documentação e Manual de Uso
 
-1.  Acesse o dashboard do Cloudflare Pages e conecte seu repositório Git.
-2.  Nas configurações de build (**Build settings**), use:
-    *   **Framework preset:** `Next.js (Static HTML Export)` ou `None`
-    *   **Build command:** `npm run pages:build`
-    *   **Build output directory:** `.vercel/output/static`
-    *   **Root directory:** `/` (ou deixe em branco se o `package.json` estiver na raiz)
+Para um guia completo sobre como utilizar todas as funcionalidades da loja e do painel administrativo, consulte o **[Manual do Usuário](MANUAL.md)**.
 
-**Importante:** Não use o comando `npm run deploy:manual` no campo "Build command" do Cloudflare. Esse comando é apenas para deploys manuais via terminal local.
+Ele cobre:
+- Como gerenciar produtos e pedidos.
+- Como personalizar a loja (banners, textos, depoimentos).
+- Como o cliente realiza compras via Agente de IA.
+- Configurações de notificações e integrações.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+*   [Vite](https://vitejs.dev/) - Build tool e servidor de desenvolvimento.
+*   [React](https://react.dev/) - Biblioteca para construção de interfaces.
+*   [Tailwind CSS](https://tailwindcss.com/) - Framework CSS utilitário.
+*   [Supabase](https://supabase.com/) - Backend as a Service (Banco de dados e Autenticação).
+*   [Zustand](https://github.com/pmndrs/zustand) - Gerenciamento de estado global.
+*   [Framer Motion](https://www.framer.com/motion/) - Biblioteca de animações.
+*   [Lucide React](https://lucide.dev/) - Ícones.
+*   [Sonner](https://sonner.emilkowal.ski/) - Notificações (Toasts).
+*   [Alertzy](https://alertzy.app/) - Notificações Push para admin.
+
+---
+
+## 📦 Deploy
+
+O projeto está configurado para deploy na **Vercel**.
+Basta conectar o repositório à Vercel e configurar as variáveis de ambiente no painel do projeto.
+
+---
+
+Desenvolvido com ❤️ para Jallu Confeitaria.

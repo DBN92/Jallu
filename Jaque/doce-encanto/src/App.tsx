@@ -17,6 +17,7 @@ import LoginPage from '@/pages/admin/Login'
 import DashboardPage from '@/pages/admin/Dashboard'
 import AdminLayout from '@/pages/admin/Layout'
 import OrdersPage from '@/pages/Orders'
+import MobileOrdersPage from '@/pages/admin/MobileOrders'
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
@@ -79,6 +80,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="login" element={<LoginPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="mobile" element={<MobileOrdersPage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-right" richColors />

@@ -103,7 +103,7 @@ async function sendAlertzyOrderNotification(order: Order) {
 
   const message = messageParts.join('\n')
 
-  const adminUrl = ADMIN_ORDERS_URL || `${window.location.origin}/admin/dashboard`
+  const adminUrl = ADMIN_ORDERS_URL || `${window.location.origin}/admin/mobile`
 
   const buttons = JSON.stringify([
     {
@@ -130,9 +130,47 @@ async function sendAlertzyOrderNotification(order: Order) {
   }
 }
 
+async function sendAlertzyStatusNotification(order: Order, nextStatus: OrderStatus) {
+  if (!ALERTZY_ACCOUNT_KEY) return
+  const statusPt: Record<OrderStatus, string> = {
+    pending: 'Pendente',
+    accepted: 'Aceito',
+    processing: 'Em preparação',
+    completed: 'Concluído',
+    rejected: 'Rejeitado',
+    unknown: 'Atualizado',
+  }
+  const title = `Pedido ${order.codigo ?? order.id ?? ''} atualizado`
+  const messageParts = [
+    `Novo status: ${statusPt[nextStatus] ?? 'Atualizado'}`,
+    order.customerName || order.customerPhone
+      ? `Cliente: ${order.customerName ?? ''} ${order.customerPhone ? `(${order.customerPhone})` : ''}`.trim()
+      : '',
+    typeof order.total === 'number'
+      ? `Total: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total)}`
+      : '',
+  ].filter(Boolean)
+  const message = messageParts.join('\n')
+  const adminUrl = ADMIN_ORDERS_URL || `${window.location.origin}/admin/mobile`
+  const buttons = JSON.stringify([
+    { text: 'Abrir modo mobile', link: adminUrl, color: 'success' },
+  ])
+  const body = new URLSearchParams()
+  body.append('accountKey', ALERTZY_ACCOUNT_KEY)
+  body.append('title', title)
+  if (message) body.append('message', message)
+  if (ALERTZY_GROUP) body.append('group', ALERTZY_GROUP)
+  body.append('buttons', buttons)
+  try {
+    await fetch('https://alertzy.app/send', { method: 'POST', body })
+  } catch (err) {
+    console.error('Erro ao enviar notificação de status (Alertzy):', err)
+  }
+}
+
 export const useOrdersStore = create<OrdersState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       orders: [],
       isLoading: false,
       error: null,
@@ -343,6 +381,16 @@ export const useOrdersStore = create<OrdersState>()(
             .eq('id', targetId)
 
           if (error) throw error
+          
+          // Notificação de alteração de status
+          const current = get().orders.find((o) => o.id === idOrCodigo || o.codigo === idOrCodigo)
+          if (current) {
+            try {
+              await sendAlertzyStatusNotification({ ...current, status }, status)
+            } catch (e) {
+              console.warn('Falha ao enviar push de status:', e)
+            }
+          }
         } catch (err) {
           console.error('Erro ao atualizar status no Supabase:', err)
         }
