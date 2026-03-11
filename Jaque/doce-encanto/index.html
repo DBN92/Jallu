@@ -14,13 +14,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/sw.js').catch(function (err) {
-            console.warn('SW registration failed:', err);
-          });
-        });
+    <script type="module">
+      if ("serviceWorker" in navigator) {
+        if (import.meta.env.PROD) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/sw.js").catch((err) => {
+              console.warn("SW registration failed:", err)
+            })
+          })
+        } else {
+          navigator.serviceWorker.getRegistrations().then((regs) => {
+            regs.forEach((reg) => reg.unregister())
+          })
+        }
       }
     </script>
   </body>
