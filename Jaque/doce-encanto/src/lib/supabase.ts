@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const storageBucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ?? 'public'
+const storageBucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ?? 'images'
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey)
 
@@ -43,7 +43,15 @@ export async function uploadImageToSupabaseStorage(params: {
     upsert: true,
     contentType: params.file.type || undefined,
   })
-  if (uploadError) throw uploadError
+  if (uploadError) {
+    const msg = String((uploadError as { message?: unknown }).message ?? '')
+    if (msg.toLowerCase().includes('bucket not found')) {
+      throw new Error(
+        `Bucket "${bucket}" não encontrado no Supabase Storage. Crie esse bucket no projeto Supabase ou defina VITE_SUPABASE_STORAGE_BUCKET com o nome correto.`
+      )
+    }
+    throw uploadError
+  }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path)
   const publicUrl = data?.publicUrl
