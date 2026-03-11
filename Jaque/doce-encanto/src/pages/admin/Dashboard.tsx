@@ -40,6 +40,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useOrdersStore, type OrderStatus } from "@/store/orders-store"
 import { workopsIngest } from "@/lib/workops-agent"
+import { uploadImageToSupabaseStorage } from "@/lib/supabase"
 
 const productSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -119,6 +120,9 @@ export default function DashboardPage() {
   const fetchOrders = useOrdersStore((state) => state.fetchOrders)
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingProductImage, setIsUploadingProductImage] = useState(false)
+  const [isUploadingAgentAvatar, setIsUploadingAgentAvatar] = useState(false)
+  const [uploadingHeroSlideIndex, setUploadingHeroSlideIndex] = useState<number | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [phoneInput, setPhoneInput] = useState(whatsappNumber)
   const [localSectionsOrder, setLocalSectionsOrder] = useState(homeSectionsOrder)
@@ -158,10 +162,82 @@ export default function DashboardPage() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
   })
+  const currentProductImage = watch("image")
+
+  const uploadImageFile = async (file: File, folder: string) => {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Arquivo inválido. Envie uma imagem.")
+    }
+    const maxBytes = 6 * 1024 * 1024
+    if (file.size > maxBytes) {
+      throw new Error("Imagem muito grande. Limite: 6MB.")
+    }
+    const { publicUrl } = await uploadImageToSupabaseStorage({ file, folder })
+    return publicUrl
+  }
+
+  const handleProductImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    setIsUploadingProductImage(true)
+    try {
+      const publicUrl = await uploadImageFile(file, "products")
+      setValue("image", publicUrl, { shouldDirty: true, shouldValidate: true })
+      toast.success("Imagem enviada com sucesso!")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao enviar imagem"
+      toast.error(msg)
+    } finally {
+      setIsUploadingProductImage(false)
+    }
+  }
+
+  const handleAgentAvatarFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    setIsUploadingAgentAvatar(true)
+    try {
+      const publicUrl = await uploadImageFile(file, "avatars")
+      setAgentAvatarUrl(publicUrl)
+      await saveConfig()
+      toast.success("Avatar atualizado!")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao enviar avatar"
+      toast.error(msg)
+    } finally {
+      setIsUploadingAgentAvatar(false)
+    }
+  }
+
+  const handleHeroSlideImageFileChange =
+    (index: number) => async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      event.target.value = ""
+      if (!file) return
+
+      setUploadingHeroSlideIndex(index)
+      try {
+        const publicUrl = await uploadImageFile(file, "hero")
+        const updated = [...localHeroSlides]
+        updated[index] = { ...updated[index], image: publicUrl }
+        setLocalHeroSlides(updated)
+        toast.success("Imagem do slide enviada!")
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro ao enviar imagem do slide"
+        toast.error(msg)
+      } finally {
+        setUploadingHeroSlideIndex(null)
+      }
+    }
 
   const onSubmit = async (data: ProductForm) => {
     setIsSubmitting(true)
@@ -419,12 +495,28 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="image">URL da Imagem</Label>
-                      <Input 
-                        id="image" 
-                        {...register("image")} 
-                        placeholder="https://..." 
-                      />
+                      <Label htmlFor="image">Imagem</Label>
+                      <div className="grid gap-2">
+                        <Input id="image" {...register("image")} placeholder="https://..." />
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          disabled={isSubmitting || isUploadingProductImage}
+                          onChange={handleProductImageFileChange}
+                        />
+                      </div>
+                      {isUploadingProductImage && (
+                        <p className="text-xs text-muted-foreground">Enviando imagem...</p>
+                      )}
+                      {currentProductImage && (
+                        <div className="mt-2 overflow-hidden rounded-md border bg-muted">
+                          <img
+                            src={String(currentProductImage)}
+                            alt="Preview"
+                            className="h-32 w-full object-cover"
+                          />
+                        </div>
+                      )}
                       {errors.image && <p className="text-sm text-destructive">{errors.image.message}</p>}
                     </div>
 
@@ -786,6 +878,26 @@ export default function DashboardPage() {
                         setAgentAvatarUrl(event.target.value)
                       }
                     />
+                    <div className="mt-2 grid gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={isSubmitting || isUploadingAgentAvatar}
+                        onChange={handleAgentAvatarFileChange}
+                      />
+                      {isUploadingAgentAvatar && (
+                        <p className="text-xs text-muted-foreground">Enviando avatar...</p>
+                      )}
+                      {agentAvatarUrl && (
+                        <div className="overflow-hidden rounded-md border bg-muted">
+                          <img
+                            src={agentAvatarUrl}
+                            alt={agentName}
+                            className="h-20 w-20 object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="agentSource">Identificador de origem (enviado ao WorkOps)</Label>
@@ -913,15 +1025,35 @@ export default function DashboardPage() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor={`heroImage-${index}`}>URL da imagem de fundo</Label>
-                        <Input
-                          id={`heroImage-${index}`}
-                          value={slide.image}
-                          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                            const updated = [...localHeroSlides]
-                            updated[index] = { ...updated[index], image: event.target.value }
-                            setLocalHeroSlides(updated)
-                          }}
-                        />
+                        <div className="grid gap-2">
+                          <Input
+                            id={`heroImage-${index}`}
+                            value={slide.image}
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                              const updated = [...localHeroSlides]
+                              updated[index] = { ...updated[index], image: event.target.value }
+                              setLocalHeroSlides(updated)
+                            }}
+                          />
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            disabled={isSubmitting || uploadingHeroSlideIndex === index}
+                            onChange={handleHeroSlideImageFileChange(index)}
+                          />
+                        </div>
+                        {uploadingHeroSlideIndex === index && (
+                          <p className="text-xs text-muted-foreground">Enviando imagem do slide...</p>
+                        )}
+                        {slide.image && (
+                          <div className="mt-2 overflow-hidden rounded-md border bg-muted">
+                            <img
+                              src={slide.image}
+                              alt={`Slide ${index + 1}`}
+                              className="h-24 w-full object-cover"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                     {localHeroSlides.length > 1 && (
