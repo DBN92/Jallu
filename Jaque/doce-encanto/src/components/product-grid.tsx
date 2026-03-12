@@ -30,6 +30,7 @@ export function ProductGrid() {
         {
           productId: product.id,
           name: product.name,
+          description: product.description,
           price: product.price,
           category: product.category,
           source: "site_grid",

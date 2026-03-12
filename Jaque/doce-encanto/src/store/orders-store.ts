@@ -9,6 +9,7 @@ const ADMIN_ORDERS_URL = import.meta.env.VITE_ADMIN_ORDERS_URL as string | undef
 export type OrderItem = {
   id?: string | null
   name?: string | null
+  description?: string | null
   quantity?: number | null
   price?: number | null
   category?: string | null
@@ -74,7 +75,12 @@ async function sendAlertzyOrderNotification(order: Order) {
   const itemsLines =
     order.items && order.items.length
       ? order.items
-          .map((i) => `- ${i.quantity ?? 0}x ${i.name ?? ''}`)
+          .map((i) => {
+            const title = `- ${i.quantity ?? 0}x ${i.name ?? ''}`.trimEnd()
+            const desc = (i.description ?? '').trim()
+            if (!desc) return title
+            return `${title}\n  ${desc}`
+          })
           .join('\n')
       : ''
 

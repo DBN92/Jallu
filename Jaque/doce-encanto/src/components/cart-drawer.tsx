@@ -52,6 +52,7 @@ export function CartDrawer() {
     const orderItems = items.map((item) => ({
       id: item.id,
       name: item.name,
+      description: item.description,
       quantity: item.quantity,
       price: item.price,
       category: item.category,

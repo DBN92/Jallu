@@ -176,6 +176,7 @@ export function WorkopsChatWidget() {
       {
         productId: prod.id,
         name: prod.name,
+        description: prod.description,
         price: prod.price,
         category: prod.category,
         quantity,
@@ -356,6 +357,7 @@ export function WorkopsChatWidget() {
       const cartItemsPayload = cartItems.map((item) => ({
         id: item.id,
         name: item.name,
+        description: item.description,
         price: item.price,
         quantity: item.quantity,
         category: item.category,
@@ -390,6 +392,7 @@ export function WorkopsChatWidget() {
           products: siteProducts.map((p) => ({
             id: p.id,
             name: p.name,
+            description: p.description,
             price: p.price,
             category: p.category,
           })),
@@ -426,6 +429,13 @@ export function WorkopsChatWidget() {
           if (rawName) {
             const name = String(rawName).trim()
             ;(parsed.order as WorkopsOrder & { customerName?: string }).customerName = name
+          }
+
+          if (Array.isArray(parsed.order.items)) {
+            parsed.order.items = parsed.order.items.map((item) => {
+              const site = findSiteProduct({ id: item.id, name: item.name, nome: item.nome })
+              return { ...item, description: site?.description }
+            })
           }
 
           try {
