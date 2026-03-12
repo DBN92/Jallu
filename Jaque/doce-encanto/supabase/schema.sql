@@ -82,6 +82,7 @@ create table if not exists order_items (
   order_id uuid references orders(id) on delete cascade,
   product_id uuid references products(id), -- Opcional, caso o produto seja deletado
   product_name text not null, -- Snapshot do nome no momento da compra
+  product_description text, -- Snapshot da descrição no momento da compra
   quantity integer not null,
   price numeric(10, 2) not null, -- Preço unitário no momento da compra
   category text,

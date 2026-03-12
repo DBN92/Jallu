@@ -242,12 +242,19 @@ export default function MobileOrdersPage() {
               {selected.items && selected.items.length > 0 && (
                 <div>
                   <p className="mb-1 font-medium text-foreground">Itens</p>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {selected.items.map((i, idx) => (
-                      <li key={i.id ?? idx} className="flex items-center justify-between text-[13px]">
-                        <span className="text-muted-foreground">
-                          {i.quantity}x {i.name}
-                        </span>
+                      <li key={i.id ?? idx} className="flex items-start justify-between gap-3 text-[13px]">
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">
+                            {i.quantity}x {i.name}
+                          </p>
+                          {i.description && (
+                            <p className="mt-0.5 text-[12px] text-muted-foreground/80">
+                              {i.description}
+                            </p>
+                          )}
+                        </div>
                         {typeof i.price === "number" && (
                           <span className="font-medium">
                             {new Intl.NumberFormat("pt-BR", {

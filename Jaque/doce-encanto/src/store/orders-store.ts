@@ -58,6 +58,7 @@ type OrdersState = {
 type OrderItemRow = {
   id: string | null
   product_name: string | null
+  product_description?: string | null
   quantity: number | null
   price: number | null
   category: string | null
@@ -76,10 +77,11 @@ async function sendAlertzyOrderNotification(order: Order) {
     order.items && order.items.length
       ? order.items
           .map((i) => {
-            const title = `- ${i.quantity ?? 0}x ${i.name ?? ''}`.trimEnd()
+            const qty = i.quantity ?? 0
+            const name = (i.name ?? '').trim()
             const desc = (i.description ?? '').trim()
-            if (!desc) return title
-            return `${title}\n  ${desc}`
+            if (!desc) return `- ${qty}x ${name}`.trimEnd()
+            return `- ${qty}x ${name} — ${desc}`.trimEnd()
           })
           .join('\n')
       : ''
@@ -240,6 +242,7 @@ export const useOrdersStore = create<OrdersState>()(
                 items: (o.items as OrderItemRow[]).map((i) => ({
                   id: i.id,
                   name: i.product_name,
+                  description: i.product_description ?? null,
                   quantity: i.quantity,
                   price: Number(i.price),
                   category: i.category,
@@ -319,17 +322,33 @@ export const useOrdersStore = create<OrdersState>()(
              if (newOrder.items && newOrder.items.length > 0 && orderData) {
                 const itemsPayload = newOrder.items.map((i) => ({
                    order_id: orderData.id,
+                   product_id: i.id ?? null,
                    product_name: i.name,
+                   product_description: i.description ?? null,
                    quantity: i.quantity,
                    price: i.price,
                    category: i.category
                 }))
                 
-                const { error: itemsError } = await supabase
-                  .from('order_items')
-                  .insert(itemsPayload)
-                
-                if (itemsError) throw itemsError
+                const { error: itemsError } = await supabase.from('order_items').insert(itemsPayload)
+
+                if (itemsError) {
+                  const msg = String((itemsError as { message?: unknown }).message ?? '').toLowerCase()
+                  if (msg.includes('column') && msg.includes('product_description')) {
+                    const fallbackPayload = newOrder.items.map((i) => ({
+                      order_id: orderData.id,
+                      product_id: i.id ?? null,
+                      product_name: i.name,
+                      quantity: i.quantity,
+                      price: i.price,
+                      category: i.category,
+                    }))
+                    const { error: fallbackError } = await supabase.from('order_items').insert(fallbackPayload)
+                    if (fallbackError) throw fallbackError
+                  } else {
+                    throw itemsError
+                  }
+                }
              }
              
              // Atualizar ID local com UUID real
