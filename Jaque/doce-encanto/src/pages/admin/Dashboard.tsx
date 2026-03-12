@@ -66,7 +66,7 @@ const sectionLabels: Record<string, string> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { products, categories, deleteProduct, addProduct, updateProduct, fetchProducts } =
+  const { products, categories, deleteProduct, addProduct, updateProduct, fetchProducts, addCategory } =
     useProductStore()
   const logout = useAuthStore((state) => state.logout)
   const {
@@ -129,6 +129,8 @@ export default function DashboardPage() {
   const [localHeroSlides, setLocalHeroSlides] = useState(heroSlides)
   const [localBenefits, setLocalBenefits] = useState(benefits)
   const [localTestimonials, setLocalTestimonials] = useState(testimonials)
+  const [categoryMode, setCategoryMode] = useState<"select" | "new">("select")
+  const [newCategory, setNewCategory] = useState("")
 
   useEffect(() => {
     const loadData = async () => {
@@ -168,6 +170,15 @@ export default function DashboardPage() {
     resolver: zodResolver(productSchema),
   })
   const currentProductImage = watch("image")
+  const selectedCategory = watch("category")
+
+  const finalizeNewCategory = () => {
+    const trimmed = newCategory.trim()
+    if (!trimmed) return
+    setNewCategory(trimmed)
+    setValue("category", trimmed, { shouldDirty: true, shouldValidate: true })
+    if (!categories.includes(trimmed)) addCategory(trimmed)
+  }
 
   const uploadImageFile = async (file: File, folder: string) => {
     if (!file.type.startsWith("image/")) {
@@ -242,7 +253,6 @@ export default function DashboardPage() {
   const onSubmit = async (data: ProductForm) => {
     setIsSubmitting(true)
     try {
-      // Manually convert price to number for the store
       const payload = {
         ...data,
         category: data.category.trim(),
@@ -259,6 +269,8 @@ export default function DashboardPage() {
       setIsOpen(false)
       reset()
       setEditingId(null)
+      setCategoryMode("select")
+      setNewCategory("")
     } catch (error) {
       console.error(error)
       toast.error("Erro ao salvar produto. Tente novamente.")
@@ -268,6 +280,8 @@ export default function DashboardPage() {
   }
 
   const handleEdit = (product: Product) => {
+    setCategoryMode("select")
+    setNewCategory("")
     setEditingId(product.id)
     setValue("name", product.name)
     setValue("description", product.description)
@@ -430,9 +444,17 @@ export default function DashboardPage() {
               </div>
               <Sheet open={isOpen} onOpenChange={(open: boolean) => {
                 setIsOpen(open)
+                if (open && !editingId) {
+                  reset()
+                  setCategoryMode("select")
+                  setNewCategory("")
+                  setValue("category", "", { shouldDirty: false, shouldValidate: false })
+                }
                 if (!open) {
                   reset()
                   setEditingId(null)
+                  setCategoryMode("select")
+                  setNewCategory("")
                 }
               }}>
                 <SheetTrigger asChild>
@@ -446,6 +468,7 @@ export default function DashboardPage() {
                     <SheetTitle>{editingId ? "Editar Produto" : "Novo Produto"}</SheetTitle>
                   </SheetHeader>
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
+                    <input type="hidden" {...register("category")} />
                     <div className="space-y-2">
                       <Label htmlFor="name">Nome do Produto</Label>
                       <Input id="name" {...register("name")} placeholder="Ex: Bolo de Chocolate" />
@@ -454,21 +477,70 @@ export default function DashboardPage() {
                     
                     <div className="space-y-2">
                       <Label htmlFor="category">Categoria</Label>
-                      <Select 
-                        onValueChange={(val) => setValue("category", val)} 
-                        defaultValue={editingId ? undefined : ""}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {categoryMode === "new" ? (
+                        <div className="grid gap-2">
+                          <Input
+                            id="category"
+                            value={newCategory}
+                            placeholder="Ex: Tortas"
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                              const val = event.target.value
+                              setNewCategory(val)
+                              setValue("category", val, { shouldDirty: true, shouldValidate: true })
+                            }}
+                            onBlur={finalizeNewCategory}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                finalizeNewCategory()
+                                setCategoryMode("select")
+                                if (!categories.includes(String(selectedCategory ?? ""))) {
+                                  setValue("category", "", { shouldDirty: true, shouldValidate: true })
+                                }
+                              }}
+                            >
+                              Voltar
+                            </Button>
+                            <Button type="button" variant="outline" onClick={finalizeNewCategory}>
+                              Adicionar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-2">
+                          <Select
+                            value={selectedCategory ? String(selectedCategory) : undefined}
+                            onValueChange={(val) =>
+                              setValue("category", val, { shouldDirty: true, shouldValidate: true })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {cat}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setCategoryMode("new")
+                              setNewCategory("")
+                              setValue("category", "", { shouldDirty: true, shouldValidate: true })
+                            }}
+                          >
+                            Nova categoria
+                          </Button>
+                        </div>
+                      )}
                       {errors.category && <p className="text-sm text-destructive">{errors.category.message}</p>}
                     </div>
 
