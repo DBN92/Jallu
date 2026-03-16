@@ -10,6 +10,12 @@ if (!hasSupabaseConfig) {
   console.error('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente.')
 }
 
+export function requireSupabaseConfig() {
+  if (!hasSupabaseConfig) {
+    throw new Error('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente.')
+  }
+}
+
 export const supabase = hasSupabaseConfig
   ? createClient(supabaseUrl as string, supabaseAnonKey as string)
   : createClient('https://invalid.supabase.local', 'invalid')
