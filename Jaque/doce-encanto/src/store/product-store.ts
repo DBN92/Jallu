@@ -15,6 +15,7 @@ interface ProductState {
   
   fetchProducts: () => Promise<void>
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>
+  addProductsBulk: (products: Array<Omit<Product, 'id'>>) => Promise<void>
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>
   deleteProduct: (id: string) => Promise<void>
   addCategory: (category: string) => void
@@ -127,6 +128,84 @@ export const useProductStore = create<ProductState>()(
                   ? err.message
                   : 'Erro ao adicionar produto',
             }
+          })
+        }
+      },
+
+      addProductsBulk: async (incoming) => {
+        const normalized = incoming
+          .map((p) => ({
+            ...p,
+            name: String(p.name ?? '').trim(),
+            category: String(p.category ?? '').trim(),
+            description: String(p.description ?? '').trim(),
+            image: p.image ? String(p.image).trim() : undefined,
+            price: Number(p.price),
+          }))
+          .filter((p) => p.name && p.category && p.description && !Number.isNaN(p.price))
+
+        if (normalized.length === 0) return
+
+        const tempEntries = normalized.map((p) => ({
+          ...p,
+          id: Math.random().toString(36).slice(2, 11),
+        }))
+
+        const previous = get().products
+
+        set((state) => {
+          const updated = [...state.products, ...tempEntries]
+          return {
+            products: updated,
+            categories: getCategoriesFromProducts(updated),
+          }
+        })
+
+        try {
+          const { data, error } = await supabase
+            .from('products')
+            .insert(
+              normalized.map((p) => ({
+                name: p.name,
+                description: p.description,
+                price: p.price,
+                category: p.category,
+                image: p.image,
+                active: true,
+              }))
+            )
+            .select()
+
+          if (error) throw error
+
+          if (data && data.length > 0) {
+            set((state) => {
+              const mappedInserted = data.map((row) => ({
+                id: row.id,
+                name: row.name,
+                description: row.description || '',
+                price: Number(row.price),
+                category: row.category,
+                image: row.image,
+              }))
+
+              const keep = state.products.filter((p) => !tempEntries.some((t) => t.id === p.id))
+              const updated = [...keep, ...mappedInserted]
+              return {
+                products: updated,
+                categories: getCategoriesFromProducts(updated),
+              }
+            })
+          }
+        } catch (err) {
+          console.error('Erro ao adicionar produtos em massa:', err)
+          set({
+            products: previous,
+            categories: getCategoriesFromProducts(previous),
+            error:
+              err instanceof Error
+                ? err.message
+                : 'Erro ao adicionar produtos em massa',
           })
         }
       },

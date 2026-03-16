@@ -66,7 +66,7 @@ const sectionLabels: Record<string, string> = {
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { products, categories, deleteProduct, addProduct, updateProduct, fetchProducts, addCategory } =
+  const { products, categories, deleteProduct, addProduct, addProductsBulk, updateProduct, fetchProducts, addCategory } =
     useProductStore()
   const logout = useAuthStore((state) => state.logout)
   const {
@@ -131,6 +131,10 @@ export default function DashboardPage() {
   const [localTestimonials, setLocalTestimonials] = useState(testimonials)
   const [categoryMode, setCategoryMode] = useState<"select" | "new">("select")
   const [newCategory, setNewCategory] = useState("")
+  const [bulkTemplateFileName, setBulkTemplateFileName] = useState<string | null>(null)
+  const [bulkTemplateValid, setBulkTemplateValid] = useState<Array<Omit<Product, "id">>>([])
+  const [bulkTemplateErrors, setBulkTemplateErrors] = useState<Array<{ line: number; message: string }>>([])
+  const [isBulkImporting, setIsBulkImporting] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -249,6 +253,212 @@ export default function DashboardPage() {
         setUploadingHeroSlideIndex(null)
       }
     }
+
+  const downloadProductsTemplate = () => {
+    const header = ["name", "description", "price", "category", "image"]
+    const rows = [
+      ["Bolo de Cenoura", "Massa fofinha com cobertura de chocolate.", "35,00", "Bolos", ""],
+      ["Caixa Brigadeiros (12 un.)", "Seleção de brigadeiros gourmet.", "48,00", "Brigadeiros", ""],
+    ]
+    const csv = [header.join(";")]
+      .concat(rows.map((r) => r.map((c) => `"${String(c).replace(/\"/g, '""')}"`).join(";")))
+      .join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "produtos_template.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const parseDelimited = (text: string, delimiter: string) => {
+    const rows: string[][] = []
+    let row: string[] = []
+    let cell = ""
+    let inQuotes = false
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]
+      const next = i + 1 < text.length ? text[i + 1] : ""
+
+      if (inQuotes) {
+        if (ch === '"' && next === '"') {
+          cell += '"'
+          i++
+          continue
+        }
+        if (ch === '"') {
+          inQuotes = false
+          continue
+        }
+        cell += ch
+        continue
+      }
+
+      if (ch === '"') {
+        inQuotes = true
+        continue
+      }
+
+      if (ch === delimiter) {
+        row.push(cell)
+        cell = ""
+        continue
+      }
+
+      if (ch === "\n") {
+        row.push(cell)
+        cell = ""
+        rows.push(row)
+        row = []
+        continue
+      }
+
+      if (ch === "\r") continue
+
+      cell += ch
+    }
+
+    if (cell.length || row.length) {
+      row.push(cell)
+      rows.push(row)
+    }
+
+    return rows.filter((r) => r.some((c) => String(c ?? "").trim().length > 0))
+  }
+
+  const normalizeHeader = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "_")
+      .trim()
+
+  const parsePrice = (raw: string) => {
+    const t = String(raw ?? "").trim()
+    if (!t) return NaN
+    const hasComma = t.includes(",")
+    if (hasComma) {
+      return Number.parseFloat(t.replace(/\./g, "").replace(",", "."))
+    }
+    return Number.parseFloat(t)
+  }
+
+  const handleBulkTemplateFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    setBulkTemplateFileName(file.name)
+    setBulkTemplateErrors([])
+    setBulkTemplateValid([])
+
+    try {
+      const text = await file.text()
+      const firstLine = text.split(/\r?\n/)[0] ?? ""
+      const delimiter = firstLine.includes(";") ? ";" : firstLine.includes("\t") ? "\t" : ","
+      const table = parseDelimited(text, delimiter)
+      if (table.length < 2) {
+        toast.error("Arquivo vazio ou sem linhas de dados.")
+        return
+      }
+
+      const header = (table[0] ?? []).map((h) => normalizeHeader(String(h ?? "")))
+      const idxOf = (keys: string[]) => header.findIndex((h) => keys.includes(h))
+
+      const idxName = idxOf(["name", "nome", "produto"])
+      const idxDescription = idxOf(["description", "descricao", "descrição", "desc"])
+      const idxPrice = idxOf(["price", "preco", "preço", "valor"])
+      const idxCategory = idxOf(["category", "categoria"])
+      const idxImage = idxOf(["image", "imagem", "url", "image_url", "url_imagem"])
+
+      const missing: string[] = []
+      if (idxName < 0) missing.push("name")
+      if (idxDescription < 0) missing.push("description")
+      if (idxPrice < 0) missing.push("price")
+      if (idxCategory < 0) missing.push("category")
+      if (missing.length) {
+        toast.error(`Cabeçalho inválido. Campos obrigatórios: ${missing.join(", ")}`)
+        return
+      }
+
+      const valid: Array<Omit<Product, "id">> = []
+      const errors: Array<{ line: number; message: string }> = []
+
+      for (let i = 1; i < table.length; i++) {
+        const lineNumber = i + 1
+        const r = table[i] ?? []
+        const name = String(r[idxName] ?? "").trim()
+        const description = String(r[idxDescription] ?? "").trim()
+        const category = String(r[idxCategory] ?? "").trim()
+        const priceRaw = String(r[idxPrice] ?? "").trim()
+        const price = parsePrice(priceRaw)
+        const image = idxImage >= 0 ? String(r[idxImage] ?? "").trim() : ""
+
+        const isBlank = !name && !description && !category && !priceRaw && !image
+        if (isBlank) continue
+
+        if (!name) {
+          errors.push({ line: lineNumber, message: "Nome é obrigatório" })
+          continue
+        }
+        if (!description) {
+          errors.push({ line: lineNumber, message: "Descrição é obrigatória" })
+          continue
+        }
+        if (!category) {
+          errors.push({ line: lineNumber, message: "Categoria é obrigatória" })
+          continue
+        }
+        if (!Number.isFinite(price) || price < 0) {
+          errors.push({ line: lineNumber, message: `Preço inválido: "${priceRaw}"` })
+          continue
+        }
+
+        valid.push({
+          name,
+          description,
+          category,
+          price,
+          image: image || undefined,
+        })
+      }
+
+      setBulkTemplateValid(valid)
+      setBulkTemplateErrors(errors)
+
+      if (!valid.length) {
+        toast.error("Nenhuma linha válida encontrada para importação.")
+      } else if (errors.length) {
+        toast.warning(`Arquivo carregado com avisos: ${valid.length} válidas, ${errors.length} com erro.`)
+      } else {
+        toast.success(`Arquivo carregado: ${valid.length} produtos prontos para importar.`)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao ler arquivo"
+      toast.error(msg)
+    }
+  }
+
+  const handleBulkImport = async () => {
+    if (!bulkTemplateValid.length || isBulkImporting) return
+    setIsBulkImporting(true)
+    try {
+      await addProductsBulk(bulkTemplateValid)
+      toast.success(`${bulkTemplateValid.length} produtos importados!`)
+      setBulkTemplateFileName(null)
+      setBulkTemplateValid([])
+      setBulkTemplateErrors([])
+      await fetchProducts()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao importar produtos"
+      toast.error(msg)
+    } finally {
+      setIsBulkImporting(false)
+    }
+  }
 
   const onSubmit = async (data: ProductForm) => {
     setIsSubmitting(true)
@@ -599,6 +809,57 @@ export default function DashboardPage() {
                 </SheetContent>
               </Sheet>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ListOrdered className="h-5 w-5" />
+                  Cadastro em massa (template)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" onClick={downloadProductsTemplate} disabled={isBulkImporting || isSubmitting}>
+                    Baixar template
+                  </Button>
+                  <Input
+                    type="file"
+                    accept=".csv,text/csv"
+                    disabled={isBulkImporting || isSubmitting}
+                    onChange={handleBulkTemplateFileChange}
+                  />
+                </div>
+
+                {bulkTemplateFileName && (
+                  <p className="text-xs text-muted-foreground">Arquivo: {bulkTemplateFileName}</p>
+                )}
+
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span>Válidos: {bulkTemplateValid.length}</span>
+                  <span>Erros: {bulkTemplateErrors.length}</span>
+                </div>
+
+                {bulkTemplateErrors.length > 0 && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                    <p className="font-medium text-foreground">Erros (primeiros 5)</p>
+                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                      {bulkTemplateErrors.slice(0, 5).map((e) => (
+                        <li key={`${e.line}-${e.message}`}>
+                          Linha {e.line}: {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleBulkImport}
+                  disabled={!bulkTemplateValid.length || isBulkImporting || isSubmitting}
+                >
+                  {isBulkImporting ? "Importando..." : `Importar ${bulkTemplateValid.length} produtos`}
+                </Button>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardContent className="p-0">
