@@ -129,6 +129,7 @@ export const useProductStore = create<ProductState>()(
                   : 'Erro ao adicionar produto',
             }
           })
+          throw err instanceof Error ? err : new Error('Erro ao adicionar produto')
         }
       },
 
@@ -207,6 +208,7 @@ export const useProductStore = create<ProductState>()(
                 ? err.message
                 : 'Erro ao adicionar produtos em massa',
           })
+          throw err instanceof Error ? err : new Error('Erro ao adicionar produtos em massa')
         }
       },
 
@@ -241,6 +243,7 @@ export const useProductStore = create<ProductState>()(
                 ? err.message
                 : 'Erro ao atualizar produto',
           })
+          throw err instanceof Error ? err : new Error('Erro ao atualizar produto')
         }
       },
 
@@ -271,6 +274,7 @@ export const useProductStore = create<ProductState>()(
                 ? err.message
                 : 'Erro ao deletar produto',
           })
+          throw err instanceof Error ? err : new Error('Erro ao deletar produto')
         }
       },
 
