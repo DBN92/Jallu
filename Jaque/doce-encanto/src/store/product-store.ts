@@ -6,6 +6,22 @@ import { supabase } from '@/lib/supabase'
 const getCategoriesFromProducts = (products: Product[]) =>
   Array.from(new Set(products.map((p) => p.category)))
 
+type SupabaseLikeError = { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
+
+const toError = (err: unknown, fallbackMessage: string) => {
+  if (err instanceof Error) return err
+  if (err && typeof err === 'object') {
+    const e = err as SupabaseLikeError
+    const msg = String(e.message ?? '').trim()
+    const details = String(e.details ?? '').trim()
+    const hint = String(e.hint ?? '').trim()
+    const code = String(e.code ?? '').trim()
+    const parts = [msg, details, hint, code ? `code=${code}` : ''].filter(Boolean)
+    if (parts.length) return new Error(parts.join(' | '))
+  }
+  return new Error(fallbackMessage)
+}
+
 interface ProductState {
   products: Product[]
   categories: string[]
@@ -97,7 +113,7 @@ export const useProductStore = create<ProductState>()(
             .select()
             .single()
 
-          if (error) throw error
+          if (error) throw toError(error, 'Erro ao adicionar produto')
 
           if (data) {
             set((state) => {
@@ -117,19 +133,17 @@ export const useProductStore = create<ProductState>()(
             })
           }
         } catch (err) {
+          const e = toError(err, 'Erro ao adicionar produto')
           console.error('Erro ao adicionar produto:', err)
           set((state) => {
             const revertedProducts = state.products.filter((p) => p.id !== tempId)
             return {
               products: revertedProducts,
               categories: getCategoriesFromProducts(revertedProducts),
-              error:
-                err instanceof Error
-                  ? err.message
-                  : 'Erro ao adicionar produto',
+              error: e.message,
             }
           })
-          throw err instanceof Error ? err : new Error('Erro ao adicionar produto')
+          throw e
         }
       },
 
@@ -177,7 +191,7 @@ export const useProductStore = create<ProductState>()(
             )
             .select()
 
-          if (error) throw error
+          if (error) throw toError(error, 'Erro ao adicionar produtos em massa')
 
           if (data && data.length > 0) {
             set((state) => {
@@ -199,16 +213,14 @@ export const useProductStore = create<ProductState>()(
             })
           }
         } catch (err) {
+          const e = toError(err, 'Erro ao adicionar produtos em massa')
           console.error('Erro ao adicionar produtos em massa:', err)
           set({
             products: previous,
             categories: getCategoriesFromProducts(previous),
-            error:
-              err instanceof Error
-                ? err.message
-                : 'Erro ao adicionar produtos em massa',
+            error: e.message,
           })
-          throw err instanceof Error ? err : new Error('Erro ao adicionar produtos em massa')
+          throw e
         }
       },
 
@@ -232,18 +244,16 @@ export const useProductStore = create<ProductState>()(
             .update(dbPayload)
             .eq('id', id)
 
-          if (error) throw error
+          if (error) throw toError(error, 'Erro ao atualizar produto')
         } catch (err) {
+          const e = toError(err, 'Erro ao atualizar produto')
           console.error('Erro ao atualizar produto:', err)
           set({
             products: originalProducts,
             categories: getCategoriesFromProducts(originalProducts),
-            error:
-              err instanceof Error
-                ? err.message
-                : 'Erro ao atualizar produto',
+            error: e.message,
           })
-          throw err instanceof Error ? err : new Error('Erro ao atualizar produto')
+          throw e
         }
       },
 
@@ -263,18 +273,16 @@ export const useProductStore = create<ProductState>()(
             .update({ active: false })
             .eq('id', id)
 
-          if (error) throw error
+          if (error) throw toError(error, 'Erro ao deletar produto')
         } catch (err) {
+          const e = toError(err, 'Erro ao deletar produto')
           console.error('Erro ao deletar produto:', err)
           set({
             products: originalProducts,
             categories: getCategoriesFromProducts(originalProducts),
-            error:
-              err instanceof Error
-                ? err.message
-                : 'Erro ao deletar produto',
+            error: e.message,
           })
-          throw err instanceof Error ? err : new Error('Erro ao deletar produto')
+          throw e
         }
       },
 
