@@ -513,9 +513,15 @@ export default function DashboardPage() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate("/admin/login")
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao sair"
+      toast.error(msg)
+    } finally {
+      navigate("/admin/login")
+    }
   }
 
   const handleSavePhone = async () => {

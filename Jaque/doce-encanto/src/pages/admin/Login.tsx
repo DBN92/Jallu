@@ -10,37 +10,8 @@ import { useAuthStore } from "@/store/auth-store"
 import { toast } from "sonner"
 import { Lock } from "lucide-react"
 
-// Simple client-side validation for now. 
-// In a real production app with Vite, you'd call an API endpoint.
-const validateCredentials = async (data: { username: string; password: string }) => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const envUsername = import.meta.env.VITE_ADMIN_USERNAME
-  const envPassword = import.meta.env.VITE_ADMIN_PASSWORD
-
-  if (!envUsername || !envPassword) {
-    console.error("Admin credentials are not set in environment variables.")
-    // Fallback for demo if envs are missing, or fail.
-    // Let's fail safe but maybe log it.
-    if (!envUsername && !envPassword) {
-        // Just for development ease if they forget to set .env
-        if (data.username === 'admin' && data.password === 'admin') {
-            return { success: true }
-        }
-    }
-    return { success: false, message: "Erro de configuração do servidor." }
-  }
-
-  if (data.username === envUsername && data.password === envPassword) {
-    return { success: true }
-  }
-
-  return { success: false, message: "Credenciais inválidas" }
-}
-
 const loginSchema = z.object({
-  username: z.string().min(1, "Usuário é obrigatório"),
+  email: z.string().min(1, "E-mail é obrigatório").email("E-mail inválido"),
   password: z.string().min(1, "Senha é obrigatória"),
 })
 
@@ -48,7 +19,8 @@ type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const login = useAuthStore((state) => state.login)
+  const loginWithPassword = useAuthStore((state) => state.loginWithPassword)
+  const init = useAuthStore((state) => state.init)
 
   const {
     register,
@@ -60,17 +32,13 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      const result = await validateCredentials(data)
-
-      if (result.success) {
-        login()
-        toast.success("Login realizado com sucesso!")
-        navigate("/admin/dashboard")
-      } else {
-        toast.error(result.message || "Credenciais inválidas")
-      }
-    } catch {
-      toast.error("Erro ao realizar login. Tente novamente.")
+      await init()
+      await loginWithPassword(data.email, data.password)
+      toast.success("Login realizado com sucesso!")
+      navigate("/admin/dashboard")
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao realizar login. Tente novamente."
+      toast.error(msg)
     }
   }
 
@@ -90,15 +58,15 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Usuário
+                E-mail
               </label>
               <Input 
-                {...register("username")} 
-                placeholder="admin" 
+                {...register("email")} 
+                placeholder="admin@seusite.com" 
                 className="h-11"
               />
-              {errors.username && (
-                <p className="text-sm text-destructive">{errors.username.message}</p>
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
             <div className="space-y-2">
