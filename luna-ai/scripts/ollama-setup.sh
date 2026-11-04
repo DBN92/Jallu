@@ -18,12 +18,17 @@ mkdir -p "$DIR/models"
 if [ ! -x "$DIR/bin/ollama" ]; then
   info "Baixando Ollama ($ARCH) para $DIR (pode levar alguns minutos)…"
   TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-  if curl -fL --progress-bar -o "$TMP/ollama.tgz" "https://ollama.com/download/ollama-linux-$ARCH.tgz"; then
-    tar -xzf "$TMP/ollama.tgz" -C "$DIR"
-  elif command -v zstd >/dev/null 2>&1 && curl -fL --progress-bar -o "$TMP/ollama.tar.zst" "https://ollama.com/download/ollama-linux-$ARCH.tar.zst"; then
+  # O Ollama publica apenas .tar.zst. Descompacta com zstd se existir; senão, com o Node da Luna.
+  URL="https://ollama.com/download/ollama-linux-$ARCH.tar.zst"
+  curl -fL --progress-bar -o "$TMP/ollama.tar.zst" "$URL" \
+    || curl -fL --progress-bar -o "$TMP/ollama.tar.zst" "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-$ARCH.tar.zst" \
+    || fail "Não consegui baixar o Ollama. Verifique a internet."
+  info "Descompactando…"
+  if command -v zstd >/dev/null 2>&1; then
     zstd -dc "$TMP/ollama.tar.zst" | tar -x -C "$DIR"
   else
-    fail "Não consegui baixar o Ollama. Verifique a internet."
+    use_node || fail "Node não encontrado para descompactar (rode scripts/install.sh antes)."
+    node -e "const z=require('zlib'),fs=require('fs');if(!z.createZstdDecompress){console.error('Node sem suporte a zstd');process.exit(1)}fs.createReadStream(process.argv[1]).pipe(z.createZstdDecompress()).pipe(process.stdout)" "$TMP/ollama.tar.zst" | tar -x -C "$DIR"
   fi
 fi
 "$DIR/bin/ollama" --version >/dev/null 2>&1 || fail "O binário do Ollama não executou neste sistema."
