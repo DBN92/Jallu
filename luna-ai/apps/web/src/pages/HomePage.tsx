@@ -7,13 +7,13 @@ import { WeatherIcon } from '../components/WeatherIcon';
 import { Banner } from '../components/ui';
 import { useSpeechRecognition, useSpeechSynthesis, useRecorder } from '../hooks/speech';
 import { useRealtimeVoice } from '../hooks/useRealtimeVoice';
-import { useWakeWord } from '../hooks/useWakeWord';
+import { useWakeWord, wakeWordSupport } from '../hooks/useWakeWord';
 import { useClock, useWeather } from '../hooks/useWeather';
 import { api, errorMessage } from '../services/api';
 import { useAssistant } from '../stores/assistant';
 import { useAuth } from '../stores/auth';
 import { useSettings } from '../stores/settings';
-import { greeting, STATE_LABEL } from '../lib/text';
+import { greeting, playChime, STATE_LABEL } from '../lib/text';
 
 const STATE_DOT: Record<string, string> = {
   idle: 'bg-emerald-400',
@@ -39,12 +39,18 @@ export default function HomePage() {
   const [muted, setMuted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Android/computador: o Chrome escuta "Luna" de graça; a sessão da OpenAI só abre quando chamada.
+  // iPhone: sem escuta contínua no navegador, o filtro de "Luna" roda dentro da sessão em tempo real.
+  const wakeEnabled = Boolean(settings?.wakeWordEnabled);
+  const localWake = wakeWordSupport('basic').supported;
+
   const realtime = useRealtimeVoice({
     onState: setState,
     onTranscript: (role, t) => appendLocal({ role, content: t, channel: 'voice', provider: role === 'assistant' ? 'openai-realtime' : null }),
     conversationId,
     onConversation: setConversationId,
-    wakeWord: Boolean(settings?.wakeWordEnabled) && voiceMode === 'realtime',
+    wakeWord: wakeEnabled && voiceMode === 'realtime' && !localWake,
+    autoStopMs: wakeEnabled && localWake ? 30_000 : undefined,
   });
 
   const speakReply = useCallback(
@@ -65,10 +71,13 @@ export default function HomePage() {
   );
 
   // Palavra de ativação (somente em primeiro plano e navegadores compatíveis)
-  const wake = useWakeWord(Boolean(settings?.wakeWordEnabled) && voiceMode === 'basic', sr.listening || state !== 'idle' || realtime.active, (rest) => {
+  const wake = useWakeWord(wakeEnabled && localWake, sr.listening || state !== 'idle' || realtime.active || realtime.connecting, (rest) => {
+    playChime();
     tts.unlock();
-    if (rest.length > 2) void sendVoice(rest);
-    else startListening();
+    const command = rest.length > 2 ? rest : undefined;
+    if (voiceMode === 'realtime') void realtime.start(command);
+    else if (command) void sendVoice(command);
+    else setTimeout(startListening, 350);
   });
 
   const startListening = () => {

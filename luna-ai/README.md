@@ -86,8 +86,10 @@ luna-ai/
 
 ## Limitações honestas
 
-- **iPhone não permite escuta contínua** em apps web: a palavra “Ei, Luna” só funciona com o app aberto, em
-  navegadores com reconhecimento contínuo (Chrome no computador/Android). No iPhone, toque no microfone.
+- **“Ei, Luna”**: no **Android/computador (Chrome)** a palavra de ativação é detectada de graça pelo navegador e a
+  conversa em tempo real só abre quando chamada — ideal para um aparelho dedicado ([docs/ANDROID.md](docs/ANDROID.md)).
+  No **iPhone** funciona apenas durante uma sessão de voz em tempo real aberta (o iOS não permite escuta contínua em apps web).
+  Em todos os casos, só com o app aberto e em primeiro plano.
 - No **PWA instalado no iPhone**, o reconhecimento de fala do Safari pode ficar indisponível
   (`service-not-allowed`). Alternativas já implementadas: **Transcrição na nuvem** (grava e transcreve na OpenAI) ou **Voz em tempo real**.
 - Voz em tempo real, transcrição na nuvem e o modo `cloud` exigem `OPENAI_API_KEY` (serviço pago).

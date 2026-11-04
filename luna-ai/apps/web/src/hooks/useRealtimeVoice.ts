@@ -21,6 +21,8 @@ export function useRealtimeVoice(opts: {
   onConversation: (id: string) => void;
   /** Modo "Ei, Luna": só responde quando chamada pelo nome (ou logo após responder). */
   wakeWord?: boolean;
+  /** Encerra a sessão após este tempo sem conversa (economia em aparelhos sempre ligados). */
+  autoStopMs?: number;
 }) {
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -34,6 +36,8 @@ export function useRealtimeVoice(opts: {
   const ctxRef = useRef<AudioContext | null>(null);
   const pendingOutputs = useRef(0);
   const followUntil = useRef(0);
+  const idleTimer = useRef<number | null>(null);
+  const speakingRef = useRef(false);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
   const wakeRef = useRef(Boolean(opts.wakeWord));
   wakeRef.current = Boolean(opts.wakeWord);
@@ -70,6 +74,9 @@ export function useRealtimeVoice(opts: {
   };
 
   const stop = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = null;
+    speakingRef.current = false;
     wakeLockRef.current?.release().catch(() => undefined);
     wakeLockRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -86,6 +93,17 @@ export function useRealtimeVoice(opts: {
     setLevel(0);
     optsRef.current.onState('idle');
   }, []);
+
+  /** Reinicia o contador de inatividade (somente com autoStopMs). */
+  const bumpIdle = () => {
+    const ms = optsRef.current.autoStopMs;
+    if (!ms) return;
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => {
+      if (speakingRef.current || pendingOutputs.current > 0) bumpIdle();
+      else stop();
+    }, ms);
+  };
 
   const meter = (streams: MediaStream[]) => {
     const ctx = new AudioContext();
@@ -112,18 +130,22 @@ export function useRealtimeVoice(opts: {
   const handleEvent = async (ev: { type: string; [k: string]: unknown }) => {
     switch (ev.type) {
       case 'input_audio_buffer.speech_started':
+        bumpIdle();
         optsRef.current.onState('listening');
         break;
       case 'input_audio_buffer.speech_stopped':
         if (!wakeRef.current) optsRef.current.onState('processing');
         break;
       case 'output_audio_buffer.started':
+        speakingRef.current = true;
         optsRef.current.onState('speaking');
         break;
       case 'output_audio_buffer.stopped':
       case 'output_audio_buffer.cleared':
         // Após a Luna falar, aceita continuação sem precisar dizer "Luna" de novo
         followUntil.current = Date.now() + 15_000;
+        speakingRef.current = false;
+        bumpIdle();
         optsRef.current.onState('listening');
         break;
       case 'conversation.item.input_audio_transcription.completed': {
@@ -177,7 +199,7 @@ export function useRealtimeVoice(opts: {
     }
   };
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (initialText?: string) => {
     if (active || connecting) return;
     setError(null);
     setConnecting(true);
@@ -215,6 +237,14 @@ export function useRealtimeVoice(opts: {
         setActive(true);
         setConnecting(false);
         optsRef.current.onState('listening');
+        bumpIdle();
+        // Pedido falado junto com a palavra de ativação ("Luna, acenda a luz") segue direto
+        if (initialText) {
+          void saveTranscript('user', initialText);
+          send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: initialText }] } });
+          send({ type: 'response.create' });
+          optsRef.current.onState('processing');
+        }
       };
       pc.onconnectionstatechange = () => {
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {

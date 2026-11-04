@@ -16,6 +16,20 @@ export function wakeWordSupport(mode: 'basic' | 'realtime' = 'basic'): { support
   return { supported: true, reason: null };
 }
 
+let screenLock: { release: () => Promise<void> } | null = null;
+/** Aparelho dedicado (ex.: Android na parede): mantém a tela acesa enquanto escuta. */
+async function keepScreenOn() {
+  try {
+    const nav = navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } };
+    if (!screenLock && nav.wakeLock) {
+      screenLock = await nav.wakeLock.request('screen');
+      (screenLock as unknown as EventTarget).addEventListener?.('release', () => (screenLock = null));
+    }
+  } catch {
+    /* não suportado */
+  }
+}
+
 export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text: string) => void) {
   const [armed, setArmed] = useState(false);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
@@ -52,6 +66,7 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
       try {
         rec.start();
         setArmed(true);
+        void keepScreenOn();
       } catch {
         setArmed(false);
       }
