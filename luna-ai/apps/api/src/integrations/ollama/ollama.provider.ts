@@ -65,7 +65,8 @@ export class OllamaProvider implements AIProvider {
     const body = {
       model: this.model,
       stream: false,
-      options: { temperature: 0.3, num_ctx: 8192 },
+      // Contexto menor e respostas limitadas = mais rápido em CPU
+      options: { temperature: 0.4, num_ctx: 4096, num_predict: 320 },
       keep_alive: '30m',
       messages: messages.map<OllamaMessage>((m) => {
         if (m.role === 'assistant') {

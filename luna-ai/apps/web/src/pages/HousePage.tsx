@@ -48,9 +48,9 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
   const on = device.isOn === true;
 
   return (
-    <Card className={`transition ${on ? 'border-violet-400/30 bg-violet-500/10' : ''} ${device.hidden ? 'opacity-50' : ''}`}>
+    <Card className={`transition ${on ? 'border-amber-300/40' : ''} ${device.hidden ? 'opacity-50' : ''}`}>
       <div className="flex items-center gap-3">
-        <div className={`rounded-xl p-2.5 ${on ? 'bg-gradient-to-br from-amber-300/90 to-violet-400/80 text-ink-950' : 'bg-white/8 text-white/60'}`}>
+        <div className={`rounded-sm p-2.5 ${on ? 'border border-amber-300/60 bg-amber-400/15 text-amber-200 shadow-[0_0_12px_rgba(255,181,71,0.35)]' : 'bg-white/8 text-white/60'}`}>
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -73,7 +73,7 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
             onClick={() => void toggle(device)}
             disabled={!device.available || busy[device.entityId]}
             aria-label={on ? `Desligar ${device.name}` : `Ligar ${device.name}`}
-            className={`rounded-full p-3 transition active:scale-95 disabled:opacity-40 ${on ? 'bg-white text-ink-950' : 'bg-white/10 text-white'}`}
+            className={`rounded-full p-3 transition active:scale-95 disabled:opacity-40 ${on ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'bg-white/10 text-white'}`}
           >
             {busy[device.entityId] ? <Spinner className="h-5 w-5" /> : <Power className="h-5 w-5" />}
           </button>
@@ -160,7 +160,7 @@ export default function HousePage() {
           <button
             key={c}
             onClick={() => setFilter(c)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs transition ${filter === c ? 'bg-white text-ink-950' : 'glass text-white/70'}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs transition ${filter === c ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'glass text-white/70'}`}
           >
             {c === 'all' ? 'Todos' : DEVICE_CATEGORY_LABELS[c]}
           </button>

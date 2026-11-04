@@ -9,7 +9,7 @@ import type { WeatherService } from '../weather/weather.service';
 import { parseIntent, pickOption, type Intent } from './nlu';
 import { buildSystemPrompt } from './prompt';
 import { askWhich, listJoin, powerReply, stateReply, weatherReply } from './replies';
-import { routeProviders } from './router';
+import { classify, routeProviders } from './router';
 import { TOOL_DEFINITIONS, type ToolContext, type ToolExecutor } from './tools';
 import { ProviderError, type AIProvider, type ChatMessage } from './types';
 
@@ -277,7 +277,10 @@ export class ChatService {
       const actions: ActionResult[] = [];
       try {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-          const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS ? TOOL_DEFINITIONS : []);
+          // Conversa simples no modelo local: sem a lista de ferramentas o prompt fica bem menor
+          // e a resposta sai muito mais rápido em CPUs antigas.
+          const lightweight = !provider.isCloud && classify(req.message) === 'simple';
+          const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS && !lightweight ? TOOL_DEFINITIONS : []);
           if (!res.toolCalls.length) {
             const reply = res.content.trim() || this.fallbackReply(actions);
             return { reply, provider: provider.name, model: provider.model, actions, notices: notices.length ? [...notices, `Respondi usando ${provider.name === 'ollama' ? 'o modelo local' : 'a OpenAI'}.`] : [] };

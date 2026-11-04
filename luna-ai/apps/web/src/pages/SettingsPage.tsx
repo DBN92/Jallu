@@ -285,9 +285,9 @@ export default function SettingsPage() {
 
       <Section title="Inteligência artificial">
         <div className="px-4 py-3">
-          <div className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1">
+          <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
             {MODES.map((m) => (
-              <button key={m.value} onClick={() => void save({ aiMode: m.value })} className={`rounded-lg py-2 text-sm transition ${settings.aiMode === m.value ? 'bg-white text-ink-950' : 'text-white/70'}`}>
+              <button key={m.value} onClick={() => void save({ aiMode: m.value })} className={`rounded-lg py-2 text-sm transition ${settings.aiMode === m.value ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'text-white/70'}`}>
                 {m.label}
               </button>
             ))}
@@ -302,14 +302,14 @@ export default function SettingsPage() {
       <Section title="Voz">
         <div className="px-4 py-3">
           <p className="mb-2 text-sm">Modo de voz</p>
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-white/5 p-1">
-            <button onClick={() => setVoiceMode('basic')} className={`rounded-lg py-2 text-sm ${voiceMode === 'basic' ? 'bg-white text-ink-950' : 'text-white/70'}`}>
+          <div className="grid grid-cols-2 gap-1 rounded-sm bg-white/5 p-1">
+            <button onClick={() => setVoiceMode('basic')} className={`rounded-lg py-2 text-sm ${voiceMode === 'basic' ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'text-white/70'}`}>
               Básico (navegador)
             </button>
             <button
               disabled={!caps?.realtime || settings.aiMode === 'local'}
               onClick={() => setVoiceMode('realtime')}
-              className={`rounded-lg py-2 text-sm disabled:opacity-40 ${voiceMode === 'realtime' ? 'bg-white text-ink-950' : 'text-white/70'}`}
+              className={`rounded-lg py-2 text-sm disabled:opacity-40 ${voiceMode === 'realtime' ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'text-white/70'}`}
             >
               Tempo real (OpenAI)
             </button>

@@ -41,10 +41,10 @@ export default function WeatherPage() {
       )}
       {hasSource && (
         <div className="mb-4 flex gap-2 text-xs">
-          <button onClick={() => setUseGps(true)} className={`rounded-full px-3 py-1.5 ${useGps ? 'bg-white text-ink-950' : 'glass text-white/70'}`}>
+          <button onClick={() => setUseGps(true)} className={`rounded-full px-3 py-1.5 ${useGps ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'glass text-white/70'}`}>
             Localização atual
           </button>
-          <button disabled={!home} onClick={() => setUseGps(false)} className={`rounded-full px-3 py-1.5 disabled:opacity-40 ${!useGps ? 'bg-white text-ink-950' : 'glass text-white/70'}`}>
+          <button disabled={!home} onClick={() => setUseGps(false)} className={`rounded-full px-3 py-1.5 disabled:opacity-40 ${!useGps ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'glass text-white/70'}`}>
             Casa{home ? ` (${home.name.split(',')[0]})` : ''}
           </button>
         </div>
@@ -81,7 +81,7 @@ export default function WeatherPage() {
           <h2 className="mb-2 text-xs font-medium tracking-wider text-white/40 uppercase">Próximas horas</h2>
           <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1">
             {data.hourly.map((h) => (
-              <div key={h.time} className="glass flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl py-3 text-xs">
+              <div key={h.time} className="glass flex w-16 shrink-0 flex-col items-center gap-1 rounded-sm py-3 text-xs">
                 <span className="text-white/50">{hhmm(h.time)}</span>
                 <WeatherIcon code={h.weatherCode} className="h-5 w-5" />
                 <span className="font-medium">{Math.round(h.temperature)}°</span>

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { MessageList } from '../components/Messages';
-import { WeatherIcon } from '../components/WeatherIcon';
+import { ClockPanel, DevicesPanel, SensorsPanel, SystemPanel, WeatherPanel } from '../components/Dashboard';
 import { Banner } from '../components/ui';
 import { useSpeechRecognition, useSpeechSynthesis, useRecorder } from '../hooks/speech';
 import { useRealtimeVoice } from '../hooks/useRealtimeVoice';
@@ -16,12 +15,12 @@ import { useSettings } from '../stores/settings';
 import { greeting, playChime, STATE_LABEL } from '../lib/text';
 
 const STATE_DOT: Record<string, string> = {
-  idle: 'bg-emerald-400',
-  listening: 'bg-cyan-400 animate-pulse',
-  processing: 'bg-violet-400 animate-pulse',
-  acting: 'bg-amber-400 animate-pulse',
-  speaking: 'bg-blue-400 animate-pulse',
-  error: 'bg-rose-500',
+  idle: 'bg-emerald-400 shadow-[0_0_8px_#34d399]',
+  listening: 'bg-cyan-300 animate-pulse shadow-[0_0_8px_#00e5ff]',
+  processing: 'bg-violet-400 animate-pulse shadow-[0_0_8px_#9a8cff]',
+  acting: 'bg-amber-400 animate-pulse shadow-[0_0_8px_#ffb547]',
+  speaking: 'bg-sky-400 animate-pulse shadow-[0_0_8px_#38bdf8]',
+  error: 'bg-rose-500 shadow-[0_0_8px_#f43f5e]',
 };
 
 export default function HomePage() {
@@ -164,20 +163,27 @@ export default function HomePage() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Cabeçalho */}
-      <header className="flex items-center justify-between px-4 pt-safe pb-2 md:px-8 md:pt-6">
-        <div className="flex items-center gap-2 md:hidden">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <span className="font-semibold">
-            Luna <span className="text-gradient">AI</span>
+      {/* Barra superior */}
+      <header className="flex items-center justify-between gap-3 border-b border-cyan-300/10 px-4 pt-safe pb-2 md:px-6 md:pt-4">
+        <div className="flex items-center gap-3">
+          <p className="hud-title hud-glow text-base font-bold text-cyan-50 md:hidden">LUNA</p>
+          <div className="font-hud flex items-center gap-2 rounded-sm border border-cyan-300/20 bg-ink-900/70 px-2.5 py-1 text-xs font-semibold tracking-[0.18em] text-cyan-100/80 uppercase" aria-live="polite">
+            <span className={`h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
+            {STATE_LABEL[state]}
+            {(wake.armed || (realtime.active && settings?.wakeWordEnabled)) && state !== 'speaking' && (
+              <span className="hidden text-cyan-300/60 sm:inline">· diga “Ei, Luna”</span>
+            )}
+          </div>
+          <span className="hud-title hidden text-sm text-cyan-100/60 tabular-nums md:hidden sm:inline lg:hidden">
+            {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
-        <div className="glass hidden items-center gap-2 rounded-full px-3 py-1 text-xs md:flex" aria-live="polite">
-          <span className={`h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
-          {STATE_LABEL[state]}
-        </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setMuted((m) => !m)} className="glass rounded-full p-2 text-white/70" aria-label={muted ? 'Ativar voz das respostas' : 'Silenciar respostas'}>
+          <button
+            onClick={() => setMuted((m) => !m)}
+            className="rounded-sm border border-cyan-300/20 bg-ink-900/70 p-2 text-cyan-200/80 hover:border-cyan-300/50"
+            aria-label={muted ? 'Ativar voz das respostas' : 'Silenciar respostas'}
+          >
             {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
           {hasChat && (
@@ -186,103 +192,114 @@ export default function HomePage() {
                 tts.cancel();
                 newConversation();
               }}
-              className="glass flex items-center gap-1 rounded-full px-3 py-1.5 text-xs text-white/80"
+              className="font-hud flex items-center gap-1 rounded-sm border border-cyan-300/20 bg-ink-900/70 px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-cyan-100/80 uppercase hover:border-cyan-300/50"
             >
-              <Plus className="h-3.5 w-3.5" /> Nova conversa
+              <Plus className="h-3.5 w-3.5" /> Nova
             </button>
           )}
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-1 flex-col px-4">
-        {/* Saudação, hora e clima */}
-        <section className={`flex flex-col items-center text-center transition-all ${hasChat ? 'pt-1' : 'pt-4 md:pt-10'}`}>
-          {!hasChat && (
-            <>
-              <p className="text-sm text-white/50 capitalize">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight md:text-4xl">
-                {greeting(now)}, <span className="text-gradient">{user?.displayName}</span>
-              </h1>
-            </>
-          )}
-          <div className="mt-2 flex items-center gap-3 text-sm text-white/70">
-            <span className="text-lg font-medium tabular-nums">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-            {weather.data ? (
-              <Link to="/clima" className="glass flex items-center gap-1.5 rounded-full px-3 py-1">
-                <WeatherIcon code={weather.data.current.weatherCode} isDay={weather.data.current.isDay} className="h-4 w-4" />
-                {Math.round(weather.data.current.temperature)}° · {weather.data.current.condition}
-              </Link>
-            ) : (
-              <Link to="/clima" className="glass rounded-full px-3 py-1 text-xs text-white/50">
-                {weather.loading ? 'Carregando clima…' : weather.error ? 'Clima indisponível' : 'Definir localização'}
-              </Link>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 pt-3 pb-28 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:pb-4 lg:grid-cols-[280px_minmax(0,1fr)_300px] lg:overflow-hidden lg:px-6">
+        {/* Coluna esquerda: tempo e clima (tablet/computador) */}
+        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto md:flex">
+          <ClockPanel now={now} name={user?.displayName} greeting={greeting(now)} />
+          <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
+          <div className="lg:hidden">
+            <SystemPanel />
+          </div>
+        </aside>
+
+        {/* Centro: núcleo + conversa */}
+        <section className="flex min-h-0 flex-col">
+          <div className={`flex flex-col items-center transition-all duration-500 ${hasChat ? 'pt-0' : 'pt-2 md:pt-6'}`}>
+            {!hasChat && (
+              <div className="mb-2 text-center md:hidden">
+                <p className="hud-label">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short' })}</p>
+                <p className="hud-title hud-glow mt-1 text-4xl font-bold text-cyan-50 tabular-nums">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                <p className="font-hud mt-1 text-base text-cyan-100/70">
+                  {greeting(now)}, <span className="font-bold text-cyan-300">{user?.displayName}</span>
+                  {weather.data && <span className="text-cyan-100/50"> · {Math.round(weather.data.current.temperature)}° {weather.data.current.condition.toLowerCase()}</span>}
+                </p>
+              </div>
+            )}
+            <LunaOrb state={state} level={level} size={hasChat ? 150 : 270} onClick={onMic} label={STATE_LABEL[state]} />
+            {!hasChat && (
+              <p className="font-hud mt-3 max-w-sm text-center text-sm text-cyan-100/45">
+                Toque no núcleo para falar · “acenda a luz da sala” · “vai chover hoje?”
+              </p>
             )}
           </div>
 
-          <div className={`transition-all duration-500 ${hasChat ? 'my-3' : 'my-8 md:my-12'}`}>
-            <LunaOrb state={state} level={level} size={hasChat ? 96 : 210} onClick={onMic} />
+          {err && (
+            <div className="mt-3">
+              <Banner onClose={() => setVoiceError(null)}>{err}</Banner>
+            </div>
+          )}
+
+          <div className={`min-h-0 flex-1 overflow-y-auto ${hasChat ? 'mt-3' : ''}`}>
+            <MessageList messages={messages} interim={interim} />
           </div>
-          <p className="text-sm text-white/60 md:hidden" aria-live="polite">
-            <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
-            {STATE_LABEL[state]}
-            {wake.armed && state === 'idle' && ' · diga “Ei, Luna”'}
-            {realtime.active && settings?.wakeWordEnabled && state === 'listening' && ' · diga “Ei, Luna”'}
-          </p>
+
+          {/* Entrada de comando */}
+          <form onSubmit={onSubmit} className="hud-panel mt-3 flex items-center gap-2 p-2">
+            <span className="hud-label pl-2 text-cyan-300/60">›</span>
+            <input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={micActive ? 'Ouvindo…' : 'Digite um comando para a Luna…'}
+              className="font-hud min-w-0 flex-1 bg-transparent px-1 py-2 text-base text-cyan-50 placeholder-cyan-100/30 outline-none"
+              enterKeyHint="send"
+              autoComplete="off"
+              maxLength={4000}
+            />
+            {text.trim() ? (
+              <button type="submit" disabled={state === 'processing'} className="rounded-sm border border-cyan-300/60 bg-cyan-400/20 p-2.5 text-cyan-50 shadow-[0_0_12px_rgba(0,229,255,0.35)] disabled:opacity-50" aria-label="Enviar">
+                <SendHorizontal className="h-5 w-5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void onMic()}
+                className={`rounded-sm border p-2.5 transition ${
+                  micActive ? 'border-rose-400/70 bg-rose-500/25 text-rose-100 shadow-[0_0_14px_rgba(255,77,106,0.5)]' : 'border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_12px_rgba(0,229,255,0.35)]'
+                }`}
+                aria-label={micActive ? 'Parar' : 'Falar'}
+              >
+                {realtime.connecting ? (
+                  <AudioLines className="h-5 w-5 animate-pulse" />
+                ) : state === 'speaking' ? (
+                  <Square className="h-5 w-5" />
+                ) : micActive ? (
+                  <MicOff className="h-5 w-5" />
+                ) : voiceMode === 'realtime' ? (
+                  <AudioLines className="h-5 w-5" />
+                ) : (
+                  <Mic className="h-5 w-5" />
+                )}
+              </button>
+            )}
+          </form>
+
+          {/* Celular: painéis abaixo da conversa quando ainda não há mensagens */}
           {!hasChat && (
-            <p className="mt-3 max-w-sm text-sm text-white/40">
-              Toque na Luna ou no microfone para falar. Experimente: “acenda a luz da sala” ou “vai chover hoje?”
-            </p>
+            <div className="mt-4 flex flex-col gap-4 md:hidden">
+              <DevicesPanel />
+              <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
+            </div>
           )}
         </section>
 
-        {err && (
-          <Banner onClose={() => setVoiceError(null)}>
-            {err}
-          </Banner>
-        )}
-
-        {/* Conversa */}
-        <section className="min-h-0 flex-1 overflow-y-auto pb-2">
-          <MessageList messages={messages} interim={interim} />
-        </section>
-
-        {/* Entrada */}
-        <form onSubmit={onSubmit} className="glass mb-24 flex items-center gap-2 rounded-2xl p-2 md:mb-6">
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={micActive ? 'Ouvindo…' : 'Pergunte algo à Luna…'}
-            className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base text-white placeholder-white/35 outline-none"
-            enterKeyHint="send"
-            autoComplete="off"
-            maxLength={4000}
-          />
-          {text.trim() ? (
-            <button type="submit" disabled={state === 'processing'} className="rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 p-2.5 text-white disabled:opacity-50" aria-label="Enviar">
-              <SendHorizontal className="h-5 w-5" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void onMic()}
-              className={`rounded-xl p-2.5 transition ${micActive ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-gradient-to-r from-violet-500 to-cyan-500 text-white'}`}
-              aria-label={micActive ? 'Parar' : 'Falar'}
-            >
-              {realtime.connecting ? (
-                <AudioLines className="h-5 w-5 animate-pulse" />
-              ) : state === 'speaking' ? (
-                <Square className="h-5 w-5" />
-              ) : micActive ? (
-                <MicOff className="h-5 w-5" />
-              ) : voiceMode === 'realtime' ? (
-                <AudioLines className="h-5 w-5" />
-              ) : (
-                <Mic className="h-5 w-5" />
-              )}
-            </button>
-          )}
-        </form>
+        {/* Coluna direita: casa e diagnóstico */}
+        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
+          <DevicesPanel />
+          <SensorsPanel />
+          <SystemPanel />
+        </aside>
+        <div className="hidden md:block lg:hidden md:col-span-2">
+          <DevicesPanel />
+        </div>
       </div>
     </div>
   );

@@ -79,7 +79,7 @@ export default function MemoryPage() {
         <>
           <ul className="space-y-2">
             {items.map((m) => (
-              <li key={m.id} className="glass flex items-start gap-3 rounded-2xl p-4">
+              <li key={m.id} className="glass flex items-start gap-3 rounded-sm p-4">
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-medium tracking-wider text-cyan-300 uppercase">{TYPE_LABEL[m.type] ?? m.type}</p>
                   <p className="mt-0.5 text-sm text-white/85">{m.content}</p>

@@ -61,6 +61,14 @@ describe('conversa e controle da casa', () => {
     expect(second.messages.at(-1)!.content).toContain('light.luz_do_quarto_hospedes');
   });
 
+  it('conversa simples no modelo local não envia a lista de ferramentas (mais rápido)', async () => {
+    ctx = await makeApp();
+    ctx.llm.script = [{ content: 'Claro! Por que o livro de matemática ficou triste? Porque tinha muitos problemas.' }];
+    const r = await chat(ctx, 'conte uma piada');
+    expect(r.provider).toBe('ollama');
+    expect((ctx.llm.requests[0] as { tools?: unknown[] }).tools).toBeUndefined();
+  });
+
   it('não executa nada se o modelo tentar uma ferramenta inexistente', async () => {
     ctx = await makeApp();
     ctx.llm.script = [{ tool: 'run_shell', args: { cmd: 'rm -rf /' } }, { content: 'Não posso fazer isso.' }];

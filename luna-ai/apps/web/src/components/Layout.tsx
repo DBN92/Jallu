@@ -18,8 +18,8 @@ function ConnectionBar() {
   const ha = useDevices((s) => s.haConnected);
   if (server && ha !== false) return null;
   return (
-    <div className="fixed inset-x-0 top-0 z-50 bg-rose-600/90 pt-safe pb-1 text-center text-xs font-medium text-white backdrop-blur">
-      {!server ? 'Sem conexão em tempo real com a Luna — tentando reconectar…' : 'Home Assistant desconectado — os dispositivos podem estar desatualizados.'}
+    <div className="font-hud fixed inset-x-0 top-0 z-50 border-b border-rose-400/50 bg-rose-950/90 pt-safe pb-1 text-center text-xs font-semibold tracking-[0.2em] text-rose-200 uppercase backdrop-blur">
+      ⚠ {!server ? 'Link em tempo real perdido — reconectando' : 'Home Assistant offline — estados podem estar desatualizados'}
     </div>
   );
 }
@@ -28,29 +28,35 @@ export function Layout() {
   return (
     <div className="app-bg flex h-full">
       <ConnectionBar />
-      {/* Barra lateral (telas grandes) */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-white/5 p-4 md:flex">
-        <div className="mb-8 flex items-center gap-2 px-2 pt-2">
-          <img src="/favicon.svg" alt="" className="h-8 w-8" />
-          <span className="text-lg font-semibold">
-            Luna <span className="text-gradient">AI</span>
-          </span>
+      {/* Barra lateral (tablet/computador) */}
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex">
+        <div className="mb-8 px-2 pt-2">
+          <p className="hud-title hud-glow text-lg font-bold text-cyan-50">LUNA</p>
+          <p className="hud-label mt-0.5 text-[9px]">assistente // v0.1</p>
         </div>
         <nav className="flex flex-col gap-1">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {NAV.map(({ to, label, icon: Icon, end }, i) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${isActive ? 'bg-white/10 text-white' : 'text-white/55 hover:bg-white/5 hover:text-white'}`
+                `font-hud group flex items-center gap-3 border-l-2 px-3 py-2.5 text-sm font-semibold tracking-[0.12em] uppercase transition ${
+                  isActive ? 'border-cyan-300 bg-cyan-400/10 text-cyan-100 shadow-[inset_8px_0_16px_-8px_rgba(0,229,255,0.4)]' : 'border-transparent text-cyan-100/45 hover:border-cyan-300/40 hover:text-cyan-100'
+                }`
               }
             >
-              <Icon className="h-5 w-5" />
+              <span className="text-[10px] text-cyan-300/50 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+              <Icon className="h-4 w-4" />
               {label === 'Ajustes' ? 'Configurações' : label === 'Casa' ? 'Minha casa' : label}
             </NavLink>
           ))}
         </nav>
+        <div className="mt-auto px-2">
+          <div className="hud-divider mb-3" />
+          <p className="hud-label text-[9px] text-cyan-300/40">sistema operacional</p>
+          <p className="font-hud text-xs text-cyan-100/50">ZimaOS · Home Assistant</p>
+        </div>
       </aside>
 
       <main className="relative flex min-w-0 flex-1 flex-col">
@@ -58,16 +64,25 @@ export function Layout() {
       </main>
 
       {/* Navegação inferior (celular) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-white/10 bg-ink-950/90 pb-safe backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-cyan-300/20 bg-ink-950/92 pb-safe shadow-[0_-8px_24px_rgba(0,229,255,0.06)] backdrop-blur-xl md:hidden">
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
-            className={({ isActive }) => `flex flex-col items-center gap-0.5 pt-2 pb-1 text-[10px] transition ${isActive ? 'text-cyan-300' : 'text-white/45'}`}
+            className={({ isActive }) =>
+              `font-hud relative flex flex-col items-center gap-0.5 pt-2 pb-1 text-[10px] font-semibold tracking-wider uppercase transition ${
+                isActive ? 'text-cyan-300 [text-shadow:0_0_8px_rgba(0,229,255,0.7)]' : 'text-cyan-100/40'
+              }`
+            }
           >
-            <Icon className="h-5 w-5" />
-            <span className="max-w-full truncate px-0.5">{label}</span>
+            {({ isActive }) => (
+              <>
+                {isActive && <span className="absolute top-0 h-0.5 w-8 bg-cyan-300 shadow-[0_0_8px_#00e5ff]" />}
+                <Icon className="h-5 w-5" />
+                <span className="max-w-full truncate px-0.5">{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -77,5 +92,5 @@ export function Layout() {
 
 /** Contêiner rolável padrão para as páginas secundárias. */
 export function Page({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 pt-safe pb-28 md:pb-10 md:pt-8">{children}</div>;
+  return <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 pt-safe pb-28 md:px-8 md:pb-10 md:pt-8">{children}</div>;
 }

@@ -13,14 +13,17 @@ export function MessageList({ messages, interim, compact }: { messages: UiMessag
       {messages.map((m) => (
         <div key={m.id} className={`animate-fade-up flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
           <div
-            className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap ${
+            className={`max-w-[85%] px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap ${
               m.role === 'user'
-                ? 'rounded-br-md bg-gradient-to-br from-violet-600/80 to-indigo-600/80 text-white'
+                ? 'rounded-sm border border-cyan-300/30 bg-cyan-400/10 text-cyan-50'
                 : m.error
-                  ? 'rounded-bl-md border border-rose-500/30 bg-rose-500/10 text-rose-100'
-                  : 'glass rounded-bl-md text-white/90'
+                  ? 'rounded-sm border border-rose-400/40 bg-rose-500/10 text-rose-100'
+                  : 'rounded-sm border-l-2 border-cyan-300/70 bg-ink-800/70 text-cyan-50/90 shadow-[inset_10px_0_20px_-12px_rgba(0,229,255,0.4)]'
             }`}
           >
+            <p className={`hud-label mb-1 text-[9px] ${m.role === 'user' ? 'text-right text-cyan-200/50' : ''}`}>
+              {m.role === 'user' ? 'Você' : 'Luna'} · {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
             {m.content}
             {!!m.actions?.length && (
               <ul className="mt-2 space-y-1 border-t border-white/10 pt-2 text-xs">
@@ -34,7 +37,7 @@ export function MessageList({ messages, interim, compact }: { messages: UiMessag
             )}
             {!!m.notices?.length && <p className="mt-1.5 text-[11px] text-amber-200/70">{m.notices.join(' ')}</p>}
             {m.role === 'assistant' && m.provider && (
-              <p className="mt-1 flex items-center gap-1 text-[10px] tracking-wide text-white/35 uppercase">
+              <p className="font-hud mt-1 flex items-center gap-1 text-[10px] tracking-[0.18em] text-cyan-300/45 uppercase">
                 {m.channel === 'voice' && <Mic className="h-3 w-3" />}
                 {PROVIDER_LABEL[m.provider] ?? m.provider}
               </p>
@@ -44,7 +47,7 @@ export function MessageList({ messages, interim, compact }: { messages: UiMessag
       ))}
       {interim && (
         <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl rounded-br-md border border-dashed border-violet-400/40 px-4 py-2.5 text-[15px] text-white/60 italic">{interim}</div>
+          <div className="max-w-[85%] rounded-sm border border-dashed border-cyan-300/40 px-4 py-2.5 text-[15px] text-cyan-100/60 italic">{interim}<span className="animate-blink">▌</span></div>
         </div>
       )}
       <div ref={end} />

@@ -114,7 +114,7 @@ function NewAutomation({ onCreated }: { onCreated: () => void }) {
           <Toggle label="Todas as luzes" checked={allLights} onChange={setAllLights} />
         </label>
         {!allLights && (
-          <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-white/10 p-2">
+          <div className="max-h-48 space-y-1 overflow-y-auto rounded-sm border border-white/10 p-2">
             {authorized.length === 0 && <p className="text-xs text-white/40">Nenhum dispositivo autorizado. Autorize em “Minha casa”.</p>}
             {authorized.map((d) => (
               <label key={d.entityId} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-white/5">

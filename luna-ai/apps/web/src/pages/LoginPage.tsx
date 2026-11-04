@@ -36,7 +36,7 @@ export default function LoginPage({ mode }: { mode: 'login' | 'setup' }) {
           <p className="mt-1 text-sm text-white/50">{mode === 'setup' ? 'Vamos configurar sua assistente.' : 'Entre para continuar.'}</p>
         </div>
         {error && <Banner>{error}</Banner>}
-        <div className="glass space-y-3 rounded-2xl p-5">
+        <div className="glass space-y-3 rounded-sm p-5">
           {mode === 'setup' && (
             <>
               <label className="block text-sm text-white/60">

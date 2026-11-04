@@ -132,7 +132,7 @@ export default function ConversationsPage() {
         <ul className="space-y-2">
           {list.map((c) => (
             <li key={c.id}>
-              <button onClick={() => void view(c.id)} className="glass flex w-full items-center gap-3 rounded-2xl p-4 text-left transition hover:bg-white/8">
+              <button onClick={() => void view(c.id)} className="glass flex w-full items-center gap-3 rounded-sm p-4 text-left transition hover:bg-white/8">
                 <MessageSquare className="h-5 w-5 shrink-0 text-violet-300" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{c.title}</p>

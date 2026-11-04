@@ -20,6 +20,19 @@ rodando **nativamente** no seu servidor Linux/ZimaOS (sem Docker).
 | Automações | Rascunho → revisão → **criada de verdade no Home Assistant** (horário, pôr/nascer do sol, sair/chegar) |
 | Segurança | Login, sessões HttpOnly, CSRF, rate limit, autorização por dispositivo e por papel, logs de ações |
 
+## Conversa 100% gratuita e local
+
+Sem gastar tokens da OpenAI: instale o Ollama no servidor e use o modo local.
+
+```bash
+sudo bash scripts/ollama-setup.sh            # instala em /DATA, serviço systemd, baixa qwen2.5:3b
+sudo bash scripts/ollama-setup.sh --model qwen2.5:1.5b   # alternativa mais rápida em CPUs antigas
+```
+
+No app: **Ajustes › Inteligência artificial: Local** e **Modo de voz: Básico**. O reconhecimento de fala e a voz
+ficam no aparelho (Chrome/Safari) e as respostas vêm do Ollama no seu servidor. Comandos da casa, clima e hora
+continuam instantâneos (não passam pelo LLM).
+
 ## Início rápido (servidor)
 
 ```bash
