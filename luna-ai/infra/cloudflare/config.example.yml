@@ -1,0 +1,18 @@
+# EXEMPLO — somente para túneis gerenciados localmente (arquivo config.yml do cloudflared).
+# Se o seu túnel é gerenciado pelo painel (Zero Trust › Networks › Tunnels, com token),
+# NÃO use este arquivo: adicione o "Public Hostname" pelo painel (veja docs/CLOUDFLARE.md).
+#
+# Acrescente APENAS a regra da Luna ao ingress existente, ANTES da regra final http_status:404.
+# Não remova as regras que você já tem.
+
+tunnel: <ID-DO-SEU-TUNEL-EXISTENTE>
+credentials-file: /etc/cloudflared/<ID-DO-SEU-TUNEL-EXISTENTE>.json
+
+ingress:
+  # ... suas regras existentes permanecem aqui ...
+  - hostname: luna.seudominio.com
+    service: http://127.0.0.1:8787     # se o cloudflared roda em contêiner, use http://<IP-do-servidor>:8787
+    originRequest:
+      connectTimeout: 10s
+      noTLSVerify: false
+  - service: http_status:404

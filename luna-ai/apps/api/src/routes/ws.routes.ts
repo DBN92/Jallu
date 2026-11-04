@@ -32,7 +32,14 @@ export async function wsRoutes(app: FastifyInstance) {
     // Autenticação pelo cookie de sessão (mesma origem); verificação de Origin contra CSWSH
     const origin = req.headers.origin;
     const host = req.headers['x-forwarded-host'] ?? req.headers.host;
-    const allowed = !origin || new URL(origin).host === host || (app.env.LUNA_PUBLIC_URL && origin === new URL(app.env.LUNA_PUBLIC_URL).origin);
+    let allowed = !origin;
+    if (origin) {
+      try {
+        allowed = new URL(origin).host === host || (!!app.env.LUNA_PUBLIC_URL && origin === new URL(app.env.LUNA_PUBLIC_URL).origin);
+      } catch {
+        allowed = false;
+      }
+    }
     const session = allowed ? await app.services.auth.resolveSession(req.cookies[SESSION_COOKIE]) : null;
     if (!session) {
       socket.close(4401, 'unauthorized');

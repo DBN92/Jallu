@@ -31,7 +31,7 @@ describe('cliente da API', () => {
 
   it('avisa quando não há conexão', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-    const err = await api('/api/devices').catch((e) => e);
+    const err = (await api('/api/devices').catch((e: unknown) => e)) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe('offline');
   });

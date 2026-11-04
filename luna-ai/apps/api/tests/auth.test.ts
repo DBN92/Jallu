@@ -70,4 +70,15 @@ describe('autenticação', () => {
     }
     expect(last).toBe(429);
   });
+
+  it('limita por IP real do Cloudflare mesmo com tráfego vindo de 127.0.0.1', async () => {
+    ctx = await makeApp({}, { login: false });
+    const attempt = (ip: string) =>
+      ctx.app.inject({ method: 'POST', url: '/api/auth/login', remoteAddress: '127.0.0.1', headers: { 'cf-connecting-ip': ip }, payload: { username: 'x-user', password: 'qualquer-coisa' } });
+    let last = 0;
+    for (let i = 0; i < 10; i++) last = (await attempt('203.0.113.7')).statusCode;
+    expect(last).toBe(429);
+    // Outro cliente atrás do mesmo túnel não é afetado
+    expect((await attempt('198.51.100.9')).statusCode).toBe(401);
+  });
 });

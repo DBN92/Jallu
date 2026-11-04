@@ -128,7 +128,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.addHook('onSend', async (_req, reply) => {
     reply.header('Permissions-Policy', 'microphone=(self), geolocation=(self), camera=()');
   });
-  await app.register(rateLimit, { global: true, max: 300, timeWindow: '1 minute', allowList: ['127.0.0.1', '::1'].filter(() => env.NODE_ENV !== 'test') });
+  // Sem lista de exceções: atrás do cloudflared todo tráfego chega de 127.0.0.1.
+  // O Cloudflare define CF-Connecting-IP com o IP real do cliente (não falsificável via Cloudflare).
+  await app.register(rateLimit, {
+    global: true,
+    max: 300,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => {
+      const cf = req.headers['cf-connecting-ip'];
+      return typeof cf === 'string' && cf.length < 64 ? `cf:${cf}` : req.ip;
+    },
+  });
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
   await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
 

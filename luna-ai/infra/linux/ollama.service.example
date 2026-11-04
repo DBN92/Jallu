@@ -1,0 +1,20 @@
+# EXEMPLO de serviço para o Ollama instalado manualmente em /DATA (ZimaOS com raiz somente leitura).
+# Instalação manual:
+#   mkdir -p /DATA/AppData/ollama && cd /DATA/AppData/ollama
+#   curl -fsSL -o ollama.tgz https://ollama.com/download/ollama-linux-amd64.tgz && tar -xzf ollama.tgz
+#   cp este-arquivo /etc/systemd/system/ollama.service && systemctl daemon-reload && systemctl enable --now ollama
+#   /DATA/AppData/ollama/bin/ollama pull qwen2.5:3b
+[Unit]
+Description=Ollama (IA local)
+After=network-online.target
+
+[Service]
+ExecStart=/DATA/AppData/ollama/bin/ollama serve
+Environment=OLLAMA_HOST=127.0.0.1:11434
+Environment=OLLAMA_MODELS=/DATA/AppData/ollama/models
+Environment=OLLAMA_KEEP_ALIVE=30m
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
