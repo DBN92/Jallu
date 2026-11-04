@@ -95,8 +95,15 @@ SVC_GROUP="$(id -gn "$SVC_USER" 2>/dev/null || echo "$SVC_USER")"
 if [ "$IS_ROOT" = 1 ] && [ "$SVC_USER" != root ]; then
   chown -R "$SVC_USER:$SVC_GROUP" "$DATA_DIR"
   chown "$SVC_USER:$SVC_GROUP" .env && chmod 600 .env
-  if ! su -s /bin/sh "$SVC_USER" -c "test -r '$LUNA_ROOT/apps/api/dist/server.js'" 2>/dev/null; then
-    warn "O usuário $SVC_USER não consegue ler $LUNA_ROOT. Mova o projeto para /DATA/AppData/luna-ai/app (ou /opt/luna-ai) ou use --user $(id -un)."
+  # Verifica se o usuário do serviço lê o projeto (setpriv/runuser; 'su' pode falhar por PAM no ZimaOS)
+  readable=""
+  if command -v setpriv >/dev/null 2>&1; then
+    setpriv --reuid="$(id -u "$SVC_USER")" --regid="$(id -g "$SVC_USER")" --clear-groups test -r "$LUNA_ROOT/apps/api/dist/server.js" && readable=1 || readable=0
+  elif command -v runuser >/dev/null 2>&1; then
+    runuser -u "$SVC_USER" -- test -r "$LUNA_ROOT/apps/api/dist/server.js" && readable=1 || readable=0
+  fi
+  if [ "$readable" = 0 ]; then
+    warn "O usuário $SVC_USER não consegue ler $LUNA_ROOT. Mova o projeto para /opt/luna-ai ou use --user $(id -un)."
   fi
 fi
 
@@ -119,7 +126,13 @@ case "$SERVICE" in
     systemctl daemon-reload
     systemctl enable --now luna-ai >/dev/null 2>&1 || systemctl restart luna-ai
     systemctl restart luna-ai
-    ok "Serviço systemd 'luna-ai' habilitado (inicia junto com o servidor)"
+    sleep 3
+    if systemctl is-active --quiet luna-ai; then
+      ok "Serviço systemd 'luna-ai' ativo e habilitado (inicia junto com o servidor)"
+    else
+      warn "O serviço não ficou ativo. Últimas linhas do log:"
+      journalctl -u luna-ai -n 20 --no-pager 2>/dev/null || true
+    fi
     ;;
   user)
     mkdir -p "$HOME/.config/systemd/user"
@@ -145,7 +158,9 @@ esac
 sleep 3
 bash "$LUNA_ROOT/scripts/health-check.sh" || warn "A Luna ainda não respondeu; verifique os logs."
 
-PORT="$(luna_port)"; IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+PORT="$(luna_port)"
+# 'hostname -I' não existe em todos os sistemas (ex.: ZimaOS); usa a rota padrão
+IP="$( (ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="src") {print $(i+1); exit}}') || true)"
 cat <<MSG
 
 ${C_G}Luna AI instalada!${C_0}
