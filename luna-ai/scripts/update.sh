@@ -10,7 +10,8 @@ if [ -f "$DB" ]; then
   STAMP="$(date +%Y%m%d-%H%M%S)"
   # Backup consistente: usa a API de backup do SQLite se disponível
   if command -v sqlite3 >/dev/null 2>&1; then sqlite3 "$DB" ".backup '$DATA/backups/luna-$STAMP.db'"; else cp "$DB" "$DATA/backups/luna-$STAMP.db"; fi
-  ls -1t "$DATA/backups"/luna-*.db 2>/dev/null | tail -n +11 | xargs -r rm -f
+  # Mantém os 10 backups mais recentes (sem xargs, que não existe no ZimaOS)
+  ls -1t "$DATA/backups"/luna-*.db 2>/dev/null | tail -n +11 | while IFS= read -r old; do rm -f "$old"; done || true
   ok "Backup do banco: $DATA/backups/luna-$STAMP.db"
 fi
 
