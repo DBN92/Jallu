@@ -24,6 +24,8 @@ export function useRealtimeVoice(opts: {
   wakeWord?: boolean;
   /** Encerra a sessão após este tempo sem conversa (economia em aparelhos sempre ligados). */
   autoStopMs?: number;
+  /** O navegador bloqueou o som (falta um toque na tela). */
+  onAudioBlocked?: () => void;
 }) {
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -214,7 +216,7 @@ export function useRealtimeVoice(opts: {
       audioRef.current = audio;
       pc.ontrack = (e) => {
         audio.srcObject = e.streams[0]!;
-        void audio.play().catch(() => undefined);
+        void audio.play().catch(() => optsRef.current.onAudioBlocked?.());
         meter([mic, e.streams[0]!]);
       };
       pc.addTrack(mic.getAudioTracks()[0]!, mic);

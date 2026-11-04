@@ -120,12 +120,11 @@ export function useSpeechSynthesis() {
   }, [supported]);
 
   const speak = useCallback(
-    (text: string, opts: { voiceName?: string | null; rate?: number; onEnd?: () => void } = {}) => {
+    (text: string, opts: { voiceName?: string | null; rate?: number; onEnd?: () => void; onError?: (code: string) => void } = {}) => {
       if (!supported || !text) {
         opts.onEnd?.();
         return;
       }
-      speechSynthesis.cancel();
       const clean = text.replace(/[*_#`>✓✗]/g, '').replace(/\n+/g, '. ');
       const u = new SpeechSynthesisUtterance(clean);
       u.lang = 'pt-BR';
@@ -133,12 +132,48 @@ export function useSpeechSynthesis() {
       const all = speechSynthesis.getVoices();
       const voice = (opts.voiceName && all.find((v) => v.name === opts.voiceName)) || all.find((v) => v.lang === 'pt-BR') || all.find((v) => v.lang.startsWith('pt'));
       if (voice) u.voice = voice;
-      u.onstart = () => setSpeaking(true);
-      u.onend = u.onerror = () => {
+
+      // Garante que onEnd seja chamado UMA vez, mesmo se o navegador nunca disparar eventos
+      let done = false;
+      let started = false;
+      const timers: number[] = [];
+      const finish = () => {
+        if (done) return;
+        done = true;
+        timers.forEach(clearTimeout);
         setSpeaking(false);
         opts.onEnd?.();
       };
-      speechSynthesis.speak(u);
+      u.onstart = () => {
+        started = true;
+        setSpeaking(true);
+      };
+      u.onend = finish;
+      u.onerror = (e) => {
+        const code = (e as SpeechSynthesisErrorEvent).error;
+        if (code !== 'interrupted' && code !== 'canceled') opts.onError?.(code);
+        finish();
+      };
+      // Bloqueada (ex.: Android sem toque na tela): nunca começa
+      timers.push(
+        window.setTimeout(() => {
+          if (!started && !done) {
+            speechSynthesis.cancel();
+            opts.onError?.('not-started');
+            finish();
+          }
+        }, 3000),
+      );
+      // Limite máximo pela duração estimada da frase
+      timers.push(window.setTimeout(finish, 5000 + (clean.length * 90) / (opts.rate ?? 1)));
+
+      speechSynthesis.cancel();
+      // O Chrome no Android às vezes ignora speak() logo após cancel(): pequeno atraso
+      window.setTimeout(() => {
+        if (done) return;
+        speechSynthesis.resume();
+        speechSynthesis.speak(u);
+      }, 60);
     },
     [supported],
   );

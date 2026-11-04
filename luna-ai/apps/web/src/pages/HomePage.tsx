@@ -64,46 +64,73 @@ export default function HomePage() {
     onConversation: setConversationId,
     wakeWord: wakeEnabled && voiceMode === 'realtime' && !localWake,
     autoStopMs: wakeEnabled && localWake ? 30_000 : undefined,
+    onAudioBlocked: () => setNeedsTap(true),
   });
 
+  // Android/Chrome só libera áudio depois de um toque na tela (política de autoplay)
+  const [needsTap, setNeedsTap] = useState(false);
+  const [, setTick] = useState(0);
+  const followUpRef = useRef(false);
+  const startListeningRef = useRef<(followUp?: boolean) => void>(() => undefined);
+
   const speakReply = useCallback(
-    (reply: string) => {
-      if (muted || !settings?.autoSpeak || !tts.supported) return;
+    (reply: string, continueAfter = false) => {
+      if (muted || !settings?.autoSpeak || !tts.supported) {
+        setState('idle');
+        return;
+      }
       setState('speaking');
-      tts.speak(reply, { voiceName: settings.voiceName, rate: settings.voiceRate, onEnd: () => useAssistant.getState().state === 'speaking' && setState('idle') });
+      tts.speak(reply, {
+        voiceName: settings.voiceName,
+        rate: settings.voiceRate,
+        onError: (code) => {
+          if (code === 'not-allowed' || code === 'not-started') setNeedsTap(true);
+        },
+        onEnd: () => {
+          if (useAssistant.getState().state === 'speaking') setState('idle');
+          // Conversa contínua: após responder, escuta mais uma vez sem precisar de “Luna”
+          if (continueAfter) setTimeout(() => startListeningRef.current(true), 450);
+        },
+      });
     },
     [muted, settings, tts, setState],
   );
 
   const sendVoice = useCallback(
-    async (t: string) => {
+    async (t: string, continueAfter = false) => {
       const res = await send(t, 'voice');
-      if (res) speakReply(res.reply);
+      if (res) speakReply(res.reply, continueAfter);
+      else setState('idle');
     },
-    [send, speakReply],
+    [send, speakReply, setState],
   );
 
   // Palavra de ativação (somente em primeiro plano e navegadores compatíveis)
-  const wake = useWakeWord(wakeEnabled && localWake, sr.listening || state !== 'idle' || realtime.active || realtime.connecting, (rest) => {
-    playChime();
-    tts.unlock();
-    const command = rest.length > 2 ? rest : undefined;
-    if (voiceMode === 'realtime') void realtime.start(command);
-    else if (command) void sendVoice(command);
-    else setTimeout(startListening, 350);
-  });
+  const wake = useWakeWord(
+    wakeEnabled && localWake,
+    sr.listening || state !== 'idle' || realtime.active || realtime.connecting || tts.speaking,
+    (rest) => {
+      playChime();
+      const command = rest.length > 2 ? rest : undefined;
+      if (voiceMode === 'realtime') void realtime.start(command);
+      else if (command) void sendVoice(command, true);
+      else setTimeout(() => startListeningRef.current(true), 500);
+    },
+  );
 
-  const startListening = () => {
+  const startListening = (followUp = false) => {
+    followUpRef.current = followUp;
     setVoiceError(null);
     tts.cancel();
     tts.unlock();
     setState('listening');
     const ok = sr.start({
       onInterim: (t) => setInterim(t),
-      onFinal: (t) => void sendVoice(t),
+      onFinal: (t) => void sendVoice(t, followUp),
     });
     if (!ok) setState('idle');
   };
+  startListeningRef.current = startListening;
 
   useEffect(() => {
     if (!sr.listening && state === 'listening' && voiceMode === 'basic' && !recorder.recording) {
@@ -142,7 +169,7 @@ export default function HomePage() {
     }
     if (recorder.recording) return transcribeAndSend();
     if (sr.listening) return sr.stop();
-    if (sr.supported) return startListening();
+    if (sr.supported) return startListening(false);
     if (settings?.allowCloudTranscription && recorder.supported) {
       try {
         tts.unlock();
@@ -158,7 +185,7 @@ export default function HomePage() {
 
   // Se o reconhecimento do sistema for negado no iPhone, oferece o fallback por gravação
   useEffect(() => {
-    if (sr.error) setVoiceError(sr.error);
+    if (sr.error && !(followUpRef.current && /Não ouvi nada/.test(sr.error))) setVoiceError(sr.error);
   }, [sr.error]);
 
   const onSubmit = async (e: FormEvent) => {
@@ -174,7 +201,7 @@ export default function HomePage() {
   const micActive = sr.listening || recorder.recording || realtime.active;
   const hasChat = messages.length > 0 || !!interim;
   const level = realtime.active ? realtime.level : 0;
-  const err = voiceError ?? realtime.error;
+  const err = voiceError ?? realtime.error ?? wake.error;
 
   return (
     <div className="flex h-full flex-col">
@@ -312,6 +339,28 @@ export default function HomePage() {
           <SystemPanel />
         </aside>
       </div>
+
+      {(needsTap || (wakeEnabled && !hasUserActivation())) && (
+        <button
+          onClick={() => {
+            tts.unlock();
+            setNeedsTap(false);
+            setTick((t) => t + 1);
+          }}
+          className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center backdrop-blur-sm"
+        >
+          <span className="hud-title hud-glow text-2xl font-bold text-cyan-50">TOQUE PARA ATIVAR</span>
+          <span className="font-hud max-w-sm text-base text-cyan-100/70">
+            O Android só libera o som e a voz da Luna depois de um toque na tela. É necessário uma vez cada vez que o app é aberto.
+          </span>
+        </button>
+      )}
     </div>
   );
+}
+
+/** O usuário já tocou na página desde que ela abriu? (requisito do navegador para áudio) */
+function hasUserActivation() {
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  return ua ? ua.hasBeenActive : true;
 }
