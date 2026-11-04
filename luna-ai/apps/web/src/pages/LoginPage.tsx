@@ -26,8 +26,8 @@ export default function LoginPage({ mode }: { mode: 'login' | 'setup' }) {
   };
 
   return (
-    <div className="app-bg flex min-h-full items-center justify-center px-5 py-10">
-      <form onSubmit={submit} className="w-full max-w-sm">
+    <div className="app-bg flex h-full justify-center overflow-y-auto px-5 py-10">
+      <form onSubmit={submit} className="my-auto w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <LunaOrb state={busy ? 'processing' : 'idle'} size={120} />
           <h1 className="mt-6 text-3xl font-semibold">

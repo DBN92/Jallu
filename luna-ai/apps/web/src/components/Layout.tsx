@@ -28,7 +28,7 @@ function ConnectionBar() {
 export function Layout() {
   useKioskMode();
   return (
-    <div className="app-bg flex h-full">
+    <div className="app-bg flex h-full flex-col md:flex-row">
       <ConnectionBar />
       {/* Barra lateral (tablet/computador) */}
       <aside className="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
@@ -62,12 +62,12 @@ export function Layout() {
         </div>
       </aside>
 
-      <main className="relative flex min-w-0 flex-1 flex-col">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <Outlet />
       </main>
 
       {/* Navegação inferior (celular) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-7 border-t border-cyan-300/20 bg-ink-950/92 pb-safe shadow-[0_-8px_24px_rgba(0,229,255,0.06)] backdrop-blur-xl md:hidden">
+      <nav className="relative z-40 grid shrink-0 grid-cols-7 border-t border-cyan-300/20 bg-ink-950/92 pb-safe shadow-[0_-8px_24px_rgba(0,229,255,0.06)] backdrop-blur-xl md:hidden">
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -95,5 +95,5 @@ export function Layout() {
 
 /** Contêiner rolável padrão para as páginas secundárias. */
 export function Page({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 pt-safe pb-28 md:px-8 md:pb-10 md:pt-8">{children}</div>;
+  return <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 pt-safe pb-6 md:px-8 md:pb-10 md:pt-8">{children}</div>;
 }

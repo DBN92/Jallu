@@ -239,7 +239,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="home-grid min-h-0 flex-1 px-4 pt-3 pb-28 md:pb-4 lg:px-6">
+      <div className="home-grid min-h-0 flex-1 px-4 pt-3 pb-3 md:pb-4 lg:px-6">
         {/* Painéis laterais (tablet, celular deitado e computador) */}
         <aside className="home-left min-h-0 flex-col gap-4 overflow-y-auto pb-2">
           <ClockPanel now={now} name={user?.displayName} greeting={greeting(now)} />

@@ -33,9 +33,16 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
+}
+
+/* O app ocupa exatamente a tela visível, preso às 4 bordas. No PWA do iPhone,
+   alturas como 100%/100vh podem ficar menores que a tela e deixar um vão embaixo. */
+#root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
 }
 
 body {
