@@ -1,7 +1,8 @@
-import { APP_VERSION, loadEnv } from './config/env';
+import { APP_VERSION, loadDotEnv, loadEnv } from './config/env';
 import { buildApp } from './app';
 
 async function main() {
+  loadDotEnv();
   const env = loadEnv();
   process.env.TZ = env.TZ;
   const app = await buildApp({ env });

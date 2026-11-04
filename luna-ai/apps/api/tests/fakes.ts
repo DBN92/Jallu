@@ -6,7 +6,7 @@ type Handler = (url: URL, init: RequestInit | undefined) => Promise<Response> | 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 
 export function makeFetch(handler: Handler): typeof fetch {
-  return (async (input: RequestInfo | URL, init?: RequestInit) => handler(new URL(String(input instanceof Request ? input.url : input)), init)) as typeof fetch;
+  return (async (input: string | URL | Request, init?: RequestInit) => handler(new URL(String(input instanceof Request ? input.url : input)), init)) as typeof fetch;
 }
 
 /** Home Assistant falso, com estados em memória e execução de serviços. */

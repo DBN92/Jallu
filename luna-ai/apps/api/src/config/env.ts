@@ -1,4 +1,23 @@
+import { existsSync } from 'node:fs';
+import { dirname, isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+/** Raiz do projeto (luna-ai/), tanto em src/ (dev) quanto em dist/ (produção). */
+export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', ...(import.meta.url.includes('/src/config/') ? ['..'] : []));
+
+/** Carrega o .env da raiz (ou LUNA_ENV_FILE) sem sobrescrever variáveis já definidas. */
+export function loadDotEnv() {
+  const file = process.env.LUNA_ENV_FILE ?? resolve(PROJECT_ROOT, '.env');
+  if (existsSync(file)) process.loadEnvFile(file);
+}
+
+/** Converte "file:./data/luna.db" em caminho absoluto relativo à raiz do projeto. */
+export function resolveDatabaseUrl(url: string): string {
+  if (!url.startsWith('file:')) return url;
+  const path = url.slice(5);
+  return isAbsolute(path) ? url : `file:${resolve(PROJECT_ROOT, path)}`;
+}
 
 const bool = z
   .union([z.boolean(), z.string()])
@@ -11,7 +30,7 @@ const envSchema = z.object({
   LUNA_PUBLIC_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
   LUNA_TRUST_PROXY: bool.default(true),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  DATABASE_URL: z.string().min(1).default('file:../../../data/luna.db'),
+  DATABASE_URL: z.string().min(1).default('file:./data/luna.db'),
 
   LUNA_SETUP_CODE: z.string().default(''),
   LUNA_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 365).default(720),
@@ -54,6 +73,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   env.HA_URL = env.HA_URL.replace(/\/+$/, '');
   env.OLLAMA_URL = env.OLLAMA_URL.replace(/\/+$/, '');
   env.OPENAI_BASE_URL = env.OPENAI_BASE_URL.replace(/\/+$/, '');
+  env.DATABASE_URL = resolveDatabaseUrl(env.DATABASE_URL);
   return env;
 }
 
