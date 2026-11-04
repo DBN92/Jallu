@@ -64,6 +64,16 @@ describe('voz', () => {
     expect(sent.session.model).toBe('gpt-realtime');
   });
 
+  it('modo "Ei, Luna": o servidor não responde sozinho a qualquer fala', async () => {
+    ctx = await makeApp();
+    await ctx.inject('POST', '/api/voice/realtime/session', { wakeWord: true });
+    const normal = ctx.llm.requests[0] as { session: { audio: { input: { turn_detection: { create_response: boolean } } } } };
+    expect(normal.session.audio.input.turn_detection.create_response).toBe(false);
+    await ctx.inject('POST', '/api/voice/realtime/session', {});
+    const direct = ctx.llm.requests[1] as typeof normal;
+    expect(direct.session.audio.input.turn_detection.create_response).toBe(true);
+  });
+
   it('executa ferramentas de voz com validação e bloqueia ferramentas desconhecidas', async () => {
     ctx = await makeApp();
     const ok = await ctx.inject('POST', '/api/voice/tools', { name: 'control_device', arguments: { device: 'luz da sala', action: 'turn_on' } });

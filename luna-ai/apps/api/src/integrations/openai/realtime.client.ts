@@ -20,7 +20,7 @@ export class OpenAIVoiceClient {
     return Boolean(this.apiKey);
   }
 
-  async createRealtimeSecret(session: { instructions: string; voice: string; tools: unknown[] }) {
+  async createRealtimeSecret(session: { instructions: string; voice: string; tools: unknown[]; wakeWord?: boolean }) {
     if (!this.configured) throw new ServiceUnavailableError('openai', 'Configure OPENAI_API_KEY no servidor para usar a voz avançada.');
     const res = await this.fetchImpl(`${this.baseUrl}/realtime/client_secrets`, {
       method: 'POST',
@@ -32,7 +32,20 @@ export class OpenAIVoiceClient {
           model: this.realtimeModel,
           instructions: session.instructions,
           audio: {
-            input: { transcription: { model: this.transcribeModel, language: 'pt' }, turn_detection: { type: 'semantic_vad' } },
+            input: {
+              // O prompt ajuda a transcrição a reconhecer o nome "Luna"
+              transcription: { model: this.transcribeModel, language: 'pt', prompt: 'Ei, Luna. Luna, acenda a luz da sala.' },
+              // Detecção por silêncio (mais rápida que semantic_vad). No modo "Ei, Luna" o navegador
+              // decide quando responder (create_response: false).
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.55,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 550,
+                create_response: !session.wakeWord,
+                interrupt_response: true,
+              },
+            },
             output: { voice: session.voice },
           },
           tools: session.tools,

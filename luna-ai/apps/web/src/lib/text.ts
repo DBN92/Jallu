@@ -27,3 +27,6 @@ export const PROVIDER_LABEL: Record<string, string> = {
   'luna-nlu': 'Luna (local)',
   'openai-realtime': 'Voz em tempo real',
 };
+
+/** A fala é um chamado à Luna? Tolera erros comuns de transcrição ("Luana"). */
+export const isWakeCall = (text: string) => /\b(luna|luana|lunah|lunna)\b/.test(normalize(text));

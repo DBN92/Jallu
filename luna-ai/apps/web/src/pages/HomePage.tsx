@@ -44,6 +44,7 @@ export default function HomePage() {
     onTranscript: (role, t) => appendLocal({ role, content: t, channel: 'voice', provider: role === 'assistant' ? 'openai-realtime' : null }),
     conversationId,
     onConversation: setConversationId,
+    wakeWord: Boolean(settings?.wakeWordEnabled) && voiceMode === 'realtime',
   });
 
   const speakReply = useCallback(
@@ -216,6 +217,7 @@ export default function HomePage() {
             <span className={`mr-1.5 inline-block h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
             {STATE_LABEL[state]}
             {wake.armed && state === 'idle' && ' · diga “Ei, Luna”'}
+            {realtime.active && settings?.wakeWordEnabled && state === 'listening' && ' · diga “Ei, Luna”'}
           </p>
           {!hasChat && (
             <p className="mt-3 max-w-sm text-sm text-white/40">

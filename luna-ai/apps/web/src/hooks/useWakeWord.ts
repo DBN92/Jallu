@@ -8,9 +8,11 @@ import { getRecognitionCtor, isIOS, type SpeechRecognitionLike } from './speech'
  * contínuo (ex.: Chrome no computador/Android). No iPhone não há escuta contínua em PWA,
  * então o recurso é reportado como não suportado — não simulamos escuta em segundo plano.
  */
-export function wakeWordSupport(): { supported: boolean; reason: string | null } {
+export function wakeWordSupport(mode: 'basic' | 'realtime' = 'basic'): { supported: boolean; reason: string | null } {
+  // Na voz em tempo real o microfone já fica aberto durante a sessão: funciona em qualquer aparelho
+  if (mode === 'realtime') return { supported: true, reason: null };
   if (!getRecognitionCtor()) return { supported: false, reason: 'Este navegador não oferece reconhecimento de fala.' };
-  if (isIOS()) return { supported: false, reason: 'O iPhone não permite escuta contínua em apps web. Toque no microfone para falar.' };
+  if (isIOS()) return { supported: false, reason: 'No modo básico o iPhone não permite escuta contínua. Use a voz em tempo real.' };
   return { supported: true, reason: null };
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssistantState } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
+import { isWakeCall } from '../lib/text';
 import { useLocation } from '../stores/location';
 import { useSettings } from '../stores/settings';
 
@@ -18,6 +19,8 @@ export function useRealtimeVoice(opts: {
   onTranscript: (role: 'user' | 'assistant', text: string) => void;
   conversationId: string | null;
   onConversation: (id: string) => void;
+  /** Modo "Ei, Luna": só responde quando chamada pelo nome (ou logo após responder). */
+  wakeWord?: boolean;
 }) {
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -30,6 +33,10 @@ export function useRealtimeVoice(opts: {
   const rafRef = useRef<number | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const pendingOutputs = useRef(0);
+  const followUntil = useRef(0);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const wakeRef = useRef(Boolean(opts.wakeWord));
+  wakeRef.current = Boolean(opts.wakeWord);
   const convRef = useRef(opts.conversationId);
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -52,7 +59,19 @@ export function useRealtimeVoice(opts: {
     if (dcRef.current?.readyState === 'open') dcRef.current.send(JSON.stringify(event));
   };
 
+  /** Mantém a tela acesa durante a conversa (o iOS corta o microfone com a tela bloqueada). */
+  const keepAwake = async () => {
+    try {
+      const nav = navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } };
+      if (nav.wakeLock && document.visibilityState === 'visible') wakeLockRef.current = await nav.wakeLock.request('screen');
+    } catch {
+      /* não suportado */
+    }
+  };
+
   const stop = useCallback(() => {
+    wakeLockRef.current?.release().catch(() => undefined);
+    wakeLockRef.current = null;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     dcRef.current?.close();
     pcRef.current?.close();
@@ -96,17 +115,35 @@ export function useRealtimeVoice(opts: {
         optsRef.current.onState('listening');
         break;
       case 'input_audio_buffer.speech_stopped':
-        optsRef.current.onState('processing');
+        if (!wakeRef.current) optsRef.current.onState('processing');
         break;
       case 'output_audio_buffer.started':
         optsRef.current.onState('speaking');
         break;
       case 'output_audio_buffer.stopped':
+      case 'output_audio_buffer.cleared':
+        // Após a Luna falar, aceita continuação sem precisar dizer "Luna" de novo
+        followUntil.current = Date.now() + 15_000;
         optsRef.current.onState('listening');
         break;
-      case 'conversation.item.input_audio_transcription.completed':
-        if (typeof ev.transcript === 'string' && ev.transcript.trim()) void saveTranscript('user', ev.transcript.trim());
+      case 'conversation.item.input_audio_transcription.completed': {
+        const text = typeof ev.transcript === 'string' ? ev.transcript.trim() : '';
+        if (!wakeRef.current) {
+          if (text) void saveTranscript('user', text);
+          break;
+        }
+        const called = isWakeCall(text);
+        if (text && (called || Date.now() < followUntil.current)) {
+          optsRef.current.onState('processing');
+          void saveTranscript('user', text);
+          send({ type: 'response.create' });
+        } else {
+          // Fala não dirigida à Luna: descarta do contexto e não salva (privacidade)
+          if (typeof ev.item_id === 'string') send({ type: 'conversation.item.delete', item_id: ev.item_id });
+          optsRef.current.onState('listening');
+        }
         break;
+      }
       case 'response.output_audio_transcript.done':
       case 'response.audio_transcript.done':
         if (typeof ev.transcript === 'string' && ev.transcript.trim()) void saveTranscript('assistant', ev.transcript.trim());
@@ -149,7 +186,9 @@ export function useRealtimeVoice(opts: {
       if (!('RTCPeerConnection' in window)) throw new Error('Este navegador não suporta WebRTC.');
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       micRef.current = mic;
-      const session = await api<Session>('/api/voice/realtime/session', { method: 'POST' });
+      const session = await api<Session>('/api/voice/realtime/session', { body: { wakeWord: wakeRef.current } });
+      followUntil.current = Date.now() + 15_000; // logo ao abrir, já pode falar sem "Luna"
+      void keepAwake();
 
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
@@ -206,6 +245,14 @@ export function useRealtimeVoice(opts: {
   const interrupt = useCallback(() => {
     send({ type: 'response.cancel' });
     send({ type: 'output_audio_buffer.clear' });
+  }, []);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && pcRef.current) void keepAwake();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
   useEffect(() => () => stop(), [stop]);

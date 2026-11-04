@@ -262,7 +262,7 @@ export default function SettingsPage() {
   const tts = useSpeechSynthesis();
   const [caps, setCaps] = useState<{ realtime: boolean; realtimeVoices: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const wake = wakeWordSupport();
+  const wake = wakeWordSupport(voiceMode);
 
   useEffect(() => {
     if (!settings) void load();
@@ -359,7 +359,13 @@ export default function SettingsPage() {
         <Row label="Transcrição na nuvem" hint="Se o navegador não reconhecer fala (comum em apps instalados no iPhone), o áudio é transcrito pela OpenAI.">
           <Toggle label="Transcrição na nuvem" disabled={!caps?.realtime} checked={settings.allowCloudTranscription} onChange={(v) => void save({ allowCloudTranscription: v })} />
         </Row>
-        <Row label="Palavra de ativação “Ei, Luna”" hint={wake.supported ? 'Somente com o app aberto e em primeiro plano.' : wake.reason}>
+        <Row label="Palavra de ativação “Ei, Luna”" hint={
+            wake.supported
+              ? voiceMode === 'realtime'
+                ? 'Durante a conversa em tempo real, a Luna só responde quando você diz “Luna” (ou logo após ela falar). A tela fica acesa; com o app fechado ela não escuta.'
+                : 'Somente com o app aberto e em primeiro plano.'
+              : wake.reason
+          }>
           <Toggle label="Ei, Luna" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
       </Section>

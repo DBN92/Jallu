@@ -23,6 +23,7 @@ export async function voiceRoutes(app: FastifyInstance) {
    * A chave permanente nunca sai do servidor; as ferramentas são definidas aqui.
    */
   app.post('/api/voice/realtime/session', { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) => {
+    const { wakeWord } = z.object({ wakeWord: z.boolean().default(false) }).parse(req.body ?? {});
     const s = await settings.get(req.user!.id);
     if (s.aiMode === 'local') throw new AppError(409, 'A voz avançada usa a nuvem. Mude o modo de IA para híbrido ou nuvem em Configurações.', 'local_only');
     const instructions = buildSystemPrompt({
@@ -34,7 +35,8 @@ export async function voiceRoutes(app: FastifyInstance) {
       voice: true,
     });
     return voice.createRealtimeSecret({
-      instructions: `${instructions}\nFale com voz calorosa e natural, em português do Brasil.`,
+      instructions: `${instructions}\nFale com voz calorosa e natural, em português do Brasil. Seja breve: respostas faladas de no máximo 2 ou 3 frases, a menos que o usuário peça detalhes.${wakeWord ? ' O usuário chama você dizendo "Luna"; ignore a palavra de chamada e responda ao pedido.' : ''}`,
+      wakeWord,
       voice: VOICES.includes(s.realtimeVoice) ? s.realtimeVoice : 'marin',
       tools: TOOL_DEFINITIONS.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters })),
     });
