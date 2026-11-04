@@ -1,0 +1,60 @@
+import { z } from 'zod';
+
+const bool = z
+  .union([z.boolean(), z.string()])
+  .transform((v) => (typeof v === 'boolean' ? v : ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())));
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  LUNA_HOST: z.string().default('0.0.0.0'),
+  LUNA_PORT: z.coerce.number().int().min(1).max(65535).default(8787),
+  LUNA_PUBLIC_URL: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+  LUNA_TRUST_PROXY: bool.default(true),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  DATABASE_URL: z.string().min(1).default('file:../../../data/luna.db'),
+
+  LUNA_SETUP_CODE: z.string().default(''),
+  LUNA_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 365).default(720),
+  LUNA_COOKIE_SECURE: z.enum(['auto', 'true', 'false']).default('auto'),
+
+  HA_URL: z.string().default('http://127.0.0.1:8123'),
+  HA_TOKEN: z.string().default(''),
+  LUNA_AI_AUTO_AUTHORIZE_DOMAINS: z.string().default('light'),
+
+  OLLAMA_URL: z.string().default('http://127.0.0.1:11434'),
+  OLLAMA_MODEL: z.string().default('qwen2.5:3b'),
+  OLLAMA_TIMEOUT_MS: z.coerce.number().int().default(90_000),
+
+  OPENAI_API_KEY: z.string().default(''),
+  OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
+  OPENAI_BASE_URL: z.string().default('https://api.openai.com/v1'),
+  OPENAI_REALTIME_MODEL: z.string().default('gpt-realtime'),
+  OPENAI_TRANSCRIBE_MODEL: z.string().default('gpt-4o-mini-transcribe'),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().default(60_000),
+
+  LUNA_AI_MODE: z.enum(['local', 'cloud', 'hybrid']).default('hybrid'),
+
+  OPEN_METEO_URL: z.string().default('https://api.open-meteo.com/v1/forecast'),
+  OPEN_METEO_GEOCODING_URL: z.string().default('https://geocoding-api.open-meteo.com/v1/search'),
+  WEATHER_CACHE_MINUTES: z.coerce.number().min(0).default(10),
+  TZ: z.string().default('America/Sao_Paulo'),
+
+  LUNA_WEB_DIST: z.string().optional(),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  const parsed = envSchema.safeParse(source);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n');
+    throw new Error(`Configuração inválida no .env:\n${issues}`);
+  }
+  const env = parsed.data;
+  env.HA_URL = env.HA_URL.replace(/\/+$/, '');
+  env.OLLAMA_URL = env.OLLAMA_URL.replace(/\/+$/, '');
+  env.OPENAI_BASE_URL = env.OPENAI_BASE_URL.replace(/\/+$/, '');
+  return env;
+}
+
+export const APP_VERSION = '0.1.0';

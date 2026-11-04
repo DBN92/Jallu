@@ -1,0 +1,21 @@
+{
+  "name": "luna-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Luna AI — assistente pessoal com voz, IA híbrida e automação residencial",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev:api": "npm run dev -w @luna/api",
+    "dev:web": "npm run dev -w @luna/web",
+    "build": "npm run build -w @luna/api && npm run build -w @luna/web",
+    "typecheck": "npm run typecheck -w @luna/shared && npm run typecheck -w @luna/api && npm run typecheck -w @luna/web",
+    "test": "npm run test -w @luna/api && npm run test -w @luna/web",
+    "start": "npm run start -w @luna/api"
+  }
+}

@@ -1,0 +1,347 @@
+import type { ActionResult, AiProviderName, AssistantState, ChatRequest, ChatResponse, DeviceDto, PublicUser } from '@luna/shared';
+import type { Db } from '../../lib/db';
+import { AppError, notFound } from '../../lib/errors';
+import { normalize, significantTokens, truncate } from '../../lib/text';
+import type { DevicesService } from '../devices/devices.service';
+import type { MemoryService } from '../memory/memory.service';
+import type { SettingsService } from '../settings/settings.service';
+import type { WeatherService } from '../weather/weather.service';
+import { parseIntent, pickOption, type Intent } from './nlu';
+import { buildSystemPrompt } from './prompt';
+import { askWhich, listJoin, powerReply, stateReply, weatherReply } from './replies';
+import { routeProviders } from './router';
+import { TOOL_DEFINITIONS, type ToolContext, type ToolExecutor } from './tools';
+import { ProviderError, type AIProvider, type ChatMessage } from './types';
+
+interface Pending {
+  kind: 'power' | 'brightness' | 'query';
+  action?: 'turn_on' | 'turn_off';
+  value?: number;
+  options: DeviceDto[];
+  expires: number;
+}
+
+interface TurnResult {
+  reply: string;
+  provider: AiProviderName;
+  model: string | null;
+  actions: ActionResult[];
+  notices: string[];
+}
+
+const HISTORY_LIMIT = 16;
+const MAX_TOOL_ROUNDS = 5;
+
+export class ChatService {
+  private pending = new Map<string, Pending>();
+
+  constructor(
+    private readonly db: Db,
+    private readonly providers: { ollama: AIProvider; openai: AIProvider },
+    private readonly tools: ToolExecutor,
+    private readonly devices: DevicesService,
+    private readonly weather: WeatherService,
+    private readonly memory: MemoryService,
+    private readonly settings: SettingsService,
+    private readonly timezone: string,
+    private readonly onState: (userId: string, state: AssistantState, conversationId?: string) => void = () => undefined,
+  ) {}
+
+  private nowText() {
+    return new Intl.DateTimeFormat('pt-BR', { timeZone: this.timezone, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
+  }
+
+  async handle(user: PublicUser, req: ChatRequest): Promise<ChatResponse> {
+    const conversation = req.conversationId
+      ? await this.db.conversation.findFirst({ where: { id: req.conversationId, userId: user.id } })
+      : await this.db.conversation.create({ data: { userId: user.id, title: truncate(req.message, 60) } });
+    if (!conversation) throw notFound('Conversa não encontrada.');
+
+    await this.db.message.create({ data: { conversationId: conversation.id, role: 'user', content: req.message, channel: req.channel } });
+    this.onState(user.id, 'processing', conversation.id);
+
+    let result: TurnResult;
+    try {
+      result = await this.turn(user, conversation.id, conversation.summary, req);
+    } catch (err) {
+      this.onState(user.id, 'error', conversation.id);
+      throw err;
+    }
+
+    const saved = await this.db.message.create({
+      data: {
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: result.reply,
+        provider: result.provider,
+        model: result.model,
+        channel: req.channel,
+        meta: result.actions.length ? JSON.stringify({ actions: result.actions }) : null,
+      },
+    });
+    await this.db.conversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
+    this.onState(user.id, 'idle', conversation.id);
+    return { conversationId: conversation.id, messageId: saved.id, ...result };
+  }
+
+  private async turn(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest): Promise<TurnResult> {
+    const ctx: ToolContext = { userId: user.id, source: 'ai:luna-nlu', location: req.location, cloud: false };
+
+    // 1) Resposta a uma pergunta de desambiguação pendente
+    const pending = this.pending.get(conversationId);
+    if (pending) {
+      this.pending.delete(conversationId);
+      if (pending.expires > Date.now()) {
+        const picked = pickOption(req.message, pending.options);
+        if (picked) return this.local(await this.applyPending(pending, picked.map((i) => pending.options[i]!), user.id, conversationId));
+      }
+    }
+
+    // 2) NLU local para comandos frequentes (rápido, privado, sem LLM)
+    const intent = parseIntent(req.message);
+    if (intent) {
+      const handled = await this.handleIntent(intent, ctx, conversationId);
+      if (handled) return this.local(handled);
+    }
+
+    // 3) Modelos de linguagem com ferramentas
+    return this.llm(user, conversationId, summary, req);
+  }
+
+  private local(r: { reply: string; actions: ActionResult[] }): TurnResult {
+    return { ...r, provider: 'luna-nlu', model: null, notices: [] };
+  }
+
+  private actor(userId: string) {
+    return { source: 'ai:luna-nlu' as const, userId };
+  }
+
+  private async applyPending(p: Pending, chosen: DeviceDto[], userId: string, conversationId: string) {
+    const actions: ActionResult[] = [];
+    const replies: string[] = [];
+    for (const d of chosen) {
+      try {
+        if (p.kind === 'query') {
+          replies.push(stateReply(await this.devices.get(d.entityId)));
+          continue;
+        }
+        this.onState(userId, 'acting', conversationId);
+        const after =
+          p.kind === 'brightness'
+            ? await this.devices.setBrightness(d.entityId, p.value ?? 100, this.actor(userId))
+            : p.action === 'turn_on'
+              ? await this.devices.turnOn(d.entityId, this.actor(userId))
+              : await this.devices.turnOff(d.entityId, this.actor(userId));
+        actions.push({ tool: p.kind === 'brightness' ? 'set_brightness' : (p.action ?? 'turn_on'), ok: true, summary: `${after.name}: ${after.isOn ? 'ligado' : 'desligado'}`, entityIds: [after.entityId] });
+        replies.push(p.kind === 'brightness' ? `${after.name} com ${after.brightness ?? p.value}% de brilho.` : powerReply(after));
+      } catch (err) {
+        const msg = err instanceof AppError ? err.message : 'Não consegui executar.';
+        actions.push({ tool: p.action ?? p.kind, ok: false, summary: msg, entityIds: [d.entityId] });
+        replies.push(msg);
+      }
+    }
+    return { reply: replies.join(' '), actions };
+  }
+
+  /** Executa intenções determinísticas. Retorna null para deixar o LLM responder. */
+  private async handleIntent(intent: Intent, ctx: ToolContext, conversationId: string): Promise<{ reply: string; actions: ActionResult[] } | null> {
+    const userId = ctx.userId;
+    try {
+      switch (intent.type) {
+        case 'datetime': {
+          const now = new Date();
+          const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('pt-BR', { timeZone: this.timezone, ...o }).format(now);
+          return intent.what === 'time'
+            ? { reply: `Agora são ${fmt({ hour: '2-digit', minute: '2-digit' })}.`, actions: [] }
+            : { reply: `Hoje é ${fmt({ dateStyle: 'full' })}.`, actions: [] };
+        }
+        case 'weather': {
+          let coords = ctx.location ?? null;
+          let name: string | null = null;
+          if (!coords) {
+            const s = await this.settings.get(userId);
+            if (s.homeLocation) {
+              coords = { latitude: s.homeLocation.latitude, longitude: s.homeLocation.longitude };
+              name = s.homeLocation.name;
+            }
+          }
+          if (!coords) {
+            return { reply: 'Preciso saber onde você está. Permita o acesso à localização no app ou defina a localização de casa em Configurações.', actions: [] };
+          }
+          const w = await this.weather.forecast(coords.latitude, coords.longitude, name);
+          return { reply: weatherReply(w, intent.period, intent.umbrella), actions: [] };
+        }
+        case 'remember': {
+          const m = await this.memory.add(userId, { type: 'fact', content: intent.content, source: 'conversation' });
+          return { reply: `Combinado, vou me lembrar disso: “${m.content}”.`, actions: [{ tool: 'remember', ok: true, summary: `Memória salva: ${m.content}` }] };
+        }
+        case 'forget': {
+          const n = await this.memory.forgetMatching(userId, intent.content);
+          return {
+            reply: n ? `Pronto, esqueci ${n === 1 ? 'isso' : `${n} lembranças sobre isso`}.` : 'Não encontrei nenhuma memória sobre isso.',
+            actions: [{ tool: 'forget', ok: n > 0, summary: `${n} memória(s) apagada(s)` }],
+          };
+        }
+        case 'list_on': {
+          const list = (await this.devices.list()).filter((d) => d.isOn === true && (!intent.category || d.category === intent.category));
+          if (!list.length) return { reply: intent.category ? 'Todas as luzes estão apagadas.' : 'Nenhum dispositivo está ligado agora.', actions: [] };
+          const noun = intent.category ? (list.length === 1 ? 'Está acesa' : 'Estão acesas') : list.length === 1 ? 'Está ligado' : 'Estão ligados';
+          return { reply: `${noun}: ${listJoin(list.map((d) => d.name))}.`, actions: [] };
+        }
+        case 'device_query': {
+          const matches = await this.devices.findByName(intent.target);
+          if (!matches.length) return null;
+          if (matches.length > 1) {
+            this.pending.set(conversationId, { kind: 'query', options: matches.map((m) => m.device), expires: Date.now() + 120_000 });
+            return { reply: askWhich(matches.map((m) => m.device)), actions: [] };
+          }
+          return { reply: stateReply(await this.devices.get(matches[0]!.device.entityId)), actions: [] };
+        }
+        case 'brightness': {
+          const candidates = await this.candidates(intent.target, true, 'light');
+          if (candidates === null) return null;
+          if (!candidates.length) return { reply: `Não encontrei uma lâmpada${intent.target ? ` chamada “${intent.target}”` : ''} com ajuste de brilho.`, actions: [] };
+          if (candidates.length > 1) {
+            this.pending.set(conversationId, { kind: 'brightness', value: intent.value, options: candidates, expires: Date.now() + 120_000 });
+            return { reply: askWhich(candidates), actions: [] };
+          }
+          return this.applyPending({ kind: 'brightness', value: intent.value, options: candidates, expires: 0 }, candidates, userId, conversationId);
+        }
+        case 'device_power': {
+          if (intent.all) {
+            this.onState(userId, 'acting', conversationId);
+            const res = await this.tools.execute('control_all_lights', { action: intent.action }, ctx);
+            const changed = (res.output.alteradas as string[] | undefined) ?? [];
+            const failed = (res.output.falhas as { nome: string; erro: string }[] | undefined) ?? [];
+            if (!changed.length && !failed.length) return { reply: 'Não há luzes autorizadas para eu controlar. Autorize-as em “Minha casa”.', actions: res.action ? [res.action] : [] };
+            const verb = intent.action === 'turn_on' ? 'Acendi' : 'Apaguei';
+            const fail = failed.length ? ` Não consegui controlar: ${listJoin(failed.map((f) => f.nome))}.` : '';
+            return { reply: `${changed.length ? `${verb} ${changed.length === 1 ? 'a luz' : `${changed.length} luzes`}: ${listJoin(changed)}.` : ''}${fail}`.trim(), actions: res.action ? [res.action] : [] };
+          }
+          const candidates = await this.candidates(intent.target, false, intent.lightHint ? 'light' : undefined);
+          if (candidates === null) return null;
+          if (!candidates.length) {
+            return { reply: intent.target ? `Não encontrei um dispositivo chamado “${intent.target}”. Confira os nomes em “Minha casa”.` : 'Qual dispositivo você quer controlar?', actions: [] };
+          }
+          if (candidates.length > 1) {
+            this.pending.set(conversationId, { kind: 'power', action: intent.action, options: candidates, expires: Date.now() + 120_000 });
+            return { reply: askWhich(candidates), actions: [] };
+          }
+          return this.applyPending({ kind: 'power', action: intent.action, options: candidates, expires: 0 }, candidates, userId, conversationId);
+        }
+      }
+    } catch (err) {
+      if (err instanceof AppError) return { reply: err.message, actions: [] };
+      throw err;
+    }
+    return null;
+  }
+
+  /**
+   * Candidatos reais para um alvo falado. Retorna null quando o texto não parece se referir
+   * a um dispositivo (ex.: "ligue para minha mãe") e o LLM deve tratar.
+   */
+  private async candidates(target: string, brightnessOnly: boolean, domain?: string): Promise<DeviceDto[] | null> {
+    const tokens = significantTokens(target);
+    if (tokens.length === 0) {
+      if (!domain) return [];
+      const all = (await this.devices.list()).filter((d) => d.domain === domain && d.aiAllowed && (!brightnessOnly || d.supportsBrightness));
+      return all;
+    }
+    let matches = (await this.devices.findByName(target, { controllableOnly: true, domain })).map((m) => m.device);
+    if (!matches.length && domain) matches = (await this.devices.findByName(target, { controllableOnly: true })).map((m) => m.device);
+    if (!matches.length && /\b(para|pra)\b/.test(normalize(target))) return null;
+    if (brightnessOnly) matches = matches.filter((d) => d.supportsBrightness);
+    return matches;
+  }
+
+  private async llm(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest): Promise<TurnResult> {
+    const settings = await this.settings.get(user.id);
+    const order = routeProviders(req.message, settings.aiMode, this.providers);
+    const notices: string[] = [];
+
+    const history = await this.db.message.findMany({ where: { conversationId }, orderBy: { createdAt: 'desc' }, take: HISTORY_LIMIT });
+    const past: ChatMessage[] = history
+      .reverse()
+      .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }) as ChatMessage);
+
+    for (const provider of order) {
+      if (!(await provider.isAvailable())) {
+        notices.push(provider.name === 'ollama' ? 'O modelo local (Ollama) está indisponível.' : 'A OpenAI está indisponível ou não configurada.');
+        continue;
+      }
+      const memories = !provider.isCloud || settings.allowCloudMemory ? await this.memory.promptContext(user.id) : null;
+      const system = buildSystemPrompt({ userName: user.displayName, now: this.nowText(), memories, summary, cloud: provider.isCloud, voice: req.channel === 'voice' });
+      const ctx: ToolContext = { userId: user.id, source: `ai:${provider.name}`, location: req.location, cloud: provider.isCloud };
+      const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past];
+      const actions: ActionResult[] = [];
+      try {
+        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+          const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS ? TOOL_DEFINITIONS : []);
+          if (!res.toolCalls.length) {
+            const reply = res.content.trim() || this.fallbackReply(actions);
+            return { reply, provider: provider.name, model: provider.model, actions, notices: notices.length ? [...notices, `Respondi usando ${provider.name === 'ollama' ? 'o modelo local' : 'a OpenAI'}.`] : [] };
+          }
+          messages.push({ role: 'assistant', content: res.content, toolCalls: res.toolCalls });
+          for (const call of res.toolCalls.slice(0, 6)) {
+            if (/control|brightness|lights/.test(call.name)) this.onState(user.id, 'acting', conversationId);
+            const outcome = await this.tools.execute(call.name, call.arguments, ctx);
+            if (outcome.action) actions.push(outcome.action);
+            messages.push({ role: 'tool', toolCallId: call.id, name: call.name, content: JSON.stringify(outcome.output) });
+          }
+          this.onState(user.id, 'processing', conversationId);
+        }
+        return { reply: this.fallbackReply(actions), provider: provider.name, model: provider.model, actions, notices };
+      } catch (err) {
+        // Se algo já foi executado, NÃO repete em outro provedor (evita ações duplicadas)
+        if (actions.length) return { reply: this.fallbackReply(actions), provider: provider.name, model: provider.model, actions, notices: [...notices, (err as Error).message] };
+        notices.push(err instanceof ProviderError ? err.message : `Falha em ${provider.name}.`);
+      }
+    }
+
+    const reason = settings.aiMode === 'local' ? 'O modo “somente local” está ativo e o Ollama não respondeu.' : 'Nenhum modelo de IA respondeu agora.';
+    return {
+      reply: `${reason} Comandos diretos como “acenda a luz da sala”, “vai chover hoje?” ou “que horas são?” continuam funcionando.`,
+      provider: 'luna-nlu',
+      model: null,
+      actions: [],
+      notices,
+    };
+  }
+
+  private fallbackReply(actions: ActionResult[]): string {
+    if (!actions.length) return 'Desculpe, não consegui formular uma resposta agora.';
+    return actions.map((a) => (a.ok ? `✓ ${a.summary}` : `✗ ${a.summary}`)).join('\n');
+  }
+
+  /** Gera um resumo da conversa (preferindo o modelo local) e o salva como memória do tipo "summary". */
+  async summarize(user: PublicUser, conversationId: string) {
+    const conv = await this.db.conversation.findFirst({ where: { id: conversationId, userId: user.id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 80 } } });
+    if (!conv) throw notFound('Conversa não encontrada.');
+    if (conv.messages.length < 2) throw new AppError(400, 'A conversa é curta demais para resumir.', 'too_short');
+    const settings = await this.settings.get(user.id);
+    const order = settings.aiMode === 'local' ? [this.providers.ollama] : [this.providers.ollama, this.providers.openai];
+    const transcript = conv.messages.map((m) => `${m.role === 'user' ? 'Usuário' : 'Luna'}: ${m.content}`).join('\n');
+    for (const p of order) {
+      if (!(await p.isAvailable())) continue;
+      if (p.isCloud && !settings.allowCloudMemory) continue;
+      try {
+        const res = await p.chat(
+          [
+            { role: 'system', content: 'Resuma a conversa em português, em até 3 frases, mantendo apenas fatos e decisões relevantes. Não invente nada.' },
+            { role: 'user', content: transcript.slice(-12000) },
+          ],
+          [],
+        );
+        const text = res.content.trim();
+        if (!text) continue;
+        await this.db.conversation.update({ where: { id: conv.id }, data: { summary: text } });
+        await this.memory.add(user.id, { type: 'summary', content: `${conv.title}: ${text}`, source: 'conversation' });
+        return { summary: text, provider: p.name };
+      } catch {
+        continue;
+      }
+    }
+    throw new AppError(503, 'Nenhum modelo disponível para resumir (ou o uso da nuvem para memória está desativado).', 'no_provider');
+  }
+}

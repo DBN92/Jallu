@@ -1,0 +1,39 @@
+{
+  "name": "@luna/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "build": "prisma generate && node build.mjs",
+    "start": "node --env-file-if-exists=../../.env dist/server.js",
+    "db:migrate": "prisma migrate deploy",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/multipart": "^10.1.7",
+    "@fastify/rate-limit": "^11.2.2",
+    "@fastify/static": "^10.1.10",
+    "@fastify/websocket": "^11.3.7",
+    "@luna/shared": "*",
+    "@prisma/client": "6.19.3",
+    "fastify": "^5.12.8",
+    "prisma": "6.19.3",
+    "ws": "^8.18.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.10",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,189 @@
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import Fastify, { type FastifyInstance } from 'fastify';
+import cookie from '@fastify/cookie';
+import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import websocket from '@fastify/websocket';
+import { ZodError } from 'zod';
+import type { Env } from './config/env';
+import { createDb, type Db } from './lib/db';
+import { AppError } from './lib/errors';
+import { HomeAssistantRestClient } from './integrations/home-assistant/rest-client';
+import { HomeAssistantWsClient } from './integrations/home-assistant/ws-client';
+import { OllamaProvider } from './integrations/ollama/ollama.provider';
+import { OpenAIProvider } from './integrations/openai/openai.provider';
+import { OpenAIVoiceClient } from './integrations/openai/realtime.client';
+import { AuthService } from './modules/auth/auth.service';
+import { authRoutes } from './modules/auth/auth.routes';
+import { ActionLogService } from './modules/devices/action-log.service';
+import { DevicesService } from './modules/devices/devices.service';
+import { deviceRoutes } from './modules/devices/devices.routes';
+import { WeatherService } from './modules/weather/weather.service';
+import { weatherRoutes } from './modules/weather/weather.routes';
+import { MemoryService } from './modules/memory/memory.service';
+import { memoryRoutes } from './modules/memory/memory.routes';
+import { SettingsService } from './modules/settings/settings.service';
+import { locationRoutes, settingsRoutes } from './modules/settings/settings.routes';
+import { AutomationsService } from './modules/automations/automations.service';
+import { automationRoutes } from './modules/automations/automations.routes';
+import { ToolExecutor } from './modules/ai/tools';
+import { ChatService } from './modules/ai/chat.service';
+import { aiRoutes } from './modules/ai/ai.routes';
+import { voiceRoutes } from './modules/voice/voice.routes';
+import { healthRoutes } from './routes/health.routes';
+import { RealtimeHub, wsRoutes } from './routes/ws.routes';
+
+type FetchLike = typeof fetch;
+
+export interface AppDeps {
+  env: Env;
+  db?: Db;
+  /** fetch usado pelas integrações externas (substituível em testes) */
+  fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike };
+  /** Desativa a conexão WebSocket com o HA (testes) */
+  disableHaWs?: boolean;
+}
+
+function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['log']) {
+  const ha = new HomeAssistantRestClient(env.HA_URL, env.HA_TOKEN, deps.fetch?.ha);
+  const haWs = new HomeAssistantWsClient(env.HA_URL, env.HA_TOKEN, { info: (m) => log.info(m), warn: (m) => log.warn(m) });
+  const actionLogs = new ActionLogService(db);
+  const devices = new DevicesService(db, ha, actionLogs, env.LUNA_AI_AUTO_AUTHORIZE_DOMAINS);
+  const weather = new WeatherService(
+    { forecastUrl: env.OPEN_METEO_URL, geocodingUrl: env.OPEN_METEO_GEOCODING_URL, cacheMinutes: env.WEATHER_CACHE_MINUTES },
+    deps.fetch?.weather,
+  );
+  const memory = new MemoryService(db);
+  const settings = new SettingsService(db, env.LUNA_AI_MODE);
+  const automations = new AutomationsService(db, ha, devices, actionLogs);
+  const ollama = new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL, env.OLLAMA_TIMEOUT_MS, deps.fetch?.ollama);
+  const openai = new OpenAIProvider(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_MODEL, env.OPENAI_TIMEOUT_MS, deps.fetch?.openai);
+  const voice = new OpenAIVoiceClient(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_REALTIME_MODEL, env.OPENAI_TRANSCRIBE_MODEL, deps.fetch?.openai);
+  const tools = new ToolExecutor(devices, weather, memory, settings, automations, env.TZ);
+  const hub = new RealtimeHub();
+  const chat = new ChatService(db, { ollama, openai }, tools, devices, weather, memory, settings, env.TZ, (userId, state, conversationId) =>
+    hub.toUser(userId, { type: 'assistant_state', state, conversationId }),
+  );
+  const auth = new AuthService(db, { setupCode: env.LUNA_SETUP_CODE, sessionTtlHours: env.LUNA_SESSION_TTL_HOURS });
+
+  devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
+  devices.on('reload', () => hub.broadcast({ type: 'devices_reload' }));
+  haWs.on('state_changed', (evt) => devices.handleStateChanged(evt));
+  haWs.on('connected', () => {
+    hub.broadcast({ type: 'ha_status', connected: true });
+    devices.refresh(true).then(() => hub.broadcast({ type: 'devices_reload' })).catch(() => undefined);
+  });
+  haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
+
+  return { ha, haWs, actionLogs, devices, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+}
+
+export type Services = ReturnType<typeof buildServices>;
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    env: Env;
+    db: Db;
+    services: Services;
+  }
+}
+
+export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
+  const { env } = deps;
+  const app = Fastify({
+    logger: env.NODE_ENV === 'test' ? false : { level: env.LOG_LEVEL, redact: ['req.headers.cookie', 'req.headers.authorization', 'req.headers["x-csrf-token"]'] },
+    trustProxy: env.LUNA_TRUST_PROXY,
+    bodyLimit: 1024 * 1024,
+  });
+  const db = deps.db ?? createDb(env.DATABASE_URL);
+  app.decorate('env', env);
+  app.decorate('db', db);
+  app.decorate('services', buildServices(env, db, deps, app.log));
+  app.decorateRequest('user', null);
+  app.decorateRequest('sessionCsrf', null);
+
+  await app.register(cookie);
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'media-src': ["'self'", 'blob:'],
+        'connect-src': ["'self'", 'https://api.openai.com', 'wss:', 'ws:'],
+        'worker-src': ["'self'"],
+        'manifest-src': ["'self'"],
+        'upgrade-insecure-requests': null,
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    hsts: false, // HTTPS/HSTS é tratado pelo Cloudflare
+  });
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('Permissions-Policy', 'microphone=(self), geolocation=(self), camera=()');
+  });
+  await app.register(rateLimit, { global: true, max: 300, timeWindow: '1 minute', allowList: ['127.0.0.1', '::1'].filter(() => env.NODE_ENV !== 'test') });
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
+  await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
+
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof ZodError) {
+      const first = err.issues[0];
+      return reply.status(400).send({ error: 'validation', message: `Dados inválidos${first ? ` (${first.path.join('.') || 'corpo'}: ${first.message})` : ''}.` });
+    }
+    if (err instanceof AppError) return reply.status(err.statusCode).send({ error: err.code, message: err.message });
+    const e = err as { statusCode?: number; message: string };
+    if (e.statusCode === 429) return reply.status(429).send({ error: 'rate_limited', message: 'Muitas requisições. Aguarde um pouco e tente novamente.' });
+    if (e.statusCode && e.statusCode < 500) return reply.status(e.statusCode).send({ error: 'request', message: e.message });
+    req.log.error(err);
+    return reply.status(500).send({ error: 'internal', message: 'Erro interno no servidor da Luna.' });
+  });
+
+  await app.register(healthRoutes);
+  await app.register(authRoutes);
+  await app.register(deviceRoutes);
+  await app.register(weatherRoutes);
+  await app.register(memoryRoutes);
+  await app.register(settingsRoutes);
+  await app.register(locationRoutes);
+  await app.register(automationRoutes);
+  await app.register(aiRoutes);
+  await app.register(voiceRoutes);
+  await app.register(wsRoutes);
+
+  // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel
+  const here = dirname(fileURLToPath(import.meta.url));
+  const webDist = env.LUNA_WEB_DIST ?? resolve(here, '../../web/dist');
+  if (existsSync(webDist)) {
+    await app.register(fastifyStatic, {
+      root: webDist,
+      wildcard: false,
+      setHeaders: (res, path) => {
+        if (path.endsWith('sw.js') || path.endsWith('index.html') || path.endsWith('.webmanifest')) res.header('Cache-Control', 'no-cache');
+        else if (path.includes('/assets/')) res.header('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    });
+    app.get('/*', (req, reply) => {
+      if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) return reply.status(404).send({ error: 'not_found', message: 'Rota não encontrada.' });
+      return reply.header('Cache-Control', 'no-cache').sendFile('index.html');
+    });
+  } else {
+    app.log.warn(`Frontend não encontrado em ${webDist}. Rode "npm run build" para gerar o PWA.`);
+  }
+
+  app.addHook('onReady', async () => {
+    if (!deps.disableHaWs) app.services.haWs.start();
+  });
+  app.addHook('onClose', async () => {
+    app.services.haWs.stop();
+    await db.$disconnect();
+  });
+
+  return app;
+}

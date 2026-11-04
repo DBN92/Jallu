@@ -1,0 +1,141 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x", "linux-musl-openssl-3.0.x", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  username      String         @unique
+  displayName   String
+  passwordHash  String
+  role          String         @default("member") // admin | member
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      Session[]
+  conversations Conversation[]
+  memories      Memory[]
+  preferences   Preference[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  csrfToken  String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Nova conversa")
+  summary   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // user | assistant
+  content        String
+  provider       String?
+  model          String?
+  channel        String       @default("text")
+  meta           String? // JSON (ações executadas etc.)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // preference | fact | home | context | summary
+  content   String
+  source    String   @default("user") // user | conversation | manual
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type])
+}
+
+model Device {
+  entityId  String   @id
+  domain    String
+  name      String
+  category  String
+  aiAllowed Boolean  @default(false)
+  hidden    Boolean  @default(false)
+  aliases   String   @default("[]") // JSON array
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Integration {
+  id        String   @id // home_assistant | ollama | openai | open_meteo
+  enabled   Boolean  @default(true)
+  status    String   @default("unknown")
+  detail    String?
+  config    String   @default("{}") // JSON NÃO sensível (segredos ficam no .env)
+  updatedAt DateTime @updatedAt
+}
+
+model ActionLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  source    String // ui | ai:ollama | ai:openai | ai:luna-nlu | voice | automation
+  tool      String
+  target    String?
+  args      String?
+  success   Boolean
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Preference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String // JSON
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
+model AutomationRule {
+  id             String   @id @default(cuid())
+  userId         String?
+  name           String
+  description    String
+  definition     String // JSON (rascunho validado)
+  haConfig       String // JSON enviado ao Home Assistant
+  status         String   @default("draft") // draft | active | disabled | error
+  haAutomationId String?  @unique
+  haEntityId     String?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
