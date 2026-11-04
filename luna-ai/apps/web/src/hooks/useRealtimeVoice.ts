@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssistantState } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
 import { isWakeCall } from '../lib/text';
+import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { useLocation } from '../stores/location';
 import { useSettings } from '../stores/settings';
 
@@ -38,7 +39,7 @@ export function useRealtimeVoice(opts: {
   const followUntil = useRef(0);
   const idleTimer = useRef<number | null>(null);
   const speakingRef = useRef(false);
-  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const wakeLockRef = useRef<boolean | null>(null);
   const wakeRef = useRef(Boolean(opts.wakeWord));
   wakeRef.current = Boolean(opts.wakeWord);
   const convRef = useRef(opts.conversationId);
@@ -63,22 +64,14 @@ export function useRealtimeVoice(opts: {
     if (dcRef.current?.readyState === 'open') dcRef.current.send(JSON.stringify(event));
   };
 
-  /** Mantém a tela acesa durante a conversa (o iOS corta o microfone com a tela bloqueada). */
-  const keepAwake = async () => {
-    try {
-      const nav = navigator as unknown as { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } };
-      if (nav.wakeLock && document.visibilityState === 'visible') wakeLockRef.current = await nav.wakeLock.request('screen');
-    } catch {
-      /* não suportado */
-    }
-  };
-
   const stop = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = null;
     speakingRef.current = false;
-    wakeLockRef.current?.release().catch(() => undefined);
-    wakeLockRef.current = null;
+    if (wakeLockRef.current) {
+      releaseScreen();
+      wakeLockRef.current = null;
+    }
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     dcRef.current?.close();
     pcRef.current?.close();
@@ -210,7 +203,8 @@ export function useRealtimeVoice(opts: {
       micRef.current = mic;
       const session = await api<Session>('/api/voice/realtime/session', { body: { wakeWord: wakeRef.current } });
       followUntil.current = Date.now() + 15_000; // logo ao abrir, já pode falar sem "Luna"
-      void keepAwake();
+      wakeLockRef.current = true;
+      void acquireScreen();
 
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
@@ -275,14 +269,6 @@ export function useRealtimeVoice(opts: {
   const interrupt = useCallback(() => {
     send({ type: 'response.cancel' });
     send({ type: 'output_audio_buffer.clear' });
-  }, []);
-
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState === 'visible' && pcRef.current) void keepAwake();
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
   useEffect(() => () => stop(), [stop]);

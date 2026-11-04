@@ -14,6 +14,20 @@ import { useAuth } from '../stores/auth';
 import { useSettings } from '../stores/settings';
 import { greeting, playChime, STATE_LABEL } from '../lib/text';
 
+function useViewportHeight() {
+  const [h, setH] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
+  useEffect(() => {
+    const on = () => setH(window.innerHeight);
+    window.addEventListener('resize', on);
+    window.addEventListener('orientationchange', on);
+    return () => {
+      window.removeEventListener('resize', on);
+      window.removeEventListener('orientationchange', on);
+    };
+  }, []);
+  return h;
+}
+
 const STATE_DOT: Record<string, string> = {
   idle: 'bg-emerald-400 shadow-[0_0_8px_#34d399]',
   listening: 'bg-cyan-300 animate-pulse shadow-[0_0_8px_#00e5ff]',
@@ -156,6 +170,7 @@ export default function HomePage() {
     inputRef.current?.focus();
   };
 
+  const vh = useViewportHeight();
   const micActive = sr.listening || recorder.recording || realtime.active;
   const hasChat = messages.length > 0 || !!interim;
   const level = realtime.active ? realtime.level : 0;
@@ -174,9 +189,6 @@ export default function HomePage() {
               <span className="hidden text-cyan-300/60 sm:inline">· diga “Ei, Luna”</span>
             )}
           </div>
-          <span className="hud-title hidden text-sm text-cyan-100/60 tabular-nums md:hidden sm:inline lg:hidden">
-            {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -200,18 +212,20 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-4 pt-3 pb-28 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:pb-4 lg:grid-cols-[280px_minmax(0,1fr)_300px] lg:overflow-hidden lg:px-6">
-        {/* Coluna esquerda: tempo e clima (tablet/computador) */}
-        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto md:flex">
+      <div className="home-grid min-h-0 flex-1 px-4 pt-3 pb-28 md:pb-4 lg:px-6">
+        {/* Painéis laterais (tablet, celular deitado e computador) */}
+        <aside className="home-left min-h-0 flex-col gap-4 overflow-y-auto pb-2">
           <ClockPanel now={now} name={user?.displayName} greeting={greeting(now)} />
           <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
-          <div className="lg:hidden">
+          <div className="home-left-extra">
+            <DevicesPanel />
+            <SensorsPanel />
             <SystemPanel />
           </div>
         </aside>
 
         {/* Centro: núcleo + conversa */}
-        <section className="flex min-h-0 flex-col">
+        <section className="home-center flex min-h-0 flex-col">
           <div className={`flex flex-col items-center transition-all duration-500 ${hasChat ? 'pt-0' : 'pt-2 md:pt-6'}`}>
             {!hasChat && (
               <div className="mb-2 text-center md:hidden">
@@ -223,9 +237,9 @@ export default function HomePage() {
                 </p>
               </div>
             )}
-            <LunaOrb state={state} level={level} size={hasChat ? 150 : 270} onClick={onMic} label={STATE_LABEL[state]} />
+            <LunaOrb state={state} level={level} size={hasChat ? Math.min(150, Math.round(vh * 0.22)) : Math.max(150, Math.min(270, Math.round(vh * 0.42)))} onClick={onMic} label={STATE_LABEL[state]} />
             {!hasChat && (
-              <p className="font-hud mt-3 max-w-sm text-center text-sm text-cyan-100/45">
+              <p className="home-tall-only font-hud mt-3 max-w-sm text-center text-sm text-cyan-100/45">
                 Toque no núcleo para falar · “acenda a luz da sala” · “vai chover hoje?”
               </p>
             )}
@@ -284,22 +298,19 @@ export default function HomePage() {
 
           {/* Celular: painéis abaixo da conversa quando ainda não há mensagens */}
           {!hasChat && (
-            <div className="mt-4 flex flex-col gap-4 md:hidden">
+            <div className="home-mobile-only mt-4 flex flex-col gap-4">
               <DevicesPanel />
               <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
             </div>
           )}
         </section>
 
-        {/* Coluna direita: casa e diagnóstico */}
-        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
+        {/* Coluna direita (computador): casa e diagnóstico */}
+        <aside className="home-right min-h-0 flex-col gap-4 overflow-y-auto">
           <DevicesPanel />
           <SensorsPanel />
           <SystemPanel />
         </aside>
-        <div className="hidden md:block lg:hidden md:col-span-2">
-          <DevicesPanel />
-        </div>
       </div>
     </div>
   );

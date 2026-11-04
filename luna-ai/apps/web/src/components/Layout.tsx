@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { Bot, Brain, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
 import { useAssistant } from '../stores/assistant';
+import { useKioskMode } from '../hooks/useKioskMode';
 import { useDevices } from '../stores/devices';
 
 export const NAV = [
@@ -25,14 +26,15 @@ function ConnectionBar() {
 }
 
 export function Layout() {
+  useKioskMode();
   return (
     <div className="app-bg flex h-full">
       <ConnectionBar />
       {/* Barra lateral (tablet/computador) */}
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex">
-        <div className="mb-8 px-2 pt-2">
-          <p className="hud-title hud-glow text-lg font-bold text-cyan-50">LUNA</p>
-          <p className="hud-label mt-0.5 text-[9px]">assistente // v0.1</p>
+      <aside className="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
+        <div className="mb-8 px-2 pt-2 [@media(max-height:560px)]:mb-3 [@media(max-height:560px)]:px-0 [@media(max-height:560px)]:text-center">
+          <p className="hud-title hud-glow text-lg font-bold text-cyan-50 [@media(max-height:560px)]:text-[11px]">LUNA</p>
+          <p className="hud-label mt-0.5 text-[9px] [@media(max-height:560px)]:hidden">assistente // v0.1</p>
         </div>
         <nav className="flex flex-col gap-1">
           {NAV.map(({ to, label, icon: Icon, end }, i) => (
@@ -40,19 +42,20 @@ export function Layout() {
               key={to}
               to={to}
               end={end}
+              title={label}
               className={({ isActive }) =>
-                `font-hud group flex items-center gap-3 border-l-2 px-3 py-2.5 text-sm font-semibold tracking-[0.12em] uppercase transition ${
+                `font-hud group flex items-center gap-3 border-l-2 px-3 py-2.5 [@media(max-height:560px)]:justify-center [@media(max-height:560px)]:py-2 text-sm font-semibold tracking-[0.12em] uppercase transition ${
                   isActive ? 'border-cyan-300 bg-cyan-400/10 text-cyan-100 shadow-[inset_8px_0_16px_-8px_rgba(0,229,255,0.4)]' : 'border-transparent text-cyan-100/45 hover:border-cyan-300/40 hover:text-cyan-100'
                 }`
               }
             >
-              <span className="text-[10px] text-cyan-300/50 tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-              <Icon className="h-4 w-4" />
-              {label === 'Ajustes' ? 'Configurações' : label === 'Casa' ? 'Minha casa' : label}
+              <span className="text-[10px] text-cyan-300/50 tabular-nums [@media(max-height:560px)]:hidden">{String(i + 1).padStart(2, '0')}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="[@media(max-height:560px)]:hidden">{label === 'Ajustes' ? 'Configurações' : label === 'Casa' ? 'Minha casa' : label}</span>
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto px-2">
+        <div className="mt-auto px-2 [@media(max-height:560px)]:hidden">
           <div className="hud-divider mb-3" />
           <p className="hud-label text-[9px] text-cyan-300/40">sistema operacional</p>
           <p className="font-hud text-xs text-cyan-100/50">ZimaOS · Home Assistant</p>

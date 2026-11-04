@@ -27,7 +27,7 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any', // permite girar (Android deitado na parede/tablet)
         background_color: '#07080c',
         theme_color: '#07080c',
         icons: [

@@ -257,7 +257,7 @@ function ActionLogs() {
 }
 
 export default function SettingsPage() {
-  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps } = useSettings();
+  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode } = useSettings();
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const tts = useSpeechSynthesis();
   const [caps, setCaps] = useState<{ realtime: boolean; realtimeVoices: string[] } | null>(null);
@@ -375,6 +375,27 @@ export default function SettingsPage() {
           <Toggle label="Usar GPS" checked={useGps} onChange={setUseGps} />
         </Row>
         <HomeLocation />
+      </Section>
+
+      <Section title="Este aparelho">
+        <Row
+          label="Modo assistente fixo"
+          hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."
+        >
+          <Toggle label="Modo assistente fixo" checked={kioskMode} onChange={setKioskMode} />
+        </Row>
+        {kioskMode && (
+          <div className="font-hud space-y-2 px-4 py-3 text-sm text-cyan-100/70">
+            <p className="hud-label">Abrir a Luna ao ligar/desbloquear o Android</p>
+            <p>Apps web não podem se abrir sozinhos; use o app gratuito <b className="text-cyan-200">MacroDroid</b> (Play Store):</p>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>Adicionar macro › <b>Gatilho</b>: Tela ligada (ou Dispositivo desbloqueado)</li>
+              <li><b>Ação</b>: Aplicativos › Abrir aplicativo › escolha <b>Luna</b></li>
+              <li>Salve e permita o MacroDroid rodar em segundo plano (bateria sem restrições).</li>
+            </ol>
+            <p className="text-cyan-100/50">Dica: deixe o aparelho no carregador e, em Configurações › Apps › Chrome › Bateria, escolha “Sem restrições”.</p>
+          </div>
+        )}
       </Section>
 
       <Section title="Sistema">
