@@ -3,6 +3,7 @@ import type { SettingsDto, SettingsUpdate } from '@luna/shared';
 import { api } from '../services/api';
 
 export type VoiceMode = 'basic' | 'realtime';
+export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
 
 const readLocal = <T,>(key: string, fallback: T): T => {
   try {
@@ -27,12 +28,15 @@ interface SettingsState {
   useGps: boolean;
   /** Aparelho dedicado: tela sempre acesa e volta sozinho para a tela inicial. */
   kioskMode: boolean;
+  /** Orientação forçada neste aparelho (app instalado). */
+  orientation: ScreenOrientationPref;
   load: () => Promise<void>;
   update: (patch: SettingsUpdate) => Promise<void>;
   setHome: (home: { name: string; latitude: number; longitude: number } | null) => Promise<void>;
   setVoiceMode: (m: VoiceMode) => void;
   setUseGps: (v: boolean) => void;
   setKioskMode: (v: boolean) => void;
+  setOrientation: (v: ScreenOrientationPref) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -40,6 +44,7 @@ export const useSettings = create<SettingsState>((set) => ({
   voiceMode: readLocal<VoiceMode>('luna.voiceMode', 'basic'),
   useGps: readLocal<boolean>('luna.useGps', false),
   kioskMode: readLocal<boolean>('luna.kioskMode', false),
+  orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -47,6 +52,10 @@ export const useSettings = create<SettingsState>((set) => ({
   setVoiceMode: (voiceMode) => {
     writeLocal('luna.voiceMode', voiceMode);
     set({ voiceMode });
+  },
+  setOrientation: (orientation) => {
+    writeLocal('luna.orientation', orientation);
+    set({ orientation });
   },
   setKioskMode: (kioskMode) => {
     writeLocal('luna.kioskMode', kioskMode);

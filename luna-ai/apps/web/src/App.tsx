@@ -12,6 +12,7 @@ import { useAssistant } from './stores/assistant';
 import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { useSettings } from './stores/settings';
+import { applyOrientation } from './lib/orientation';
 
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
 const HousePage = lazy(() => import('./pages/HousePage'));
@@ -62,6 +63,15 @@ export default function App() {
   }, [status, loadSettings]);
 
   useRealtimeConnection(status === 'ready');
+
+  // Orientação da tela (app instalado): reaplica ao abrir e ao voltar do segundo plano
+  const orientation = useSettings((s) => s.orientation);
+  useEffect(() => {
+    void applyOrientation(orientation);
+    const onVis = () => document.visibilityState === 'visible' && void applyOrientation(orientation);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [orientation]);
 
   if (status === 'loading') return <Splash />;
   if (status === 'offline') {

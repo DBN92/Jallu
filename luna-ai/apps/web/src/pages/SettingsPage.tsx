@@ -8,7 +8,8 @@ import { wakeWordSupport } from '../hooks/useWakeWord';
 import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
 import { useLocation } from '../stores/location';
-import { useSettings } from '../stores/settings';
+import { useSettings, type ScreenOrientationPref } from '../stores/settings';
+import { applyOrientation, currentOrientation } from '../lib/orientation';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -58,7 +59,7 @@ function HealthStatus() {
           {s.ok ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <XCircle className="h-5 w-5 text-rose-400" />}
         </Row>
       ))}
-      <Row label="Versão" hint={`Luna AI ${h.version} · ativa há ${Math.round(h.uptimeSeconds / 60)} min`} />
+      <Row label="Versão" hint={`Servidor ${h.version} · ativo há ${Math.round(h.uptimeSeconds / 60)} min · app de ${__LUNA_BUILD__} UTC`} />
     </>
   );
 }
@@ -257,7 +258,12 @@ function ActionLogs() {
 }
 
 export default function SettingsPage() {
-  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode } = useSettings();
+  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation } = useSettings();
+  const [orientMsg, setOrientMsg] = useState<string | null>(null);
+  const chooseOrientation = async (o: ScreenOrientationPref) => {
+    setOrientation(o);
+    setOrientMsg(await applyOrientation(o));
+  };
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const tts = useSpeechSynthesis();
   const [caps, setCaps] = useState<{ realtime: boolean; realtimeVoices: string[] } | null>(null);
@@ -378,6 +384,30 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Este aparelho">
+        <div className="px-4 py-3">
+          <p className="mb-2 text-sm">Orientação da tela</p>
+          <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
+            {(
+              [
+                ['auto', 'Automática'],
+                ['landscape', 'Deitada'],
+                ['portrait', 'Em pé'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => void chooseOrientation(v)}
+                className={`rounded-sm py-2 text-sm ${orientation === v ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-white/45">
+            Atual: {currentOrientation()} · {isStandalone() ? 'app instalado' : 'navegador'}. Se “Automática” não girar, confira se a rotação automática do Android está ativada.
+          </p>
+          {orientMsg && <p className="mt-1 text-xs text-amber-200/80">{orientMsg}</p>}
+        </div>
         <Row
           label="Modo assistente fixo"
           hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."

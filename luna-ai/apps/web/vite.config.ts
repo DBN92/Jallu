@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const apiTarget = process.env.LUNA_API_URL ?? 'http://127.0.0.1:8787';
 
+const buildTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
 export default defineConfig({
+  define: { __LUNA_BUILD__: JSON.stringify(buildTime) },
   resolve: {
     alias: [
       { find: '@luna/shared/types', replacement: fileURLToPath(new URL('../../packages/shared/src/types/index.ts', import.meta.url)) },
