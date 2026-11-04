@@ -50,7 +50,10 @@ command -v npm >/dev/null 2>&1 && echo "npm: $(npm -v)"
 command -v pm2 >/dev/null 2>&1 && echo "pm2: $(pm2 -v 2>/dev/null | tail -n1)" || echo "pm2: não instalado"
 command -v systemctl >/dev/null 2>&1 && echo "systemd: $(systemctl --version | head -n1)" || echo "systemd: não disponível"
 command -v git >/dev/null 2>&1 && echo "git: $(git --version)"
-for t in curl wget openssl tar xz; do command -v "$t" >/dev/null 2>&1 && echo "$t: ok" || echo "$t: ausente"; done
+for t in curl wget tar xz; do command -v "$t" >/dev/null 2>&1 && echo "$t: ok" || echo "$t: ausente"; done
+libssl="$(ls /usr/lib*/libssl.so.* /lib*/libssl.so.* /usr/lib/*/libssl.so.* 2>/dev/null | head -n1)"
+[ -n "$libssl" ] && echo "libssl (usada pelo Prisma): $libssl" || warn "libssl não encontrada — o banco (Prisma) pode não iniciar"
+echo "Limite de arquivos abertos: $(ulimit -n) (máx. $(ulimit -Hn))"
 
 section "Portas"
 PORT="$(luna_port)"

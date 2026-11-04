@@ -45,6 +45,10 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // Limita arquivos abertos simultaneamente (sistemas com ulimit baixo, ex.: ZimaOS sob sudo)
+    rollupOptions: { maxParallelFileOps: 32 },
+  },
   server: {
     port: 5173,
     proxy: {
