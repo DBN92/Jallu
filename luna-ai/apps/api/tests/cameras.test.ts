@@ -84,4 +84,19 @@ describe('câmeras (via Home Assistant)', () => {
     const all = await chat(ctx, 'quero ver as câmeras');
     expect(all.actions[0]!.tool).toBe('show_camera');
   });
+
+  it('a resposta vai para as outras telas do usuário (a TV abre a câmera pedida no celular)', async () => {
+    await withCameras();
+    const sent: { userId: string; event: unknown }[] = [];
+    const hub = ctx.app.services.hub;
+    const orig = hub.toUser.bind(hub);
+    hub.toUser = (userId, event) => {
+      sent.push({ userId, event });
+      orig(userId, event);
+    };
+    await chat(ctx, 'mostre a câmera da garagem');
+    const replies = sent.filter((s) => (s.event as { type: string }).type === 'assistant_reply');
+    expect(replies).toHaveLength(1);
+    expect(replies[0]!.event).toMatchObject({ type: 'assistant_reply', userText: 'mostre a câmera da garagem', reply: 'Abrindo a câmera Garagem.', cameraIds: ['camera.garagem'] });
+  });
 });

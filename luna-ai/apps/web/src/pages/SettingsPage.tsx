@@ -258,7 +258,7 @@ function ActionLogs() {
 }
 
 export default function SettingsPage() {
-  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation, ambientMode, setAmbientMode } = useSettings();
+  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation, ambientMode, setAmbientMode, tvMode, setTvMode } = useSettings();
   const [orientMsg, setOrientMsg] = useState<string | null>(null);
   const chooseOrientation = async (o: ScreenOrientationPref) => {
     setOrientation(o);
@@ -424,6 +424,29 @@ export default function SettingsPage() {
             Atual: {currentOrientation()} · {isStandalone() ? 'app instalado' : 'navegador'}. Se “Automática” não girar, confira se a rotação automática do Android está ativada.
           </p>
           {orientMsg && <p className="mt-1 text-xs text-amber-200/80">{orientMsg}</p>}
+        </div>
+        <div className="px-4 py-3">
+          <p className="mb-2 text-sm">Modo TV</p>
+          <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
+            {(
+              [
+                ['auto', 'Automático'],
+                ['on', 'Ligado'],
+                ['off', 'Desligado'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setTvMode(v)}
+                className={`rounded-sm py-2 text-sm ${tvMode === v ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-white/45">
+            Tela feita para o controle remoto (Fire TV / Android TV). “Automático” liga sozinho quando a Luna é aberta numa TV. Para sair na TV, use o ícone de celular no canto superior.
+          </p>
         </div>
         <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Ei, Luna” para voltar.">
           <Toggle label="Modo ambiente" checked={ambientMode} onChange={setAmbientMode} />

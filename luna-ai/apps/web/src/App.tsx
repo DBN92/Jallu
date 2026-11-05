@@ -11,7 +11,8 @@ import { LunaSocket } from './services/socket';
 import { useAssistant } from './stores/assistant';
 import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
-import { useSettings } from './stores/settings';
+import { tvActive, useSettings } from './stores/settings';
+import { useTv } from './stores/tv';
 import { applyOrientation } from './lib/orientation';
 
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
@@ -21,6 +22,7 @@ const MemoryPage = lazy(() => import('./pages/MemoryPage'));
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
+const TvApp = lazy(() => import('./tv/TvApp'));
 
 function useRealtimeConnection(enabled: boolean) {
   useEffect(() => {
@@ -30,7 +32,10 @@ function useRealtimeConnection(enabled: boolean) {
         if (e.type === 'device_state') useDevices.getState().upsert(e.device);
         else if (e.type === 'devices_reload') void useDevices.getState().load(true);
         else if (e.type === 'ha_status') useDevices.getState().setHa(e.connected);
-        else if (e.type === 'assistant_state' && e.state === 'acting') useAssistant.getState().setState('acting');
+        else if (e.type === 'assistant_state') {
+          useTv.getState().setRemoteState(e.state);
+          if (e.state === 'acting') useAssistant.getState().setState('acting');
+        } else if (e.type === 'assistant_reply') useTv.getState().pushReply(e);
       },
       (c) => useAssistant.getState().setServerConnected(c),
     );
@@ -67,6 +72,7 @@ export default function App() {
 
   // Orientação da tela (app instalado): reaplica ao abrir e ao voltar do segundo plano
   const orientation = useSettings((s) => s.orientation);
+  const tv = tvActive(useSettings((s) => s.tvMode));
   useEffect(() => {
     void applyOrientation(orientation);
     const onVis = () => document.visibilityState === 'visible' && void applyOrientation(orientation);
@@ -86,6 +92,12 @@ export default function App() {
     );
   }
   if (status === 'setup' || status === 'login') return <LoginPage mode={status} />;
+  if (tv)
+    return (
+      <Suspense fallback={<Splash />}>
+        <TvApp />
+      </Suspense>
+    );
 
   return (
     <BrowserRouter>

@@ -18,6 +18,7 @@ rodando **nativamente** no seu servidor Linux/ZimaOS (sem Docker).
 | Clima | Open-Meteo (atual, 24 h, 7 dias, chuva, guarda-chuva) com cache; GPS do aparelho ou casa |
 | Memória | “Lembre que…” / “esqueça que…”; painel para ver e apagar; nunca inventa lembranças |
 | Câmeras | Câmeras do Home Assistant (ex.: Yoosee via ONVIF): ao vivo, girar/inclinar/zoom, foto, “mostre a câmera da garagem” — [docs/CAMERAS.md](docs/CAMERAS.md) |
+| Modo TV | Tela 3D para Fire TV / Android TV com o controle remoto: casa, câmeras (girar pelas setas), clima, protetor de tela e respostas pedidas pelo celular — [docs/TV.md](docs/TV.md) |
 | Automações | Rascunho → revisão → **criada de verdade no Home Assistant** (horário, pôr/nascer do sol, sair/chegar) |
 | Segurança | Login, sessões HttpOnly, CSRF, rate limit, autorização por dispositivo e por papel, logs de ações |
 

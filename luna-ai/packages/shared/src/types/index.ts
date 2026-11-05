@@ -193,7 +193,9 @@ export type ServerEvent =
   | { type: 'device_state'; device: DeviceDto }
   | { type: 'devices_reload' }
   | { type: 'ha_status'; connected: boolean }
-  | { type: 'assistant_state'; state: AssistantState; conversationId?: string };
+  | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
+  /** Resposta da Luna (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
+  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] };
 
 export interface CameraDto {
   entityId: string;

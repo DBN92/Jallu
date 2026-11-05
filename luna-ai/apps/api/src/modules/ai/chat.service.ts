@@ -42,6 +42,12 @@ export class ChatService {
     this.cameras = cameras;
   }
 
+  /** Avisa as outras telas do mesmo usuário (ex.: TV) sobre a resposta, para mostrá-la lá também. */
+  private replyListener: ((userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) | null = null;
+  setReplyListener(fn: (userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) {
+    this.replyListener = fn;
+  }
+
   constructor(
     private readonly db: Db,
     private readonly providers: { ollama: AIProvider; openai: AIProvider },
@@ -90,6 +96,8 @@ export class ChatService {
     });
     await this.db.conversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
     this.onState(user.id, 'idle', conversation.id);
+    const cameraIds = result.actions.filter((a) => a.tool === 'show_camera' && a.ok).flatMap((a) => a.entityIds ?? []);
+    this.replyListener?.(user.id, { userText: req.message, reply: result.reply, cameraIds });
     return { conversationId: conversation.id, messageId: saved.id, ...result };
   }
 
