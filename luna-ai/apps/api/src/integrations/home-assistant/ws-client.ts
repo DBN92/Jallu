@@ -15,6 +15,8 @@ interface Logger {
 export class HomeAssistantWsClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private msgId = 1;
+  private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
+  private hiddenCache: { at: number; ids: Set<string> } | null = null;
   private attempts = 0;
   private stopped = false;
   private timer: NodeJS.Timeout | null = null;
@@ -78,6 +80,17 @@ export class HomeAssistantWsClient extends EventEmitter {
           this.log.warn(`Home Assistant recusou o token: ${msg.message ?? ''}`);
           ws.close();
           break;
+        case 'result': {
+          const p = msg.id !== undefined ? this.pending.get(msg.id) : undefined;
+          if (p) {
+            clearTimeout(p.timer);
+            this.pending.delete(msg.id!);
+            const r = msg as unknown as { success: boolean; result?: unknown; error?: { message?: string } };
+            if (r.success) p.resolve(r.result);
+            else p.reject(new Error(r.error?.message ?? 'falha no comando'));
+          }
+          break;
+        }
         case 'event':
           if (msg.event?.event_type === 'state_changed') this.emit('state_changed', msg.event.data);
           break;
@@ -88,7 +101,42 @@ export class HomeAssistantWsClient extends EventEmitter {
     ws.on('error', (err) => this.log.warn(`WebSocket do Home Assistant: ${err.message}`));
   }
 
+  /** Envia um comando pelo WebSocket e aguarda o resultado. */
+  command<T>(payload: Record<string, unknown>, timeoutMs = 8000): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (!this.ws || !this.connected || this.ws.readyState !== WebSocket.OPEN) return reject(new Error('WebSocket do HA desconectado'));
+      const id = this.msgId++;
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error('tempo esgotado'));
+      }, timeoutMs);
+      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
+      this.ws.send(JSON.stringify({ id, ...payload }));
+    });
+  }
+
+  /**
+   * Entidades que o próprio Home Assistant oculta (ex.: a tomada original quando você usa
+   * “mudar tipo de dispositivo” para virar luz). Cache de 5 min; vazio se não der para consultar.
+   */
+  async hiddenEntities(): Promise<Set<string>> {
+    if (this.hiddenCache && Date.now() - this.hiddenCache.at < 5 * 60_000) return this.hiddenCache.ids;
+    try {
+      const list = await this.command<{ entity_id: string; hidden_by?: string | null; disabled_by?: string | null }[]>({ type: 'config/entity_registry/list' });
+      const ids = new Set(list.filter((e) => e.hidden_by || e.disabled_by).map((e) => e.entity_id));
+      this.hiddenCache = { at: Date.now(), ids };
+      return ids;
+    } catch {
+      return this.hiddenCache?.ids ?? new Set();
+    }
+  }
+
   private handleDisconnect() {
+    for (const [id, p] of this.pending) {
+      clearTimeout(p.timer);
+      p.reject(new Error('WebSocket do HA desconectado'));
+      this.pending.delete(id);
+    }
     if (this.pingTimer) clearInterval(this.pingTimer);
     const wasConnected = this.connected;
     this.connected = false;

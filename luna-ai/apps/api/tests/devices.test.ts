@@ -102,3 +102,34 @@ describe('renomear dispositivos na Luna', () => {
     expect((await ctx.inject('PATCH', '/api/devices/light.luz_da_sala', { name: 'Teste' })).status).toBe(403);
   });
 });
+
+describe('mesmo aparelho com duas entidades no HA (ex.: tomada usada como luz)', () => {
+  const addCabeceira = (ctx: TestCtx) => {
+    ctx.ha.states.set('light.cabeceira_socket_1', { entity_id: 'light.cabeceira_socket_1', state: 'off', attributes: { friendly_name: 'Cabeceira Socket 1', supported_color_modes: ['onoff'] } });
+    ctx.ha.states.set('switch.cabeceira', { entity_id: 'switch.cabeceira', state: 'off', attributes: { friendly_name: 'Cabeceira Socket 1', device_class: 'outlet' } });
+  };
+
+  it('o nome dado na Luna vence: “ligar a cabeceira” não pergunta qual', async () => {
+    ctx = await makeApp();
+    addCabeceira(ctx);
+    await ctx.inject('GET', '/api/devices?all=1');
+    await ctx.inject('PATCH', '/api/devices/light.cabeceira_socket_1', { name: 'Cabeceira' });
+    const r = await chat(ctx, 'ligar a cabeceira');
+    expect(r.reply).not.toMatch(/mais de um/);
+    expect(r.reply).toMatch(/cabeceira/i);
+    expect(ctx.ha.states.get('light.cabeceira_socket_1')!.state).toBe('on');
+  });
+
+  it('entidades ocultas pelo Home Assistant não aparecem nem confundem a Luna', async () => {
+    ctx = await makeApp();
+    addCabeceira(ctx);
+    ctx.app.services.devices.setHiddenProvider(async () => new Set(['switch.cabeceira']));
+    const list = await ctx.inject('GET', '/api/devices?all=1');
+    const ids = list.json.map((d: { entityId: string }) => d.entityId);
+    expect(ids).toContain('light.cabeceira_socket_1');
+    expect(ids).not.toContain('switch.cabeceira');
+    const r = await chat(ctx, 'acenda a cabeceira socket 1');
+    expect(r.reply).not.toMatch(/mais de um/);
+    expect(ctx.ha.states.get('light.cabeceira_socket_1')!.state).toBe('on');
+  });
+});

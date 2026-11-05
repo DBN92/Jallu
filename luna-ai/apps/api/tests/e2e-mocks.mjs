@@ -53,6 +53,10 @@ wss.on('connection', (ws) => {
     if (msg.type === 'auth') ws.send(JSON.stringify({ type: msg.access_token === 'e2e-token' ? 'auth_ok' : 'auth_invalid' }));
     if (msg.type === 'subscribe_events') { ws.subId = msg.id; wsClients.add(ws); ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true })); }
     if (msg.type === 'ping') ws.send(JSON.stringify({ id: msg.id, type: 'pong' }));
+    if (msg.type === 'config/entity_registry/list') {
+      const result = [...states.keys()].map((entity_id) => ({ entity_id, hidden_by: entity_id === 'switch.tomada_cafeteira' ? 'integration' : null, disabled_by: null }));
+      ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true, result }));
+    }
   });
   ws.on('close', () => wsClients.delete(ws));
 });

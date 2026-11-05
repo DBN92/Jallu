@@ -71,6 +71,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   );
   const auth = new AuthService(db, { setupCode: env.LUNA_SETUP_CODE, sessionTtlHours: env.LUNA_SESSION_TTL_HOURS });
 
+  devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
   devices.on('reload', () => hub.broadcast({ type: 'devices_reload' }));
   haWs.on('state_changed', (evt) => devices.handleStateChanged(evt));

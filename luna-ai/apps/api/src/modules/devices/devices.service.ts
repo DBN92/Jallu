@@ -33,6 +33,13 @@ export class DevicesService extends EventEmitter {
   private meta = new Map<string, Meta>();
   private lastFullRefresh = 0;
   private readonly autoAuthorize: Set<string>;
+  /** Fornece as entidades ocultas pelo Home Assistant (registro de entidades). */
+  private hiddenProvider: () => Promise<Set<string>> = async () => new Set();
+
+  setHiddenProvider(fn: () => Promise<Set<string>>) {
+    this.hiddenProvider = fn;
+    this.lastFullRefresh = 0;
+  }
 
   constructor(
     private readonly db: Db,
@@ -52,8 +59,9 @@ export class DevicesService extends EventEmitter {
   /** Busca estados reais no HA e sincroniza a tabela de dispositivos (sem inventar entity_id). */
   async refresh(force = false): Promise<void> {
     if (!force && Date.now() - this.lastFullRefresh < this.cacheMs && this.states.size > 0) return;
-    const all = await this.ha.getStates();
-    const relevant = all.filter((s) => (SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(s.entity_id)));
+    const [all, haHidden] = await Promise.all([this.ha.getStates(), this.hiddenProvider().catch(() => new Set<string>())]);
+    // Ignora entidades ocultas/desativadas no próprio HA (evita duplicatas do mesmo aparelho)
+    const relevant = all.filter((s) => (SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(s.entity_id)) && !haHidden.has(s.entity_id));
     const next = new Map(relevant.map((s) => [s.entity_id, s]));
 
     const rows = await this.db.device.findMany();
@@ -230,20 +238,28 @@ export class DevicesService extends EventEmitter {
         matches.push({ device: d, score: 100 });
         continue;
       }
-      const names = [d.name, d.originalName, ...d.aliases, d.entityId.split('.')[1]!.replace(/_/g, ' ')];
+      // Pesos: nome dado na Luna > apelidos/nome no HA > identificador técnico (entity_id)
+      const names: [string, number][] = [
+        [d.name, d.renamed ? 3 : 0],
+        [d.originalName, 0],
+        ...d.aliases.map((a) => [a, 1] as [string, number]),
+        [d.entityId.split('.')[1]!.replace(/_/g, ' '), -15],
+      ];
       let best = 0;
-      for (const n of names) {
+      for (const [n, bonus] of names) {
         const nNorm = normalize(n);
         if (!nNorm) continue;
-        if (nNorm === qNorm) best = Math.max(best, 90);
+        let score = 0;
+        if (nNorm === qNorm) score = 90;
         const nTokens = significantTokens(n);
         if (qTokens.length && nTokens.length) {
           const hits = qTokens.filter((t) => nTokens.includes(t)).length;
-          if (hits === qTokens.length && hits === nTokens.length) best = Math.max(best, 85);
-          else if (hits === qTokens.length) best = Math.max(best, 60 + hits * 5);
-          else if (hits > 0 && nTokens.every((t) => qTokens.includes(t))) best = Math.max(best, 55 + hits * 5);
-          else if (hits > 0) best = Math.max(best, 20 + hits * 5);
+          if (hits === qTokens.length && hits === nTokens.length) score = Math.max(score, 85);
+          else if (hits === qTokens.length) score = Math.max(score, 60 + hits * 5);
+          else if (hits > 0 && nTokens.every((t) => qTokens.includes(t))) score = Math.max(score, 55 + hits * 5);
+          else if (hits > 0) score = Math.max(score, 20 + hits * 5);
         }
+        if (score > 0) best = Math.max(best, score + bonus);
       }
       if (best >= 50) matches.push({ device: d, score: best });
     }
