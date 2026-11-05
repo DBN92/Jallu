@@ -258,7 +258,7 @@ function ActionLogs() {
 }
 
 export default function SettingsPage() {
-  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation } = useSettings();
+  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation, ambientMode, setAmbientMode } = useSettings();
   const [orientMsg, setOrientMsg] = useState<string | null>(null);
   const chooseOrientation = async (o: ScreenOrientationPref) => {
     setOrientation(o);
@@ -408,6 +408,9 @@ export default function SettingsPage() {
           </p>
           {orientMsg && <p className="mt-1 text-xs text-amber-200/80">{orientMsg}</p>}
         </div>
+        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Ei, Luna” para voltar.">
+          <Toggle label="Modo ambiente" checked={ambientMode} onChange={setAmbientMode} />
+        </Row>
         <Row
           label="Modo assistente fixo"
           hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."

@@ -41,7 +41,11 @@ body {
    alturas como 100%/100vh podem ficar menores que a tela e deixar um vão embaixo. */
 #root {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: var(--app-h, 100dvh);
   overflow: hidden;
 }
 
@@ -203,4 +207,57 @@ select option { background: #050c14; }
   .home-center { order: -1; }
   .home-left { display: flex; }
   .home-mobile-only, .home-tall-only { display: none; }
+}
+
+/* ---------- Avatar ---------- */
+.hud-core .globe-float { animation: avatar-float 7s ease-in-out infinite; }
+.hud-core .eye-spin { animation: spin 0.9s linear infinite; transform-origin: 0 0; }
+.hud-core .scan-move { animation: scan-move 3s linear infinite; }
+.hud-core .ear-wave { animation: ear-wave 1.2s ease-out infinite; transform-origin: 150px 150px; }
+@keyframes avatar-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes scan-move { from { transform: translateY(0); } to { transform: translateY(8px); } }
+@keyframes ear-wave { 0% { opacity: 0.9; transform: scale(0.97); } 100% { opacity: 0; transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) {
+  .hud-core .globe-float, .hud-core .eye-spin, .hud-core .scan-move, .hud-core .ear-wave { animation: none !important; }
+}
+
+/* ---------- Fundo animado ---------- */
+.hud-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  top: -120px;
+  background: linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.025) 60%, rgba(0, 229, 255, 0.08) 98%, transparent);
+  animation: beam 11s linear infinite;
+}
+@keyframes beam { from { transform: translateY(0); } to { transform: translateY(calc(100vh + 240px)); } }
+@media (prefers-reduced-motion: reduce) { .hud-beam { display: none; } }
+
+/* ---------- Modo ambiente ---------- */
+@keyframes ambient-in { from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ambient-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ambient-slide { animation: ambient-in 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.ambient-root { animation: ambient-fade 700ms ease both; }
+.ambient-progress { transform-origin: left; animation: progress linear both; }
+
+/* ---------- Conversa por voz em tela cheia ---------- */
+@keyframes focus-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes focus-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes orb-grow { from { transform: scale(0.35) translateY(-20%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes orb-shrink { from { transform: none; opacity: 1; } to { transform: scale(0.35) translateY(-20%); opacity: 0; } }
+.focus-in { animation: focus-in 350ms ease both; }
+.focus-out { animation: focus-out 450ms ease both; }
+.focus-in .focus-orb { animation: orb-grow 600ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.focus-out .focus-orb { animation: orb-shrink 450ms ease both; }
+
+/* Camadas de tela cheia (renderizadas fora do layout, acima de tudo) */
+.overlay-full {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: var(--app-h, 100dvh);
 }

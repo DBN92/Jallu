@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { MessageList } from '../components/Messages';
 import { ClockPanel, DevicesPanel, SensorsPanel, SystemPanel, WeatherPanel } from '../components/Dashboard';
+import { AmbientMode } from '../components/AmbientMode';
+import { VoiceFocus } from '../components/VoiceFocus';
 import { Banner } from '../components/ui';
 import { useSpeechRecognition, useSpeechSynthesis, useRecorder } from '../hooks/speech';
 import { useRealtimeVoice } from '../hooks/useRealtimeVoice';
@@ -67,6 +70,9 @@ export default function HomePage() {
     onAudioBlocked: () => setNeedsTap(true),
   });
 
+  // Conversa por voz em tela cheia: ativa ao começar a falar e some após ~2,5 s sem conversa
+  const [voiceFocus, setVoiceFocus] = useState(false);
+
   // Android/Chrome só libera áudio depois de um toque na tela (política de autoplay)
   const [needsTap, setNeedsTap] = useState(false);
   const [, setTick] = useState(0);
@@ -111,6 +117,7 @@ export default function HomePage() {
     sr.listening || state !== 'idle' || realtime.active || realtime.connecting || tts.speaking,
     (rest) => {
       playChime();
+      setVoiceFocus(true);
       const command = rest.length > 2 ? rest : undefined;
       if (voiceMode === 'realtime') void realtime.start(command);
       else if (command) void sendVoice(command, true);
@@ -120,6 +127,7 @@ export default function HomePage() {
 
   const startListening = (followUp = false) => {
     followUpRef.current = followUp;
+    setVoiceFocus(true);
     setVoiceError(null);
     tts.cancel();
     tts.unlock();
@@ -164,7 +172,10 @@ export default function HomePage() {
     }
     if (voiceMode === 'realtime') {
       if (realtime.active || realtime.connecting) realtime.stop();
-      else await realtime.start();
+      else {
+        setVoiceFocus(true);
+        await realtime.start();
+      }
       return;
     }
     if (recorder.recording) return transcribeAndSend();
@@ -174,6 +185,7 @@ export default function HomePage() {
       try {
         tts.unlock();
         await recorder.start();
+        setVoiceFocus(true);
         setState('listening');
       } catch {
         setVoiceError('Permissão do microfone negada.');
@@ -198,6 +210,47 @@ export default function HomePage() {
   };
 
   const vh = useViewportHeight();
+
+  const voiceBusy = realtime.active || realtime.connecting || sr.listening || recorder.recording || (voiceFocus && state !== 'idle' && state !== 'error');
+  useEffect(() => {
+    if (!voiceFocus || voiceBusy) return;
+    const t = setTimeout(() => {
+      setVoiceFocus(false);
+      // Conversa por voz encerrada: a tela volta limpa (o histórico fica salvo em “Conversas”)
+      setTimeout(() => useAssistant.getState().state === 'idle' && newConversation(), 500);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [voiceFocus, voiceBusy, newConversation]);
+  const lastMsg = messages[messages.length - 1];
+  // A resposta só aparece se for a mais recente (não mostra a resposta anterior enquanto pensa)
+  const lastReply = lastMsg?.role === 'assistant' ? lastMsg.content : '';
+  const lastHeard = interim || ([...messages].reverse().find((m) => m.role === 'user')?.content ?? '');
+
+  // ---- Modo ambiente: entra após 45 s sem uso, sai com toque ou quando a Luna é chamada ----
+  const ambientEnabled = useSettings((s) => s.ambientMode);
+  const [ambient, setAmbient] = useState(false);
+  const lastUse = useRef(Date.now());
+  useEffect(() => {
+    const touch = () => (lastUse.current = Date.now());
+    const evts = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
+    evts.forEach((e) => window.addEventListener(e, touch, { passive: true }));
+    return () => evts.forEach((e) => window.removeEventListener(e, touch));
+  }, []);
+  useEffect(() => {
+    lastUse.current = Date.now();
+    if (state !== 'idle') setAmbient(false);
+  }, [state, messages.length]);
+  useEffect(() => {
+    if (!ambientEnabled) return setAmbient(false);
+    const t = setInterval(() => {
+      const busy = state !== 'idle' || sr.listening || recorder.recording || realtime.active || realtime.connecting || text.length > 0;
+      if (!busy && document.visibilityState === 'visible' && Date.now() - lastUse.current > 45_000) {
+        setAmbient(true);
+        newConversation(); // volta limpa ao sair do modo ambiente
+      }
+    }, 3000);
+    return () => clearInterval(t);
+  }, [ambientEnabled, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
   const hasChat = messages.length > 0 || !!interim;
   const level = realtime.active ? realtime.level : 0;
@@ -340,21 +393,56 @@ export default function HomePage() {
         </aside>
       </div>
 
-      {(needsTap || (wakeEnabled && !hasUserActivation())) && (
+      <VoiceFocus
+        open={voiceFocus}
+        state={state}
+        level={level}
+        heard={state === 'listening' ? interim : lastHeard}
+        reply={state === 'listening' ? '' : lastReply}
+        hint={voiceMode === 'realtime' ? 'Pode falar — estou ouvindo.' : 'Fale agora…'}
+        onOrb={() => void onMic()}
+        onClose={() => {
+          tts.cancel();
+          sr.abort();
+          if (recorder.recording) void recorder.stop();
+          if (realtime.active || realtime.connecting) realtime.stop();
+          setInterim('');
+          setState('idle');
+          setVoiceFocus(false);
+          setTimeout(newConversation, 500);
+        }}
+      />
+
+      {ambient && (
+        <AmbientMode
+          now={now}
+          weather={weather.data}
+          hint={wake.armed ? 'Diga “Ei, Luna” ou toque na tela' : 'Toque na tela para voltar'}
+          onExit={() => {
+            lastUse.current = Date.now();
+            setAmbient(false);
+            tts.unlock();
+          }}
+        />
+      )}
+
+      {(needsTap || (wakeEnabled && !hasUserActivation())) &&
+        createPortal(
         <button
           onClick={() => {
             tts.unlock();
             setNeedsTap(false);
             setTick((t) => t + 1);
           }}
-          className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center backdrop-blur-sm"
+          className="overlay-full z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center backdrop-blur-sm"
         >
           <span className="hud-title hud-glow text-2xl font-bold text-cyan-50">TOQUE PARA ATIVAR</span>
           <span className="font-hud max-w-sm text-base text-cyan-100/70">
             O Android só libera o som e a voz da Luna depois de um toque na tela. É necessário uma vez cada vez que o app é aberto.
           </span>
-        </button>
-      )}
+        </button>,
+          document.body,
+        )}
     </div>
   );
 }

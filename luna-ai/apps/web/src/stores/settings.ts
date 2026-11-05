@@ -28,6 +28,8 @@ interface SettingsState {
   useGps: boolean;
   /** Aparelho dedicado: tela sempre acesa e volta sozinho para a tela inicial. */
   kioskMode: boolean;
+  /** Tela ambiente (clima/casa alternando) quando a Luna fica sem uso. */
+  ambientMode: boolean;
   /** Orientação forçada neste aparelho (app instalado). */
   orientation: ScreenOrientationPref;
   load: () => Promise<void>;
@@ -37,6 +39,7 @@ interface SettingsState {
   setUseGps: (v: boolean) => void;
   setKioskMode: (v: boolean) => void;
   setOrientation: (v: ScreenOrientationPref) => void;
+  setAmbientMode: (v: boolean) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -45,6 +48,7 @@ export const useSettings = create<SettingsState>((set) => ({
   useGps: readLocal<boolean>('luna.useGps', false),
   kioskMode: readLocal<boolean>('luna.kioskMode', false),
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
+  ambientMode: readLocal<boolean>('luna.ambientMode', true),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -52,6 +56,10 @@ export const useSettings = create<SettingsState>((set) => ({
   setVoiceMode: (voiceMode) => {
     writeLocal('luna.voiceMode', voiceMode);
     set({ voiceMode });
+  },
+  setAmbientMode: (ambientMode) => {
+    writeLocal('luna.ambientMode', ambientMode);
+    set({ ambientMode });
   },
   setOrientation: (orientation) => {
     writeLocal('luna.orientation', orientation);

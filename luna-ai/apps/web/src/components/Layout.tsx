@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { Bot, Brain, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
 import { useAssistant } from '../stores/assistant';
 import { useKioskMode } from '../hooks/useKioskMode';
+import { AnimatedBackground } from './AnimatedBackground';
 import { useDevices } from '../stores/devices';
 
 export const NAV = [
@@ -28,10 +29,11 @@ function ConnectionBar() {
 export function Layout() {
   useKioskMode();
   return (
-    <div className="app-bg flex h-full flex-col md:flex-row">
+    <div className="app-bg relative flex h-full flex-col md:flex-row">
+      <AnimatedBackground />
       <ConnectionBar />
       {/* Barra lateral (tablet/computador) */}
-      <aside className="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
+      <aside className="relative z-10 hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
         <div className="mb-8 px-2 pt-2 [@media(max-height:560px)]:mb-3 [@media(max-height:560px)]:px-0 [@media(max-height:560px)]:text-center">
           <p className="hud-title hud-glow text-lg font-bold text-cyan-50 [@media(max-height:560px)]:text-[11px]">LUNA</p>
           <p className="hud-label mt-0.5 text-[9px] [@media(max-height:560px)]:hidden">assistente // v0.1</p>
@@ -62,7 +64,7 @@ export function Layout() {
         </div>
       </aside>
 
-      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <main className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
         <Outlet />
       </main>
 

@@ -1,47 +1,164 @@
 import { useEffect, useRef, useState } from 'react';
+import { geoGraticule10, geoOrthographic, geoPath } from 'd3-geo';
+import { feature } from 'topojson-client';
+import type { Topology, GeometryCollection } from 'topojson-specification';
+import landTopo from 'world-atlas/land-110m.json';
 import type { AssistantState } from '@luna/shared';
 
-const TICKS = Array.from({ length: 120 }, (_, i) => i);
-const BARS = 72;
+// Continentes (Natural Earth 1:110m, domínio público)
+const topo = landTopo as unknown as Topology<{ land: GeometryCollection }>;
+const LAND = feature(topo, topo.objects.land);
+const GRATICULE = geoGraticule10();
+const TICKS = Array.from({ length: 96 }, (_, i) => i);
 
-/** Nível sintético quando não há áudio real (fala do aparelho, processamento). */
-function useAnimatedLevel(state: AssistantState, external: number) {
-  const [phase, setPhase] = useState(0);
-  const raf = useRef<number | null>(null);
-  const animated = state === 'listening' || state === 'speaking' || state === 'processing' || state === 'acting';
+const STATE_COLOR: Record<AssistantState, string> = {
+  idle: '#00e5ff',
+  listening: '#5ff6ff',
+  processing: '#9a8cff',
+  acting: '#ffb547',
+  speaking: '#3aa8ff',
+  error: '#ff4d6a',
+};
+/** Graus por segundo de rotação do globo em cada estado. */
+const STATE_SPEED: Record<AssistantState, number> = { idle: 8, listening: 14, processing: 45, acting: 60, speaking: 18, error: 2 };
+
+const rgba = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+
+/** Globo terrestre holográfico desenhado em canvas (leve: ~25 fps, pausa em segundo plano). */
+function Globe({ state, level, px }: { state: AssistantState; level: number; px: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const live = useRef({ state, level });
+  live.current = { state, level };
+
   useEffect(() => {
-    if (!animated) return;
+    const canvas = ref.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(px * dpr);
+    canvas.height = Math.round(px * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = px / 2 - 2;
+    const projection = geoOrthographic().scale(r).translate([px / 2, px / 2]).clipAngle(90);
+    const path = geoPath(projection, ctx);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let lon = -45; // começa mostrando as Américas
+    let raf = 0;
+    let last = performance.now();
+    let lastDraw = 0;
+
+    const draw = () => {
+      const { state: st, level: lv } = live.current;
+      const color = STATE_COLOR[st];
+      projection.rotate([lon, -18, 0]);
+      ctx.clearRect(0, 0, px, px);
+
+      // Esfera (oceano) com brilho interno
+      const g = ctx.createRadialGradient(px * 0.42, px * 0.38, r * 0.1, px / 2, px / 2, r);
+      g.addColorStop(0, rgba(color, 0.22 + lv * 0.2));
+      g.addColorStop(0.7, 'rgba(2, 10, 18, 0.85)');
+      g.addColorStop(1, rgba(color, 0.18));
+      ctx.beginPath();
+      path({ type: 'Sphere' });
+      ctx.fillStyle = g;
+      ctx.fill();
+
+      // Malha de latitude/longitude
+      ctx.beginPath();
+      path(GRATICULE);
+      ctx.strokeStyle = rgba(color, 0.18);
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // Continentes
+      ctx.beginPath();
+      path(LAND);
+      ctx.fillStyle = rgba(color, 0.28 + lv * 0.25);
+      ctx.fill();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = rgba(color, 0.9);
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Contorno da atmosfera
+      ctx.beginPath();
+      path({ type: 'Sphere' });
+      ctx.strokeStyle = rgba(color, 0.7);
+      ctx.lineWidth = 1.2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 14 + lv * 20;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    };
+
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.1, (t - last) / 1000);
+      last = t;
+      lon += STATE_SPEED[live.current.state] * dt;
+      if (t - lastDraw < 40) return; // ~25 fps
+      lastDraw = t;
+      draw();
+    };
+    const onVis = () => {
+      cancelAnimationFrame(raf);
+      last = performance.now();
+      if (document.visibilityState === 'visible' && !reduce) raf = requestAnimationFrame(loop);
+    };
+    draw();
+    if (!reduce) raf = requestAnimationFrame(loop);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [px]);
+
+  return <canvas ref={ref} style={{ width: px, height: px }} />;
+}
+
+/** Fase (~20 fps) para as barras de áudio ao redor do globo. */
+function usePhase(active: boolean) {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    let raf = 0;
     let last = 0;
     const tick = (t: number) => {
       if (t - last > 50) {
         setPhase(t / 1000);
         last = t;
       }
-      raf.current = requestAnimationFrame(tick);
+      raf = requestAnimationFrame(tick);
     };
-    raf.current = requestAnimationFrame(tick);
-    return () => {
-      if (raf.current) cancelAnimationFrame(raf.current);
-    };
-  }, [animated]);
-  const synthetic = state === 'speaking' ? 0.55 : state === 'listening' ? 0.25 : animated ? 0.15 : 0.04;
-  return { level: external > 0.02 ? external : synthetic, phase };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+  return phase;
 }
 
 /**
- * Núcleo HUD da Luna: anéis com marcações girando, barras radiais que reagem à voz
- * e núcleo luminoso. A cor e a velocidade mudam com o estado da assistente.
+ * Núcleo da Luna: globo terrestre holográfico girando, emoldurado por anéis HUD
+ * e barras que reagem à voz. Cor e velocidade de rotação mudam com o estado.
  */
 export function LunaOrb({ state, level = 0, size = 260, onClick, label }: { state: AssistantState; level?: number; size?: number; onClick?: () => void; label?: string }) {
-  const { level: lv, phase } = useAnimatedLevel(state, level);
-  const bars = Array.from({ length: BARS }, (_, i) => {
-    const a = (i / BARS) * Math.PI * 2;
-    const wobble = 0.5 + 0.5 * Math.sin(phase * 6 + i * 0.7) * Math.cos(phase * 2.3 + i * 0.31);
-    const len = 3 + lv * 26 * (0.35 + 0.65 * wobble);
-    const r1 = 96;
-    const r2 = r1 + len;
-    return { x1: 150 + Math.cos(a) * r1, y1: 150 + Math.sin(a) * r1, x2: 150 + Math.cos(a) * r2, y2: 150 + Math.sin(a) * r2 };
+  const animated = state !== 'idle' && state !== 'error';
+  const phase = usePhase(animated);
+  const synthetic = state === 'speaking' ? 0.6 : state === 'listening' ? 0.3 : state === 'processing' || state === 'acting' ? 0.15 : 0.03;
+  const lv = level > 0.02 ? level : synthetic;
+
+  const bars = Array.from({ length: 64 }, (_, i) => {
+    const a = (i / 64) * Math.PI * 2;
+    const wobble = 0.5 + 0.5 * Math.sin(phase * 5 + i * 0.8) * Math.cos(phase * 2 + i * 0.3);
+    const len = 2 + lv * 18 * (0.4 + 0.6 * wobble);
+    return { x1: 150 + Math.cos(a) * 106, y1: 150 + Math.sin(a) * 106, x2: 150 + Math.cos(a) * (106 + len), y2: 150 + Math.sin(a) * (106 + len) };
   });
+  const globePx = Math.round(size * (196 / 300));
 
   return (
     <button
@@ -52,84 +169,53 @@ export function LunaOrb({ state, level = 0, size = 260, onClick, label }: { stat
       data-state={state}
       style={{ width: size, height: size }}
     >
-      <svg viewBox="0 0 300 300" className="h-full w-full overflow-visible" aria-hidden="true">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="globe-float rounded-full" style={{ boxShadow: `0 0 ${30 + lv * 40}px ${STATE_COLOR[state]}33` }}>
+          <Globe state={state} level={lv} px={globePx} />
+        </div>
+      </div>
+      <svg viewBox="0 0 300 300" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
         <defs>
-          <radialGradient id="lunaCore" cx="50%" cy="50%" r="50%">
-            <stop offset="0" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="0.25" stopColor="currentColor" stopOpacity="0.9" />
-            <stop offset="0.65" stopColor="currentColor" stopOpacity="0.25" />
-            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-          </radialGradient>
           <filter id="lunaGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="b" />
+            <feGaussianBlur stdDeviation="2.4" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
         </defs>
-
-        {/* Halo externo */}
-        <circle cx="150" cy="150" r="146" fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
+        <circle cx="150" cy="150" r="146" fill="none" stroke="currentColor" strokeOpacity="0.1" />
         <circle className="pulse-ring" cx="150" cy="150" r="132" fill="none" stroke="currentColor" strokeOpacity="0.5" strokeWidth="1.5" />
-
-        {/* Anel de marcações */}
         <g className="spin-slow" stroke="currentColor">
           {TICKS.map((i) => {
             const a = (i / TICKS.length) * Math.PI * 2;
-            const long = i % 10 === 0;
-            const r1 = long ? 130 : 135;
+            const long = i % 8 === 0;
             return (
               <line
                 key={i}
-                x1={150 + Math.cos(a) * r1}
-                y1={150 + Math.sin(a) * r1}
+                x1={150 + Math.cos(a) * (long ? 131 : 136)}
+                y1={150 + Math.sin(a) * (long ? 131 : 136)}
                 x2={150 + Math.cos(a) * 141}
                 y2={150 + Math.sin(a) * 141}
-                strokeOpacity={long ? 0.9 : 0.35}
-                strokeWidth={long ? 1.6 : 1}
+                strokeOpacity={long ? 0.8 : 0.28}
+                strokeWidth={long ? 1.5 : 1}
               />
             );
           })}
         </g>
-
-        {/* Arcos segmentados */}
         <g className="spin-rev" fill="none" stroke="currentColor">
-          <circle cx="150" cy="150" r="123" strokeWidth="2" strokeOpacity="0.55" strokeDasharray="60 18 8 18" />
+          <circle cx="150" cy="150" r="124" strokeWidth="1.6" strokeOpacity="0.5" strokeDasharray="70 20 6 20" />
         </g>
         <g className="spin-fast" fill="none" stroke="currentColor" filter="url(#lunaGlow)">
-          <circle cx="150" cy="150" r="112" strokeWidth="5" strokeOpacity="0.85" strokeDasharray="90 145" strokeLinecap="round" />
-          <circle cx="150" cy="150" r="112" strokeWidth="1" strokeOpacity="0.3" />
+          <circle cx="150" cy="150" r="116" strokeWidth="3.5" strokeOpacity="0.8" strokeDasharray="60 180" strokeLinecap="round" />
         </g>
-
-        {/* Barras de áudio */}
-        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8">
+        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.65">
           {bars.map((b, i) => (
             <line key={i} {...b} />
           ))}
         </g>
-
-        {/* Núcleo */}
-        <circle cx="150" cy="150" r="90" fill="none" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1" />
-        <g className="core-glow">
-          <circle cx="150" cy="150" r="78" fill="url(#lunaCore)" opacity={0.55 + lv * 0.45} />
-        </g>
-        <circle cx="150" cy="150" r="58" fill="#02060b" fillOpacity="0.55" stroke="currentColor" strokeOpacity="0.7" strokeWidth="1.2" />
-        <polygon
-          points={Array.from({ length: 6 }, (_, i) => {
-            const a = (Math.PI / 3) * i - Math.PI / 2;
-            return `${150 + Math.cos(a) * 46},${150 + Math.sin(a) * 46}`;
-          }).join(' ')}
-          fill="none"
-          stroke="currentColor"
-          strokeOpacity="0.45"
-          strokeWidth="1"
-        />
-        <text x="150" y="148" textAnchor="middle" fill="currentColor" style={{ font: '700 20px Orbitron, sans-serif', letterSpacing: '0.18em' }} filter="url(#lunaGlow)">
-          LUNA
-        </text>
         {label && (
-          <text x="150" y="170" textAnchor="middle" fill="currentColor" fillOpacity="0.75" style={{ font: '600 9.5px Rajdhani, sans-serif', letterSpacing: '0.25em' }}>
+          <text x="150" y="300" textAnchor="middle" fill="currentColor" fillOpacity="0.85" style={{ font: '600 10px Rajdhani, sans-serif', letterSpacing: '0.3em' }}>
             {label.toUpperCase()}
           </text>
         )}
