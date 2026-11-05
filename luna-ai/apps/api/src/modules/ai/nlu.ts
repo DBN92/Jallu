@@ -12,7 +12,8 @@ export type Intent =
   | { type: 'datetime'; what: 'time' | 'date' }
   | { type: 'weather'; period: 'now' | 'today' | 'tomorrow' | 'week'; umbrella: boolean }
   | { type: 'remember'; content: string }
-  | { type: 'forget'; content: string };
+  | { type: 'forget'; content: string }
+  | { type: 'show_camera'; target: string };
 
 const ON = 'acenda|acende|acender|ligue|liga|ligar|ative|ativa|ativar';
 const OFF = 'apague|apaga|apagar|desligue|desliga|desligar|desative|desativa|desativar';
@@ -48,6 +49,10 @@ export function parseIntent(original: string): Intent | null {
   }
   const forget = raw.match(/^(?:por favor,?\s*)?(?:esque[çc]a|esquece|apague da mem[óo]ria|remova da mem[óo]ria)\s+(?:que\s+|de que\s+|sobre\s+|o que eu disse sobre\s+)?(.{2,})$/i);
   if (forget) return { type: 'forget', content: forget[1]!.trim().replace(/[.!?]+$/, '') };
+
+  // Câmeras: “mostre a câmera da garagem”, “abrir câmera”, “ver as câmeras”
+  const cam = text.match(/\b(?:mostr\w*|abr\w*|ver|veja|exib\w*|quero ver|me mostra)\b.*?\bcameras?\b\s*(.*)$/);
+  if (cam) return { type: 'show_camera', target: cleanTarget(cam[1] ?? '') };
 
   // Data e hora
   if (/\b(que horas sao|que hora e|que horas e|me diga as horas|horario agora)\b/.test(text)) return { type: 'datetime', what: 'time' };

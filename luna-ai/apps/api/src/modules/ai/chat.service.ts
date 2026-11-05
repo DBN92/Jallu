@@ -36,6 +36,11 @@ export class ChatService {
   private pending = new Map<string, Pending>();
   /** Aquecimento em andamento: é cancelado assim que chega uma pergunta real. */
   private warming: AbortController | null = null;
+  private cameras: { findByName: (q: string) => Promise<{ entityId: string; name: string }[]> } | null = null;
+
+  setCameras(cameras: { findByName: (q: string) => Promise<{ entityId: string; name: string }[]> }) {
+    this.cameras = cameras;
+  }
 
   constructor(
     private readonly db: Db,
@@ -191,6 +196,18 @@ export class ChatService {
           if (!list.length) return { reply: intent.category ? 'Todas as luzes estão apagadas.' : 'Nenhum dispositivo está ligado agora.', actions: [] };
           const noun = intent.category ? (list.length === 1 ? 'Está acesa' : 'Estão acesas') : list.length === 1 ? 'Está ligado' : 'Estão ligados';
           return { reply: `${noun}: ${listJoin(list.map((d) => d.name))}.`, actions: [] };
+        }
+        case 'show_camera': {
+          if (!this.cameras) return null;
+          const found = await this.cameras.findByName(intent.target);
+          if (!found.length) return { reply: intent.target ? `Não encontrei uma câmera chamada “${intent.target}”.` : 'Não encontrei câmeras no Home Assistant.', actions: [] };
+          if (found.length > 1 && intent.target) return { reply: `Encontrei mais de uma câmera: ${listJoin(found.map((c) => c.name))}. Qual delas?`, actions: [] };
+          const cam = found[0]!;
+          return {
+            reply: found.length > 1 ? 'Abrindo suas câmeras.' : `Abrindo a ${/^c[aâ]mera\b/i.test(cam.name) ? cam.name.replace(/^c[aâ]mera/i, 'câmera') : `câmera ${cam.name}`}.`,
+            // A tela abre o vídeo ao receber esta ação
+            actions: [{ tool: 'show_camera', ok: true, summary: `Câmera: ${cam.name}`, entityIds: found.length > 1 ? found.map((c) => c.entityId) : [cam.entityId] }],
+          };
         }
         case 'device_query': {
           const matches = await this.devices.findByName(intent.target);

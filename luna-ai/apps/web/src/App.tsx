@@ -20,6 +20,7 @@ const WeatherPage = lazy(() => import('./pages/WeatherPage'));
 const MemoryPage = lazy(() => import('./pages/MemoryPage'));
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const CamerasPage = lazy(() => import('./pages/CamerasPage'));
 
 function useRealtimeConnection(enabled: boolean) {
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="conversas" element={<ConversationsPage />} />
             <Route path="casa" element={<HousePage />} />
+            <Route path="cameras" element={<CamerasPage />} />
             <Route path="clima" element={<WeatherPage />} />
             <Route path="memoria" element={<MemoryPage />} />
             <Route path="automacoes" element={<AutomationsPage />} />

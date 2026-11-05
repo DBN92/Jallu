@@ -1,15 +1,17 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Bot, Brain, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
+import { Bot, Brain, Cctv, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
 import { useAssistant } from '../stores/assistant';
 import { useKioskMode } from '../hooks/useKioskMode';
 import { AnimatedBackground } from './AnimatedBackground';
 import { Bezel, Scene } from './Scene';
+import { CameraViewer } from './CameraViewer';
 import { useDevices } from '../stores/devices';
 
 export const NAV = [
   { to: '/', label: 'Início', icon: Bot, end: true },
   { to: '/conversas', label: 'Conversas', icon: MessagesSquare },
   { to: '/casa', label: 'Casa', icon: Home },
+  { to: '/cameras', label: 'Câmeras', icon: Cctv },
   { to: '/clima', label: 'Clima', icon: CloudSun },
   { to: '/memoria', label: 'Memória', icon: Brain },
   { to: '/automacoes', label: 'Automações', icon: Workflow },
@@ -39,6 +41,7 @@ export function Layout() {
         <Outlet />
       </main>
       <Dock />
+      <CameraViewer />
     </div>
   );
 }
@@ -50,8 +53,8 @@ function Dock() {
       <div className="dock-bg" aria-hidden="true" />
       <div className="relative mx-auto flex max-w-[760px] items-start justify-around gap-1 px-2 md:justify-center md:gap-5">
         {NAV.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} className={({ isActive }) => `dock-btn font-hud flex min-w-0 flex-col items-center gap-1 text-[9px] font-semibold tracking-[0.14em] uppercase md:text-[10px] ${isActive ? 'active text-cyan-100' : 'text-cyan-100/50'}`}>
-            <i className="h-10 w-10 md:h-12 md:w-12 [@media(max-height:560px)]:h-9 [@media(max-height:560px)]:w-9">
+          <NavLink key={to} to={to} end={end} className={({ isActive }) => `dock-btn font-hud flex min-w-0 flex-col items-center gap-1 text-[8px] font-semibold tracking-[0.1em] min-[400px]:text-[9px] uppercase md:text-[10px] ${isActive ? 'active text-cyan-100' : 'text-cyan-100/50'}`}>
+            <i className="h-9 w-9 min-[400px]:h-10 min-[400px]:w-10 md:h-12 md:w-12 [@media(max-height:560px)]:h-9 [@media(max-height:560px)]:w-9">
               <Icon className="h-[18px] w-[18px] text-cyan-300 md:h-5 md:w-5" />
             </i>
             <span className="max-w-full truncate px-0.5 [@media(max-height:560px)]:hidden">{label}</span>

@@ -45,6 +45,8 @@ export default defineConfig({
         // Dados da API nunca são cacheados pelo service worker (privacidade e estado real)
         runtimeCaching: [],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // O player de vídeo (hls.js) só é baixado quando uma câmera é aberta
+        globIgnores: ['**/hls-*.js'],
       },
     }),
   ],

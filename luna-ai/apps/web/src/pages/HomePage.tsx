@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { MessageList } from '../components/Messages';
-import { EnvPanel, HomeRingPanel, LocationPanel, RoutinePanel, StatusPanel, VoicePanel } from '../components/HudPanels';
+import { CamerasPanel, EnvPanel, HomeRingPanel, LocationPanel, RoutinePanel, StatusPanel, VoicePanel } from '../components/HudPanels';
+import { useCameras } from '../stores/cameras';
 import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
@@ -289,6 +290,10 @@ export default function HomePage() {
   // ---- Dados dos painéis HUD ----
   const health = useHealth();
   const rules = useAutomations();
+  const cameraList = useCameras((s) => s.cameras);
+  useEffect(() => {
+    if (!cameraList) void useCameras.getState().load();
+  }, [cameraList]);
   const serverConnected = useAssistant((s) => s.serverConnected);
   const haConnected = useDevices((s) => s.haConnected);
   const allDevices = useDevices((s) => s.devices);
@@ -358,6 +363,7 @@ export default function HomePage() {
             <VoicePanel messages={messages} state={state} />
           </div>
           <div className="hud3d-col r col-r flex flex-col gap-3">
+            {cameraList && cameraList.length > 0 && <CamerasPanel cameras={cameraList} />}
             <LocationPanel place={place} coords={coords} />
             <RoutinePanel rules={rules} />
             <HomeRingPanel />

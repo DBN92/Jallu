@@ -34,6 +34,8 @@ import { ToolExecutor } from './modules/ai/tools';
 import { ChatService } from './modules/ai/chat.service';
 import { aiRoutes } from './modules/ai/ai.routes';
 import { voiceRoutes } from './modules/voice/voice.routes';
+import { CamerasService } from './modules/cameras/cameras.service';
+import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
 
@@ -66,11 +68,18 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const voice = new OpenAIVoiceClient(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_REALTIME_MODEL, env.OPENAI_TRANSCRIBE_MODEL, deps.fetch?.openai);
   const tools = new ToolExecutor(devices, weather, memory, settings, automations, env.TZ);
   const hub = new RealtimeHub();
+  const cameras = new CamerasService(
+    ha,
+    actionLogs,
+    () => (haWs.connected ? haWs.registry() : Promise.resolve(new Map())),
+    (payload) => haWs.command(payload),
+  );
   const chat = new ChatService(db, { ollama, openai }, tools, devices, weather, memory, settings, env.TZ, (userId, state, conversationId) =>
     hub.toUser(userId, { type: 'assistant_state', state, conversationId }),
   );
   const auth = new AuthService(db, { setupCode: env.LUNA_SETUP_CODE, sessionTtlHours: env.LUNA_SESSION_TTL_HOURS });
 
+  chat.setCameras(cameras);
   devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
   devices.on('reload', () => hub.broadcast({ type: 'devices_reload' }));
@@ -81,7 +90,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { ha, haWs, actionLogs, devices, cameras, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -167,6 +176,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(automationRoutes);
   await app.register(aiRoutes);
   await app.register(voiceRoutes);
+  await app.register(cameraRoutes);
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel

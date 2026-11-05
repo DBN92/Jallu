@@ -44,6 +44,23 @@ export class HomeAssistantRestClient {
     return (ct.includes('json') ? await res.json() : await res.text()) as T;
   }
 
+  /**
+   * Requisição “crua” (imagens, vídeo, HLS): devolve a Response para repassar em fluxo.
+   * auth=false para URLs do HA que já carregam um token próprio (ex.: /api/hls/<token>/...).
+   */
+  async raw(path: string, opts: { auth?: boolean; timeoutMs?: number; signal?: AbortSignal } = {}): Promise<Response> {
+    if (!this.configured) throw new ServiceUnavailableError('home_assistant', 'O Home Assistant não está configurado.');
+    const signals = [AbortSignal.timeout(opts.timeoutMs ?? 15_000), ...(opts.signal ? [opts.signal] : [])];
+    try {
+      return await this.fetchImpl(`${this.baseUrl}${path}`, {
+        headers: opts.auth === false ? {} : { Authorization: `Bearer ${this.token}` },
+        signal: AbortSignal.any(signals),
+      });
+    } catch {
+      throw new ServiceUnavailableError('home_assistant', 'Não consegui falar com o Home Assistant.');
+    }
+  }
+
   async ping(): Promise<boolean> {
     const r = await this.request<{ message?: string }>('GET', '/api/');
     return typeof r === 'object' && r !== null;

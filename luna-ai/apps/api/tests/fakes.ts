@@ -32,11 +32,16 @@ export class FakeHomeAssistant {
 
   fetch = makeFetch(async (url, init) => {
     if (!this.online) throw new TypeError('fetch failed');
+    if (url.pathname.startsWith('/api/hls/tok123/')) {
+      return new Response('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nplaylist.m3u8\n', { headers: { 'content-type': 'application/vnd.apple.mpegurl' } });
+    }
     const auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
     if (auth !== 'Bearer test-ha-token') return json({ message: 'unauthorized' }, 401);
     const method = init?.method ?? 'GET';
     const path = url.pathname;
     if (path === '/api/' && method === 'GET') return json({ message: 'API running.' });
+    let cm = path.match(/^\/api\/camera_proxy\/(camera\.[a-z0-9_]+)$/);
+    if (cm) return this.states.has(cm[1]!) ? new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), { headers: { 'content-type': 'image/jpeg' } }) : json({}, 404);
     if (path === '/api/states' && method === 'GET') return json([...this.states.values()]);
     let m = path.match(/^\/api\/states\/(.+)$/);
     if (m && method === 'GET') {

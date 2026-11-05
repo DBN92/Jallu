@@ -16,7 +16,7 @@ export class HomeAssistantWsClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private msgId = 1;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
-  private hiddenCache: { at: number; ids: Set<string> } | null = null;
+  private registryCache: { at: number; map: Map<string, { platform: string; hidden: boolean }> } | null = null;
   private attempts = 0;
   private stopped = false;
   private timer: NodeJS.Timeout | null = null;
@@ -115,20 +115,26 @@ export class HomeAssistantWsClient extends EventEmitter {
     });
   }
 
+  /** Registro de entidades do HA (integração de origem, ocultas/desativadas). Cache de 5 min. */
+  async registry(): Promise<Map<string, { platform: string; hidden: boolean }>> {
+    if (this.registryCache && Date.now() - this.registryCache.at < 5 * 60_000) return this.registryCache.map;
+    try {
+      const list = await this.command<{ entity_id: string; platform: string; hidden_by?: string | null; disabled_by?: string | null }[]>({ type: 'config/entity_registry/list' });
+      const map = new Map(list.map((e) => [e.entity_id, { platform: e.platform, hidden: Boolean(e.hidden_by || e.disabled_by) }]));
+      this.registryCache = { at: Date.now(), map };
+      return map;
+    } catch {
+      return this.registryCache?.map ?? new Map();
+    }
+  }
+
   /**
    * Entidades que o próprio Home Assistant oculta (ex.: a tomada original quando você usa
-   * “mudar tipo de dispositivo” para virar luz). Cache de 5 min; vazio se não der para consultar.
+   * “mudar tipo de dispositivo” para virar luz).
    */
   async hiddenEntities(): Promise<Set<string>> {
-    if (this.hiddenCache && Date.now() - this.hiddenCache.at < 5 * 60_000) return this.hiddenCache.ids;
-    try {
-      const list = await this.command<{ entity_id: string; hidden_by?: string | null; disabled_by?: string | null }[]>({ type: 'config/entity_registry/list' });
-      const ids = new Set(list.filter((e) => e.hidden_by || e.disabled_by).map((e) => e.entity_id));
-      this.hiddenCache = { at: Date.now(), ids };
-      return ids;
-    } catch {
-      return this.hiddenCache?.ids ?? new Set();
-    }
+    const reg = await this.registry();
+    return new Set([...reg].filter(([, v]) => v.hidden).map(([k]) => k));
   }
 
   private handleDisconnect() {

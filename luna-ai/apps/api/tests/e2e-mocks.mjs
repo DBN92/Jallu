@@ -13,6 +13,13 @@ add('switch.ventilador', 'on', { friendly_name: 'Ventilador do Escritório' });
 add('sensor.temperatura_sala', '24.6', { friendly_name: 'Temperatura da Sala', unit_of_measurement: '°C', device_class: 'temperature' });
 add('binary_sensor.porta_entrada', 'off', { friendly_name: 'Porta de Entrada', device_class: 'door' });
 add('person.dono', 'home', { friendly_name: 'Dono' });
+add('camera.garagem', 'idle', { friendly_name: 'Garagem', supported_features: 2 });
+add('camera.portao', 'idle', { friendly_name: 'Portão', supported_features: 0 });
+const fsMod = await import('node:fs');
+const pathMod = await import('node:path');
+const CAM_JPG = process.env.CAM_JPG;
+const HLS_DIR = process.env.HLS_DIR;
+const ptzLog = [];
 
 const wsClients = new Set();
 const broadcast = (old, s) => {
@@ -22,8 +29,23 @@ const body = (req) => new Promise((r) => { let d = ''; req.on('data', (c) => (d 
 const send = (res, code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
 
 const ha = http.createServer(async (req, res) => {
-  if (req.headers.authorization !== 'Bearer e2e-token') return send(res, 401, {});
   const url = new URL(req.url, 'http://x');
+  // HLS do HA: autorizado pelo token na URL (sem cabeçalho)
+  const hm = url.pathname.match(/^\/api\/hls\/tok123\/([\w.]+)$/);
+  if (hm && HLS_DIR) {
+    const file = pathMod.join(HLS_DIR, hm[1]);
+    if (!fsMod.existsSync(file)) return send(res, 404, {});
+    const type = file.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4';
+    res.writeHead(200, { 'content-type': type });
+    return res.end(fsMod.readFileSync(file));
+  }
+  if (req.headers.authorization !== 'Bearer e2e-token') return send(res, 401, {});
+  const cp = url.pathname.match(/^\/api\/camera_proxy\/(camera\.\w+)$/);
+  if (cp && CAM_JPG) {
+    res.writeHead(200, { 'content-type': 'image/jpeg' });
+    return res.end(fsMod.readFileSync(CAM_JPG));
+  }
+  if (url.pathname === '/__ptz') return send(res, 200, ptzLog);
   if (url.pathname === '/api/') return send(res, 200, { message: 'API running.' });
   if (url.pathname === '/api/states') return send(res, 200, [...states.values()]);
   let m = url.pathname.match(/^\/api\/states\/(.+)$/);
@@ -31,6 +53,7 @@ const ha = http.createServer(async (req, res) => {
   m = url.pathname.match(/^\/api\/services\/([^/]+)\/([^/]+)$/);
   if (m && req.method === 'POST') {
     const data = await body(req);
+    if (m[1] === 'onvif') { ptzLog.push(data); return send(res, 200, []); }
     const s = states.get(data.entity_id);
     if (s) {
       const old = structuredClone(s);
@@ -53,8 +76,9 @@ wss.on('connection', (ws) => {
     if (msg.type === 'auth') ws.send(JSON.stringify({ type: msg.access_token === 'e2e-token' ? 'auth_ok' : 'auth_invalid' }));
     if (msg.type === 'subscribe_events') { ws.subId = msg.id; wsClients.add(ws); ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true })); }
     if (msg.type === 'ping') ws.send(JSON.stringify({ id: msg.id, type: 'pong' }));
+    if (msg.type === 'camera/stream') ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true, result: { url: '/api/hls/tok123/master_playlist.m3u8' } }));
     if (msg.type === 'config/entity_registry/list') {
-      const result = [...states.keys()].map((entity_id) => ({ entity_id, hidden_by: entity_id === 'switch.tomada_cafeteira' ? 'integration' : null, disabled_by: null }));
+      const result = [...states.keys()].map((entity_id) => ({ entity_id, platform: entity_id === 'camera.garagem' ? 'onvif' : 'demo', hidden_by: entity_id === 'switch.tomada_cafeteira' ? 'integration' : null, disabled_by: null }));
       ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true, result }));
     }
   });

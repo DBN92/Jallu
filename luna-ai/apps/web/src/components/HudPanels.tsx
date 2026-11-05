@@ -1,13 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Droplets, Thermometer, Umbrella, Wind } from 'lucide-react';
-import type { AssistantState, AutomationRuleDto, HealthDto, WeatherDto } from '@luna/shared/types';
+import type { AssistantState, AutomationRuleDto, CameraDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import type { UiMessage } from '../stores/assistant';
 import { ExpandablePanel } from './Expandable';
 import { DevicesPanel, SensorsPanel } from './Dashboard';
 import { MessageList } from './Messages';
 import { WeatherIcon } from './WeatherIcon';
+import { CameraPlayer, CameraThumb } from './CameraPlayer';
+import { CameraControls } from './CameraViewer';
 
 const round = (n: number) => Math.round(n);
 
@@ -343,5 +345,48 @@ export function HomeRingPanel({ mini }: { mini?: boolean } = {}) {
       </div>
       )}
     </ExpandablePanel>
+  );
+}
+
+/* ---------------- Câmeras ---------------- */
+export function CamerasPanel({ cameras }: { cameras: CameraDto[] }) {
+  const first = cameras[0];
+  if (!first) return null;
+  return (
+    <ExpandablePanel
+      title="Câmeras"
+      code="C-07"
+      expanded={() => <CameraExpanded cameras={cameras} />}
+    >
+      <CameraThumb camera={first} className="aspect-video w-full" everyMs={10_000} />
+      <p className="hud-label mt-2 truncate text-[10px] text-cyan-300/70">
+        {first.name}
+        {cameras.length > 1 ? ` · +${cameras.length - 1}` : ''}
+      </p>
+    </ExpandablePanel>
+  );
+}
+
+function CameraExpanded({ cameras }: { cameras: CameraDto[] }) {
+  const [current, setCurrent] = useState(cameras[0]!.entityId);
+  const box = useRef<HTMLDivElement>(null);
+  const cam = cameras.find((c) => c.entityId === current) ?? cameras[0]!;
+  return (
+    <div className="space-y-3">
+      <div ref={box}>
+        <CameraPlayer key={cam.entityId} camera={cam} className="aspect-video w-full" />
+      </div>
+      <CameraControls camera={cam} containerRef={box} />
+      {cameras.length > 1 && (
+        <div className="grid grid-cols-3 gap-2">
+          {cameras.map((c) => (
+            <button key={c.entityId} onClick={() => setCurrent(c.entityId)} className={`overflow-hidden rounded-sm border ${c.entityId === cam.entityId ? 'border-cyan-300' : 'border-cyan-300/20'}`}>
+              <CameraThumb camera={c} className="aspect-video" />
+              <p className="font-hud truncate px-1 py-0.5 text-[10px] text-cyan-100/70">{c.name}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

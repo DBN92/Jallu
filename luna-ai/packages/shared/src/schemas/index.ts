@@ -109,3 +109,7 @@ export type AutomationDraft = z.infer<typeof automationDraftSchema>;
 export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 export type HomeLocation = z.infer<typeof homeLocationSchema>;
 export type Coordinates = z.infer<typeof coordinatesSchema>;
+
+export const ptzSchema = z.object({
+  action: z.enum(['up', 'down', 'left', 'right', 'zoom_in', 'zoom_out', 'stop']),
+});

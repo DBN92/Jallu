@@ -194,3 +194,18 @@ export type ServerEvent =
   | { type: 'devices_reload' }
   | { type: 'ha_status'; connected: boolean }
   | { type: 'assistant_state'; state: AssistantState; conversationId?: string };
+
+export interface CameraDto {
+  entityId: string;
+  name: string;
+  state: string;
+  available: boolean;
+  /** Vídeo ao vivo disponível (HLS via Home Assistant) */
+  stream: boolean;
+  /** Controle de movimento (ONVIF): girar, inclinar, zoom */
+  ptz: boolean;
+  /** Integração de origem no HA (ex.: onvif, generic) */
+  platform: string | null;
+}
+
+export type PtzAction = 'up' | 'down' | 'left' | 'right' | 'zoom_in' | 'zoom_out' | 'stop';

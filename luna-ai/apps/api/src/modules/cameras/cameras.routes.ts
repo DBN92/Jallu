@@ -1,0 +1,45 @@
+import { Readable } from 'node:stream';
+import type { FastifyInstance, FastifyReply } from 'fastify';
+import { z } from 'zod';
+import { ptzSchema } from '@luna/shared';
+import { requireAuth } from '../../middleware/auth';
+
+const idParam = z.object({ entityId: z.string().regex(/^camera\.[a-z0-9_]+$/, 'câmera inválida') });
+
+/** Repassa a resposta do HA em fluxo (sem carregar tudo na memória). */
+function pipe(reply: FastifyReply, res: Response, cache = 'no-store') {
+  reply.header('Content-Type', res.headers.get('content-type') ?? 'application/octet-stream');
+  reply.header('Cache-Control', cache);
+  reply.status(res.status);
+  return reply.send(res.body ? Readable.fromWeb(res.body as never) : '');
+}
+
+export async function cameraRoutes(app: FastifyInstance) {
+  const { cameras } = app.services;
+
+  app.get('/api/cameras', { preHandler: requireAuth }, async () => cameras.list());
+
+  app.get('/api/cameras/:entityId/snapshot', { preHandler: requireAuth, config: { rateLimit: { max: 240, timeWindow: '1 minute' } } }, async (req, reply) =>
+    pipe(reply, await cameras.snapshot(idParam.parse(req.params).entityId)),
+  );
+
+  app.get('/api/cameras/:entityId/mjpeg', { preHandler: requireAuth }, async (req, reply) => {
+    const ctrl = new AbortController();
+    req.raw.on('close', () => ctrl.abort()); // para o vídeo quando o usuário sai
+    return pipe(reply, await cameras.mjpeg(idParam.parse(req.params).entityId, ctrl.signal));
+  });
+
+  app.post('/api/cameras/:entityId/stream', { preHandler: requireAuth }, async (req) => cameras.startStream(idParam.parse(req.params).entityId));
+
+  // Sem cookie: o próprio token (aleatório, emitido a um usuário logado, expira) autoriza.
+  // Players nativos (Safari/iPhone) nem sempre enviam cookies nas requisições de vídeo.
+  app.get('/api/cameras/hls/:token/*', { config: { rateLimit: false } }, async (req, reply) => {
+    const { token } = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]+$/) }).parse(req.params);
+    const path = (req.params as { '*': string })['*'];
+    return pipe(reply, await cameras.hls(token, path));
+  });
+
+  app.post('/api/cameras/:entityId/ptz', { preHandler: requireAuth, config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (req) =>
+    cameras.ptz(idParam.parse(req.params).entityId, ptzSchema.parse(req.body).action, req.user!.id),
+  );
+}

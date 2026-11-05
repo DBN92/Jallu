@@ -3,6 +3,7 @@ import type { ActionResult, AssistantState, ChatResponse } from '@luna/shared';
 import { api, apiStream, ApiError, errorMessage } from '../services/api';
 import { useLocation } from './location';
 import { useSettings } from './settings';
+import { useCameras } from './cameras';
 
 export interface UiMessage {
   id: string;
@@ -79,6 +80,8 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       });
       if (!res) throw new ApiError(500, streamError ?? 'A resposta foi interrompida.');
       const final: ChatResponse = res;
+      const camAction = final.actions.find((a) => a.tool === 'show_camera' && a.entityIds?.length);
+      if (camAction) useCameras.getState().open(camAction.entityIds!);
       set((s) => ({
         conversationId: final.conversationId,
         state: 'idle',
