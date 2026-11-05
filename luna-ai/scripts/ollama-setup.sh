@@ -60,8 +60,6 @@ Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_MODELS=$DIR/models
 # Mantém o modelo SEMPRE carregado na memória (recarregar custa dezenas de segundos em CPU)
 Environment=OLLAMA_KEEP_ALIVE=-1
-# Atenção otimizada (menos memória; mais rápido onde suportado)
-Environment=OLLAMA_FLASH_ATTENTION=1
 Environment=OLLAMA_NUM_PARALLEL=1
 Environment=OLLAMA_MAX_LOADED_MODELS=1
 Restart=always

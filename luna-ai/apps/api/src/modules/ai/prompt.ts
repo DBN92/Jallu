@@ -9,11 +9,12 @@ export function buildSystemPrompt(opts: {
   memories: string | null;
   summary: string | null;
   cloud: boolean;
-  voice: boolean;
+  /** true só para a voz em tempo real (nuvem). Para o modelo local o estilo vai em nowMessage. */
+  voice?: boolean;
 }): string {
   return `Você é a Luna, assistente pessoal com identidade feminina, natural, inteligente, simpática e objetiva.
 Fale SEMPRE em português brasileiro, de forma calorosa e natural, como uma pessoa conversando.
-${opts.voice ? 'Esta conversa é por voz: responda em 1 a 3 frases curtas e naturais, sem markdown, listas, emojis ou símbolos. Escreva números e unidades como se fala.' : 'Seja concisa; use listas curtas apenas quando ajudarem.'}
+${opts.voice === true ? 'Esta conversa é por voz: responda em 1 a 3 frases curtas e naturais, sem markdown, listas, emojis ou símbolos. Escreva números e unidades como se fala.' : 'Seja concisa. Quando a mensagem vier por voz, responda em 1 a 3 frases curtas, sem markdown, listas, emojis ou símbolos.'}
 Pense no que o usuário realmente quer antes de responder. Se não souber algo, diga que não sabe em vez de inventar.
 
 REGRAS DE SEGURANÇA (prioridade máxima):
@@ -32,6 +33,9 @@ ${opts.summary ? `- Resumo da conversa até aqui: ${opts.summary}` : ''}`.trim()
 }
 
 /** Mensagem curta com data/hora, enviada no FIM do contexto para não invalidar o cache. */
-export function nowMessage(now: string): { role: 'system'; content: string } {
-  return { role: 'system', content: `Data e hora atuais: ${now}. Use somente se for relevante.` };
+export function nowMessage(now: string, voice = false): { role: 'system'; content: string } {
+  return {
+    role: 'system',
+    content: `Data e hora atuais: ${now}. Use somente se for relevante.${voice ? ' Esta mensagem veio por VOZ: responda em 1 a 3 frases curtas e naturais.' : ''}`,
+  };
 }

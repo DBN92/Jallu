@@ -34,6 +34,8 @@ const MAX_TOOL_ROUNDS = 5;
 
 export class ChatService {
   private pending = new Map<string, Pending>();
+  /** Aquecimento em andamento: é cancelado assim que chega uma pergunta real. */
+  private warming: AbortController | null = null;
 
   constructor(
     private readonly db: Db,
@@ -58,6 +60,7 @@ export class ChatService {
       : await this.db.conversation.create({ data: { userId: user.id, title: truncate(req.message, 60) } });
     if (!conversation) throw notFound('Conversa não encontrada.');
 
+    this.warming?.abort(); // pergunta real tem prioridade sobre o aquecimento
     await this.db.message.create({ data: { conversationId: conversation.id, role: 'user', content: req.message, channel: req.channel } });
     this.onState(user.id, 'processing', conversation.id);
 
@@ -268,14 +271,15 @@ export class ChatService {
 
     for (const provider of order) {
       if (!(await provider.isAvailable())) {
-        notices.push(provider.name === 'ollama' ? 'O modelo local (Ollama) está indisponível.' : 'A OpenAI está indisponível ou não configurada.');
+        const detail = provider.name === 'ollama' ? (this.providers.ollama as { lastProblem?: string | null }).lastProblem : null;
+        notices.push(provider.name === 'ollama' ? `IA local indisponível: ${detail ?? 'o Ollama não respondeu.'}` : 'A OpenAI está indisponível ou não configurada.');
         continue;
       }
       const memories = !provider.isCloud || settings.allowCloudMemory ? await this.memory.promptContext(user.id) : null;
-      const system = buildSystemPrompt({ userName: user.displayName, memories, summary, cloud: provider.isCloud, voice: req.channel === 'voice' });
+      const system = buildSystemPrompt({ userName: user.displayName, memories, summary, cloud: provider.isCloud });
       const ctx: ToolContext = { userId: user.id, source: `ai:${provider.name}`, location: req.location, cloud: provider.isCloud };
       // Início estável (cacheável) + data/hora no fim
-      const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past.slice(0, -1), nowMessage(this.nowText()), ...past.slice(-1)];
+      const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past.slice(0, -1), nowMessage(this.nowText(), req.channel === 'voice'), ...past.slice(-1)];
       const actions: ActionResult[] = [];
       try {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -308,8 +312,9 @@ export class ChatService {
     }
 
     const reason = settings.aiMode === 'local' ? 'O modo “somente local” está ativo e o Ollama não respondeu.' : 'Nenhum modelo de IA respondeu agora.';
+    const why = notices.length ? ` Motivo: ${notices.join(' ')}` : '';
     return {
-      reply: `${reason} Comandos diretos como “acenda a luz da sala”, “vai chover hoje?” ou “que horas são?” continuam funcionando.`,
+      reply: `${reason}${why} Comandos diretos como “acenda a luz da sala”, “vai chover hoje?” ou “que horas são?” continuam funcionando.`,
       provider: 'luna-nlu',
       model: null,
       actions: [],
@@ -331,14 +336,19 @@ export class ChatService {
     if (!(await ollama.isAvailable())) return false;
     const user = await this.db.user.findFirst({ orderBy: { createdAt: 'asc' } });
     if (!user) return false;
+    // UM pedido só (instruções fixas, sem ferramentas — o caso mais comum), e cancelável:
+    // se o usuário perguntar algo enquanto isso, o aquecimento é abortado na hora.
     const memories = await this.memory.promptContext(user.id);
-    for (const voice of [true, false]) {
-      const system = buildSystemPrompt({ userName: user.displayName, memories, summary: null, cloud: false, voice });
-      for (const tools of [[], TOOL_DEFINITIONS]) {
-        await ollama.chat([{ role: 'system', content: system }, { role: 'user', content: 'oi' }], tools, { maxTokens: 1 }).catch(() => undefined);
-      }
+    const system = buildSystemPrompt({ userName: user.displayName, memories, summary: null, cloud: false });
+    this.warming = new AbortController();
+    try {
+      await ollama.chat([{ role: 'system', content: system }, { role: 'user', content: 'oi' }], [], { maxTokens: 1, signal: this.warming.signal });
+      return true;
+    } catch {
+      return this.warming.signal.aborted; // abortado por pergunta real = ok
+    } finally {
+      this.warming = null;
     }
-    return true;
   }
 
   /** Gera um resumo da conversa (preferindo o modelo local) e o salva como memória do tipo "summary". */

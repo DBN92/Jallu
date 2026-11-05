@@ -33,7 +33,7 @@ export interface AIProvider {
    * onDelta (opcional): recebe pedaços do texto conforme são gerados (streaming).
    * Provedores sem streaming simplesmente não chamam onDelta.
    */
-  chat(messages: ChatMessage[], tools: ToolDefinition[], opts?: { onDelta?: (text: string) => void; maxTokens?: number }): Promise<ProviderResponse>;
+  chat(messages: ChatMessage[], tools: ToolDefinition[], opts?: { onDelta?: (text: string) => void; maxTokens?: number; signal?: AbortSignal }): Promise<ProviderResponse>;
 }
 
 export class ProviderError extends Error {

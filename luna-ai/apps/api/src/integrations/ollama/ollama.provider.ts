@@ -15,6 +15,8 @@ export class OllamaProvider implements AIProvider {
   readonly name = 'ollama' as const;
   readonly isCloud = false;
   private availability: { at: number; ok: boolean } | null = null;
+  /** Último motivo de indisponibilidade, em português, para mostrar ao usuário. */
+  lastProblem: string | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -44,9 +46,11 @@ export class OllamaProvider implements AIProvider {
         const data = (await res.json()) as { models?: { name: string; model?: string }[] };
         const wanted = this.model.includes(':') ? this.model : `${this.model}:latest`;
         ok = (data.models ?? []).some((m) => m.name === wanted || m.model === wanted || m.name === this.model);
-      }
+        this.lastProblem = ok ? null : `o modelo ${this.model} não está instalado no Ollama (rode: sudo bash scripts/ollama-setup.sh --model ${this.model}).`;
+      } else this.lastProblem = `o Ollama respondeu com erro ${res.status}.`;
     } catch {
       ok = false;
+      this.lastProblem = `o Ollama não está rodando em ${this.baseUrl} (veja: systemctl status ollama).`;
     }
     this.availability = { at: Date.now(), ok };
     return ok;
@@ -106,7 +110,7 @@ export class OllamaProvider implements AIProvider {
     return { role: 'assistant', content, tool_calls: toolCalls };
   }
 
-  async chat(messages: ChatMessage[], tools: ToolDefinition[], opts: { onDelta?: (text: string) => void; maxTokens?: number } = {}): Promise<ProviderResponse> {
+  async chat(messages: ChatMessage[], tools: ToolDefinition[], opts: { onDelta?: (text: string) => void; maxTokens?: number; signal?: AbortSignal } = {}): Promise<ProviderResponse> {
     const stream = Boolean(opts.onDelta);
     const body = {
       model: this.model,
@@ -135,12 +139,14 @@ export class OllamaProvider implements AIProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs),
       });
     } catch (err) {
+      const name = (err as Error).name;
+      if (name === 'AbortError') throw new ProviderError('ollama', 'Cancelado.');
       this.availability = { at: Date.now(), ok: false };
-      const timeout = (err as Error).name === 'TimeoutError';
-      throw new ProviderError('ollama', timeout ? 'O modelo local demorou demais para responder.' : 'O Ollama está indisponível.');
+      const timeout = name === 'TimeoutError';
+      throw new ProviderError('ollama', timeout ? `O modelo local demorou mais de ${Math.round(this.timeoutMs / 1000)} s para responder (processador lento ou modelo grande demais).` : 'O Ollama está indisponível.');
     }
     if (!res.ok) {
       const text = await res.text().catch(() => '');
