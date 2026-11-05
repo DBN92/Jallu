@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { makeApp, type TestCtx } from './helpers';
+import { chat, makeApp, type TestCtx } from './helpers';
 
 let ctx: TestCtx;
 afterEach(async () => ctx?.app.close());
@@ -60,5 +60,45 @@ describe('API de dispositivos (Home Assistant)', () => {
     expect(patched.json.aiAllowed).toBe(true);
     expect(patched.json.aliases).toEqual(['aquecedor do escritório']);
     expect((await ctx.inject('PATCH', '/api/devices/sensor.temperatura_quarto', { aiAllowed: true })).status).toBe(400);
+  });
+});
+
+describe('renomear dispositivos na Luna', () => {
+  it('renomeia, entende o novo nome e o original, e volta ao original', async () => {
+    ctx = await makeApp();
+    const r = await ctx.inject('PATCH', '/api/devices/light.luz_do_quarto_casal', { name: 'Abajur da cama' });
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ name: 'Abajur da cama', originalName: 'Luz do Quarto Casal', renamed: true });
+    // o Home Assistant não é alterado
+    expect(ctx.ha.states.get('light.luz_do_quarto_casal')!.attributes.friendly_name).toBe('Luz do Quarto Casal');
+
+    const byNew = await chat(ctx, 'acenda o abajur da cama');
+    expect(byNew.reply).toMatch(/abajur da cama/i);
+    expect(ctx.ha.states.get('light.luz_do_quarto_casal')!.state).toBe('on');
+    const byOld = await chat(ctx, 'apague a luz do quarto casal');
+    expect(byOld.reply).toMatch(/abajur da cama/i);
+    expect(ctx.ha.states.get('light.luz_do_quarto_casal')!.state).toBe('off');
+
+    const list = await ctx.inject('GET', '/api/devices');
+    expect(list.json.find((d: { entityId: string }) => d.entityId === 'light.luz_do_quarto_casal').name).toBe('Abajur da cama');
+
+    const reset = await ctx.inject('PATCH', '/api/devices/light.luz_do_quarto_casal', { name: null });
+    expect(reset.json).toMatchObject({ name: 'Luz do Quarto Casal', renamed: false });
+  });
+
+  it('impede nomes repetidos (a Luna não saberia qual usar)', async () => {
+    ctx = await makeApp();
+    const r = await ctx.inject('PATCH', '/api/devices/light.luz_da_varanda', { name: 'luz da sala' });
+    expect(r.status).toBe(400);
+    expect(r.json.message).toMatch(/Já existe/);
+  });
+
+  it('somente administradores renomeiam', async () => {
+    ctx = await makeApp();
+    await ctx.inject('POST', '/api/users', { username: 'filho', password: 'senha-forte-456', displayName: 'Filho', role: 'member' });
+    const login = await ctx.app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'filho', password: 'senha-forte-456' } });
+    ctx.cookies = login.cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    ctx.csrf = login.json().csrfToken;
+    expect((await ctx.inject('PATCH', '/api/devices/light.luz_da_sala', { name: 'Teste' })).status).toBe(403);
   });
 });

@@ -80,9 +80,12 @@ model Memory {
 }
 
 model Device {
-  entityId  String   @id
-  domain    String
-  name      String
+  entityId   String   @id
+  domain     String
+  /// Nome vindo do Home Assistant (friendly_name)
+  name       String
+  /// Nome dado pelo usuário na Luna (tem prioridade na tela e nos comandos)
+  customName String?
   category  String
   aiAllowed Boolean  @default(false)
   hidden    Boolean  @default(false)

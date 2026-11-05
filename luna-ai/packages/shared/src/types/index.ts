@@ -25,7 +25,12 @@ export interface PublicUser {
 export interface DeviceDto {
   entityId: string;
   domain: string;
+  /** Nome exibido: o personalizado na Luna, ou o do Home Assistant */
   name: string;
+  /** Nome original no Home Assistant */
+  originalName: string;
+  /** true quando o usuário renomeou na Luna */
+  renamed: boolean;
   category: DeviceCategory;
   state: string;
   available: boolean;

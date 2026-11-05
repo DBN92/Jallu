@@ -120,6 +120,7 @@ export function deviceSummary(d: DeviceDto) {
   return {
     entity_id: d.entityId,
     nome: d.name,
+    nome_no_home_assistant: d.renamed ? d.originalName : undefined,
     estado: d.state,
     ligado: d.isOn,
     disponivel: d.available,

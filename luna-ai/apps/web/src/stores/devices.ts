@@ -13,7 +13,8 @@ interface DevicesState {
   setHa: (c: boolean) => void;
   toggle: (d: DeviceDto) => Promise<void>;
   brightness: (entityId: string, value: number) => Promise<void>;
-  update: (entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean }) => Promise<void>;
+  /** Retorna a mensagem de erro (ou null se deu certo). */
+  update: (entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean; name?: string | null }) => Promise<string | null>;
 }
 
 export const useDevices = create<DevicesState>((set, get) => ({
@@ -60,8 +61,11 @@ export const useDevices = create<DevicesState>((set, get) => ({
   update: async (entityId, patch) => {
     try {
       get().upsert(await api<DeviceDto>(`/api/devices/${entityId}`, { method: 'PATCH', body: patch }));
+      return null;
     } catch (err) {
-      set({ error: errorMessage(err) });
+      const msg = errorMessage(err);
+      set({ error: msg });
+      return msg;
     }
   },
 }));

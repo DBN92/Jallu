@@ -28,7 +28,7 @@ export function supportsBrightness(state: HaState): boolean {
 
 export function toDeviceDto(
   state: HaState,
-  meta: { aiAllowed: boolean; aliases: string[]; hidden: boolean },
+  meta: { aiAllowed: boolean; aliases: string[]; hidden: boolean; customName?: string | null },
 ): DeviceDto {
   const domain = domainOf(state.entity_id);
   const available = !['unavailable', 'unknown'].includes(state.state);
@@ -38,7 +38,9 @@ export function toDeviceDto(
   return {
     entityId: state.entity_id,
     domain,
-    name: (state.attributes.friendly_name as string | undefined) ?? state.entity_id,
+    name: meta.customName || ((state.attributes.friendly_name as string | undefined) ?? state.entity_id),
+    originalName: (state.attributes.friendly_name as string | undefined) ?? state.entity_id,
+    renamed: Boolean(meta.customName),
     category: categorize(state),
     state: state.state,
     available,

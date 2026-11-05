@@ -18,6 +18,7 @@ interface Meta {
   aiAllowed: boolean;
   aliases: string[];
   hidden: boolean;
+  customName: string | null;
 }
 
 export interface DeviceMatch {
@@ -76,13 +77,13 @@ export class DevicesService extends EventEmitter {
       }
     }
     const fresh = await this.db.device.findMany();
-    this.meta = new Map(fresh.map((r) => [r.entityId, { aiAllowed: r.aiAllowed, hidden: r.hidden, aliases: safeJson<string[]>(r.aliases, []) }]));
+    this.meta = new Map(fresh.map((r) => [r.entityId, { aiAllowed: r.aiAllowed, hidden: r.hidden, aliases: safeJson<string[]>(r.aliases, []), customName: r.customName }]));
     this.states = next;
     this.lastFullRefresh = Date.now();
   }
 
   private dto(state: HaState): DeviceDto {
-    return toDeviceDto(state, this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false });
+    return toDeviceDto(state, this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false, customName: null });
   }
 
   async list(opts: { includeHidden?: boolean } = {}): Promise<DeviceDto[]> {
@@ -120,8 +121,12 @@ export class DevicesService extends EventEmitter {
     }
   }
 
-  async update(entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean }) {
-    await this.get(entityId);
+  async update(entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean; name?: string | null }) {
+    const current = await this.get(entityId);
+    if (patch.name) {
+      const clash = (await this.list({ includeHidden: true })).find((d) => d.entityId !== entityId && normalize(d.name) === normalize(patch.name!));
+      if (clash) throw badRequest(`Já existe um dispositivo chamado “${clash.name}”. Use um nome diferente para a Luna não confundir.`);
+    }
     if (patch.aiAllowed && !CONTROLLABLE_DOMAINS.has(domainOf(entityId))) {
       throw badRequest('Somente dispositivos controláveis podem ser autorizados para a IA. Sensores já podem ser consultados.');
     }
@@ -131,6 +136,8 @@ export class DevicesService extends EventEmitter {
         aiAllowed: patch.aiAllowed,
         hidden: patch.hidden,
         aliases: patch.aliases ? JSON.stringify(patch.aliases) : undefined,
+        // string = renomeia; null ou igual ao nome do HA = volta ao original
+        customName: patch.name === undefined ? undefined : patch.name && patch.name !== current.originalName ? patch.name : null,
       },
     });
     this.lastFullRefresh = 0;
@@ -223,7 +230,7 @@ export class DevicesService extends EventEmitter {
         matches.push({ device: d, score: 100 });
         continue;
       }
-      const names = [d.name, ...d.aliases, d.entityId.split('.')[1]!.replace(/_/g, ' ')];
+      const names = [d.name, d.originalName, ...d.aliases, d.entityId.split('.')[1]!.replace(/_/g, ' ')];
       let best = 0;
       for (const n of names) {
         const nNorm = normalize(n);

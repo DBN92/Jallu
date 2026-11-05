@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, Lightbulb, Plug, Power, RefreshCw, Settings2, Thermometer, ToggleLeft, Wind, Box } from 'lucide-react';
+import { Bot, Check, Lightbulb, Pencil, Plug, Power, RefreshCw, RotateCcw, Settings2, Thermometer, ToggleLeft, Wind, Box, X } from 'lucide-react';
 import { DEVICE_CATEGORY_LABELS, type DeviceCategory, type DeviceDto } from '@luna/shared/types';
 import { Page } from '../components/Layout';
 import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '../components/ui';
@@ -45,7 +45,19 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const Icon = ICONS[device.category];
   const [aliases, setAliases] = useState(device.aliases.join(', '));
+  const [editing, setEditing] = useState(false);
+  const [newName, setNewName] = useState(device.name);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const on = device.isOn === true;
+
+  const saveName = async (value: string | null) => {
+    setSaving(true);
+    const err = await update(device.entityId, { name: value });
+    setSaving(false);
+    setRenameError(err);
+    if (!err) setEditing(false);
+  };
 
   return (
     <Card className={`transition ${on ? 'border-amber-300/40' : ''} ${device.hidden ? 'opacity-50' : ''}`}>
@@ -54,7 +66,68 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{device.name}</p>
+          {editing ? (
+            <form
+              className="flex items-center gap-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newName.trim()) void saveName(newName.trim());
+              }}
+            >
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                maxLength={60}
+                aria-label={`Novo nome para ${device.originalName}`}
+                className={`${inputClass} py-1 text-sm`}
+                placeholder="Como você chama este dispositivo?"
+              />
+              <button type="submit" disabled={saving || !newName.trim()} className="rounded-sm p-1.5 text-cyan-200 hover:bg-cyan-400/15" aria-label="Salvar nome">
+                {saving ? <Spinner className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setRenameError(null);
+                  setNewName(device.name);
+                }}
+                className="rounded-sm p-1.5 text-cyan-100/50 hover:bg-white/10"
+                aria-label="Cancelar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </form>
+          ) : (
+            <p className="flex items-center gap-1.5 font-medium">
+              <span className="truncate">{device.name}</span>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setNewName(device.name);
+                    setEditing(true);
+                  }}
+                  className="shrink-0 rounded-sm p-1 text-cyan-300/50 hover:bg-cyan-400/10 hover:text-cyan-200"
+                  aria-label={`Renomear ${device.name}`}
+                  title="Renomear (para a Luna entender melhor)"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </p>
+          )}
+          {device.renamed && !editing && (
+            <p className="flex flex-wrap items-center gap-x-1 text-[11px] text-cyan-100/35">
+              <span className="min-w-0 truncate">no Home Assistant: {device.originalName}</span>
+              {isAdmin && (
+                <button onClick={() => void saveName(null)} className="ml-1 inline-flex items-center gap-0.5 text-cyan-300/60 hover:text-cyan-200" title="Voltar ao nome original">
+                  <RotateCcw className="h-3 w-3" /> restaurar
+                </button>
+              )}
+            </p>
+          )}
+          {renameError && <p className="text-[11px] text-rose-300">{renameError}</p>}
           <p className="text-xs text-white/45">
             {!device.available
               ? 'Indisponível'
@@ -150,6 +223,11 @@ export default function HousePage() {
         }
       />
       {error && <Banner>{error}</Banner>}
+      {isAdmin && !manage && (
+        <p className="font-hud mb-3 text-xs text-cyan-100/50">
+          Dica: toque no <Pencil className="inline h-3 w-3" /> para dar a cada dispositivo o nome que você fala (ex.: “abajur do quarto”). A Luna entende o novo nome e o original.
+        </p>
+      )}
       {manage && (
         <Banner kind="info">
           Modo de gerenciamento: escolha quais dispositivos a Luna pode controlar por voz/IA. Pelo painel você sempre controla todos os dispositivos controláveis.
@@ -176,7 +254,7 @@ export default function HousePage() {
         grouped.map((g) => (
           <section key={g.category} className="mb-6">
             <h2 className="mb-2 text-xs font-medium tracking-wider text-white/40 uppercase">{DEVICE_CATEGORY_LABELS[g.category]}</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2 [&>*]:min-w-0">
               {g.items.map((d) => (
                 <DeviceCard key={d.entityId} device={d} manage={manage} />
               ))}
