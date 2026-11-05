@@ -1,46 +1,32 @@
 import { useEffect, useRef } from 'react';
-import { geoArea, geoGraticule, geoOrthographic, geoPath } from 'd3-geo';
-import { feature } from 'topojson-client';
-import type { Topology, GeometryCollection } from 'topojson-specification';
-import landTopo from 'world-atlas/land-110m.json';
 import type { AssistantState } from '@luna/shared';
-
-// Continentes (Natural Earth 1:110m, domínio público)
-// Preparado uma vez ao carregar: sem ilhas minúsculas e com metade dos pontos nos contornos
-// longos — visualmente idêntico no tamanho do globo e bem mais barato a cada quadro.
-const LAND = (() => {
-  const topo = landTopo as unknown as Topology<{ land: GeometryCollection }>;
-  const f = feature(topo, topo.objects.land) as unknown as GeoJSON.FeatureCollection | GeoJSON.Feature;
-  const geom = ('features' in f ? f.features[0]!.geometry : f.geometry) as GeoJSON.MultiPolygon;
-  const decimate = (ring: GeoJSON.Position[]) => (ring.length > 24 ? ring.filter((_, i) => i % 2 === 0 || i === ring.length - 1) : ring);
-  const polys = geom.coordinates
-    .filter((poly) => geoArea({ type: 'Polygon', coordinates: poly }) > 0.0004)
-    .map((poly) => poly.map(decimate));
-  return { type: 'MultiPolygon', coordinates: polys } as GeoJSON.MultiPolygon;
-})();
-// Malha a cada 15° com amostragem menor (bem menos pontos por quadro)
-const GRATICULE = geoGraticule().step([15, 15]).precision(6)();
 
 const STATE_RGB: Record<AssistantState, [number, number, number]> = {
   idle: [0, 229, 255],
   listening: [95, 246, 255],
   processing: [154, 140, 255],
   acting: [255, 181, 71],
-  speaking: [58, 168, 255],
+  speaking: [58, 200, 255],
   error: [255, 77, 106],
 };
-/** Graus por segundo de rotação do globo em cada estado. */
-const STATE_SPEED: Record<AssistantState, number> = { idle: 9, listening: 14, processing: 40, acting: 55, speaking: 18, error: 3 };
-/** Nível “sintético” das barras quando não há áudio real. */
-const STATE_LEVEL: Record<AssistantState, number> = { idle: 0.04, listening: 0.3, processing: 0.16, acting: 0.16, speaking: 0.6, error: 0 };
+/** Velocidade das ondas (fase por segundo) em cada estado. */
+const STATE_SPEED: Record<AssistantState, number> = { idle: 1.2, listening: 2.4, processing: 6, acting: 7, speaking: 3.6, error: 0.6 };
+/** Altura “sintética” das ondas quando não há áudio real. */
+const STATE_LEVEL: Record<AssistantState, number> = { idle: 0.24, listening: 0.42, processing: 0.32, acting: 0.34, speaking: 0.75, error: 0.03 };
 
-const TICKS = Array.from({ length: 96 }, (_, i) => i);
-const BARS = 64;
+/** Camadas de onda: frequência, opacidade, espessura, deslocamento de fase e sentido. */
+const WAVES = [
+  { freq: 1, alpha: 0.95, width: 2.6, phase: 0, dir: 1 },
+  { freq: 1.6, alpha: 0.55, width: 1.8, phase: 1.3, dir: -1 },
+  { freq: 2.3, alpha: 0.38, width: 1.5, phase: 2.1, dir: 1 },
+  { freq: 0.7, alpha: 0.28, width: 1.2, phase: 0.6, dir: -1 },
+];
 
 /**
- * Núcleo da Luna: globo terrestre holográfico + barras de áudio desenhados num único canvas
- * a 60 fps (sem re-renderizar o React), e anéis HUD em camadas que só giram via GPU.
- * Cor, velocidade e nível mudam suavemente (interpolação) conforme o estado.
+ * Núcleo da Luna em estilo osciloscópio: ondas de linha que dançam com a voz.
+ * Desenhado num único canvas a 60 fps (sem re-renderizar o React); o brilho é “falso”
+ * (traço largo e transparente por baixo) para continuar leve no celular e na TV.
+ * Cor, velocidade e altura mudam suavemente conforme o estado.
  */
 export function LunaOrb({
   state,
@@ -64,98 +50,95 @@ export function LunaOrb({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d', { alpha: true });
     if (!canvas || !ctx) return;
-    // Resolução limitada para manter 60 fps em aparelhos antigos
     const dpr = Math.min(window.devicePixelRatio || 1, 2, 1100 / size);
     canvas.width = Math.round(size * dpr);
     canvas.height = Math.round(size * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const s = size / 300; // unidades do desenho original (0–300)
-    const c = size / 2;
-    const r = 98 * s;
-    const projection = geoOrthographic().scale(r).translate([c, c]).clipAngle(90);
-    const path = geoPath(projection, ctx);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    let lon = -45;
+    const s = size / 300;
+    const left = 14 * s;
+    const right = size - 14 * s;
+    const mid = size / 2;
+    const span = right - left;
+    const step = Math.max(2, Math.round(3 * s)); // px entre pontos (≈ 100 pontos por onda)
+    const maxAmp = size * 0.36;
+
     let speed = STATE_SPEED[live.current.state];
     let level = 0;
+    let phase = 0;
     const rgb = [...STATE_RGB[live.current.state]];
     let raf = 0;
     let last = performance.now();
     const col = (a: number) => `rgba(${rgb[0] | 0}, ${rgb[1] | 0}, ${rgb[2] | 0}, ${a})`;
 
+    const wave = (w: (typeof WAVES)[number], amp: number, time: number) => {
+      ctx.beginPath();
+      for (let x = left; x <= right + 0.5; x += step) {
+        const u = (x - mid) / (span / 2); // -1..1
+        const env = (1 - u * u) * (1 - u * u); // some nas pontas
+        const y = mid + Math.sin(x * (0.025 / s) * w.freq + phase * w.dir * (1 + w.freq * 0.4) + w.phase) * env * amp * (0.55 + 0.45 * Math.sin(time * 1.7 + w.phase));
+        if (x === left) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    };
+
     const frame = (t: number) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
+      const time = t / 1000;
       const st = live.current.state;
-      // Interpolação suave entre estados (cor, velocidade e nível)
-      const k = 1 - Math.pow(0.001, dt); // ~ independente de fps
+      const k = 1 - Math.pow(0.001, dt);
       const target = STATE_RGB[st];
       for (let i = 0; i < 3; i++) rgb[i] = rgb[i]! + (target[i]! - rgb[i]!) * k * 0.6;
-      speed += (STATE_SPEED[st] - speed) * k * 0.4;
+      speed += (STATE_SPEED[st] - speed) * k * 0.5;
       const real = live.current.levelRef?.current ?? 0;
-      const want = real > 0.02 ? real : STATE_LEVEL[st];
-      level += (want - level) * Math.min(1, k * 2.5);
-      lon += speed * dt;
-      projection.rotate([lon, -18, 0]);
+      // Sem áudio real, a fala “sintética” oscila como uma voz (sílabas)
+      const synthetic = st === 'speaking' ? STATE_LEVEL.speaking * (0.45 + 0.55 * Math.abs(Math.sin(time * 2.1) * Math.sin(time * 3.7 + 1))) : STATE_LEVEL[st];
+      const want = real > 0.02 ? Math.min(1, 0.15 + real * 1.1) : synthetic;
+      level += (want - level) * Math.min(1, k * 3);
+      phase += speed * dt;
 
       ctx.clearRect(0, 0, size, size);
-
-      // Barras de áudio ao redor
-      const time = t / 1000;
       ctx.lineCap = 'round';
-      ctx.lineWidth = 2 * s;
-      ctx.strokeStyle = col(0.65);
+      ctx.lineJoin = 'round';
+
+      // Linha de base e marcas nas pontas (régua de osciloscópio)
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = col(0.22);
       ctx.beginPath();
-      for (let i = 0; i < BARS; i++) {
-        const a = (i / BARS) * Math.PI * 2;
-        const wob = 0.5 + 0.5 * Math.sin(time * 5 + i * 0.8) * Math.cos(time * 2 + i * 0.3);
-        const len = (2 + level * 18 * (0.4 + 0.6 * wob)) * s;
-        const r1 = 106 * s;
-        ctx.moveTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1);
-        ctx.lineTo(c + Math.cos(a) * (r1 + len), c + Math.sin(a) * (r1 + len));
+      ctx.moveTo(left, mid);
+      ctx.lineTo(right, mid);
+      for (let i = 0; i <= 10; i++) {
+        const x = left + (span * i) / 10;
+        const h = (i % 5 === 0 ? 7 : 3.5) * s;
+        ctx.moveTo(x, mid - h);
+        ctx.lineTo(x, mid + h);
       }
       ctx.stroke();
 
-      // Esfera (oceano)
-      const g = ctx.createRadialGradient(c * 0.84, c * 0.76, r * 0.1, c, c, r);
-      g.addColorStop(0, col(0.22 + level * 0.2));
-      g.addColorStop(0.7, 'rgba(2, 10, 18, 0.88)');
-      g.addColorStop(1, col(0.2));
+      const amp = maxAmp * (0.06 + level * 0.94);
+      // Camadas de trás para frente; a principal ganha brilho
+      for (let i = WAVES.length - 1; i >= 0; i--) {
+        const w = WAVES[i]!;
+        wave(w, amp * (i === 0 ? 1 : 0.85), time);
+        if (i === 0) {
+          ctx.lineWidth = w.width * s * 4.5;
+          ctx.strokeStyle = col(0.12 + level * 0.12);
+          ctx.stroke();
+        }
+        ctx.lineWidth = w.width * s;
+        ctx.strokeStyle = col(w.alpha);
+        ctx.stroke();
+      }
+
+      // Pontos nas extremidades (pulsam levemente)
+      const dotR = (2.2 + level * 1.6) * s;
+      ctx.fillStyle = col(0.9);
       ctx.beginPath();
-      path({ type: 'Sphere' });
-      ctx.fillStyle = g;
+      ctx.arc(left, mid, dotR, 0, Math.PI * 2);
+      ctx.arc(right, mid, dotR, 0, Math.PI * 2);
       ctx.fill();
-
-      // Malha
-      ctx.beginPath();
-      path(GRATICULE);
-      ctx.lineWidth = 0.6;
-      ctx.strokeStyle = col(0.17);
-      ctx.stroke();
-
-      // Continentes: brilho “falso” (traço largo e transparente) em vez de shadowBlur
-      ctx.beginPath();
-      path(LAND);
-      ctx.fillStyle = col(0.28 + level * 0.25);
-      ctx.fill();
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 3.2;
-      ctx.strokeStyle = col(0.16);
-      ctx.stroke();
-      ctx.lineWidth = 0.9;
-      ctx.strokeStyle = col(0.95);
-      ctx.stroke();
-
-      // Atmosfera
-      ctx.beginPath();
-      path({ type: 'Sphere' });
-      ctx.lineWidth = 6;
-      ctx.strokeStyle = col(0.12 + level * 0.15);
-      ctx.stroke();
-      ctx.lineWidth = 1.3;
-      ctx.strokeStyle = col(0.75);
-      ctx.stroke();
 
       if (!reduce) raf = requestAnimationFrame(frame);
     };
@@ -182,49 +165,9 @@ export function LunaOrb({
       data-state={state}
       style={{ width: size, height: size }}
     >
-      {/* Anéis: cada um é uma camada própria que a GPU apenas rotaciona */}
-      <div className="orb-layer">
-        <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true">
-          <circle cx="150" cy="150" r="146" fill="none" stroke="currentColor" strokeOpacity="0.1" />
-        </svg>
-      </div>
-      <div className="orb-layer orb-pulse">
-        <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true">
-          <circle cx="150" cy="150" r="132" fill="none" stroke="currentColor" strokeOpacity="0.5" strokeWidth="1.5" />
-        </svg>
-      </div>
-      <div className="orb-layer orb-spin-slow">
-        <svg viewBox="0 0 300 300" className="h-full w-full" stroke="currentColor" aria-hidden="true">
-          {TICKS.map((i) => {
-            const a = (i / TICKS.length) * Math.PI * 2;
-            const long = i % 8 === 0;
-            return (
-              <line
-                key={i}
-                x1={150 + Math.cos(a) * (long ? 131 : 136)}
-                y1={150 + Math.sin(a) * (long ? 131 : 136)}
-                x2={150 + Math.cos(a) * 141}
-                y2={150 + Math.sin(a) * 141}
-                strokeOpacity={long ? 0.8 : 0.28}
-                strokeWidth={long ? 1.5 : 1}
-              />
-            );
-          })}
-        </svg>
-      </div>
-      <div className="orb-layer orb-spin-rev">
-        <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true">
-          <circle cx="150" cy="150" r="124" fill="none" stroke="currentColor" strokeWidth="1.6" strokeOpacity="0.5" strokeDasharray="70 20 6 20" />
-        </svg>
-      </div>
-      <div className="orb-layer orb-spin-fast orb-glow">
-        <svg viewBox="0 0 300 300" className="h-full w-full" aria-hidden="true">
-          <circle cx="150" cy="150" r="116" fill="none" stroke="currentColor" strokeWidth="3.5" strokeOpacity="0.85" strokeDasharray="60 180" strokeLinecap="round" />
-        </svg>
-      </div>
       <canvas ref={canvasRef} className="absolute inset-0" style={{ width: size, height: size }} />
       {label && (
-        <span className="hud-label pointer-events-none absolute inset-x-0 text-center" style={{ bottom: -size * 0.02, color: 'currentColor', fontSize: Math.max(9, size * 0.034) }}>
+        <span className="hud-label pointer-events-none absolute inset-x-0 text-center" style={{ bottom: size * 0.16, color: 'currentColor', fontSize: Math.max(9, size * 0.034) }}>
           {label}
         </span>
       )}

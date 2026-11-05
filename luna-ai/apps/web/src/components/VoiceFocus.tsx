@@ -6,7 +6,7 @@ import { STATE_LABEL } from '../lib/text';
 import { LunaOrb } from './LunaOrb';
 
 /**
- * Conversa por voz em tela cheia: o globo cresce e ocupa a tela enquanto você fala com a Luna,
+ * Conversa por voz em tela cheia: a onda cresce e ocupa a tela enquanto você fala com a Luna,
  * mostrando a transcrição e a resposta. Ao terminar, encolhe e some (animação de saída).
  */
 export function VoiceFocus({
