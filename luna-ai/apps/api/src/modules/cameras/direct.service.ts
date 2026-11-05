@@ -200,8 +200,10 @@ export class DirectCamerasService {
       proc.on('close', (code) => {
         clearTimeout(timer);
         const ms = Date.now() - started;
-        const video = err.match(/Video: (\w+)[^,]*,[^,]*, (\d{2,5}x\d{2,5})/);
-        if (code === 0 && video) return done({ ok: true, detail: `vídeo ${video[1]!.toUpperCase()} ${video[2]}`, ms });
+        if (code === 0) {
+          const s = summarizeVideo(err);
+          if (s) return done({ ok: true, detail: s, ms });
+        }
         done({ ok: false, detail: explain(err, code), ms });
       });
     });
@@ -391,6 +393,19 @@ export class DirectCamerasService {
     clearInterval(this.sweeper);
     await Promise.all([...this.sessions.keys()].map((id) => this.stop(id)));
   }
+}
+
+/**
+ * Resumo do vídeo a partir da saída do ffmpeg (“HEVC 1920x1080”). Cada câmera descreve o formato
+ * de um jeito (ex.: “yuvj420p(pc, bt709)” tem vírgula dentro): busca codec e resolução separadamente.
+ * Sem a linha “Video:”, um quadro recebido (frame= 1) já confirma a conexão.
+ */
+export function summarizeVideo(stderr: string): string | null {
+  const line = stderr.split('\n').find((l) => /Stream #.*Video:/.test(l)) ?? '';
+  const codec = line.match(/Video: (\w+)/)?.[1];
+  const res = line.match(/\b(\d{2,5}x\d{2,5})\b/)?.[1];
+  if (codec) return `vídeo ${codec.toUpperCase()}${res ? ` ${res}` : ''}`;
+  return /frame=\s*[1-9]/.test(stderr) ? 'vídeo recebido' : null;
 }
 
 /** Traduz os erros mais comuns do ffmpeg para o usuário (sem expor a senha). */

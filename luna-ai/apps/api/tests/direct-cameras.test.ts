@@ -172,3 +172,13 @@ describe('HTTP fora do padrão (câmeras Yoosee)', () => {
     }
   });
 });
+
+describe('resumo do teste de conexão', () => {
+  it('entende formatos com vírgula entre parênteses e o simples “frame= 1”', async () => {
+    const { summarizeVideo } = await import('../src/modules/cameras/direct.service');
+    expect(summarizeVideo('  Stream #0:0: Video: hevc (Main), yuvj420p(pc, bt709), 1920x1080, 15 fps, 90k tbn')).toBe('vídeo HEVC 1920x1080');
+    expect(summarizeVideo('  Stream #0:0: Video: h264, yuv420p, 1280x720')).toBe('vídeo H264 1280x720');
+    expect(summarizeVideo('frame=    1 fps=0.0 q=-0.0 Lsize=N/A time=00:00:00.00')).toBe('vídeo recebido');
+    expect(summarizeVideo('frame=    0 fps=0.0')).toBeNull();
+  });
+});
