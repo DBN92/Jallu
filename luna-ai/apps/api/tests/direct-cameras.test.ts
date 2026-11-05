@@ -149,3 +149,26 @@ describe('movimento das câmeras diretas (ONVIF pela Luna)', () => {
     }
   });
 });
+
+describe('HTTP fora do padrão (câmeras Yoosee)', () => {
+  it('lê a resposta mesmo com cabeçalhos quebrados e conexão fechada pela câmera', async () => {
+    const { createServer } = await import('node:net');
+    const { lenientPost } = await import('../src/integrations/onvif/onvif-client');
+    const server = createServer((sock) => {
+      sock.once('data', () => {
+        // Content-Length duplicado e errado + linha inválida: o fetch do Node recusa isto (UND_ERR_SOCKET)
+        sock.end('HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 999\r\nX Bad Header\r\n\r\n<s:Envelope><s:Body><ok/></s:Body></s:Envelope>');
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    const port = (server.address() as { port: number }).port;
+    try {
+      const res = await lenientPost(`http://127.0.0.1:${port}/onvif/device_service`, '<x/>', 3000);
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('<ok/>');
+      await expect(fetch(`http://127.0.0.1:${port}/onvif/device_service`, { method: 'POST', body: '<x/>' })).rejects.toThrow();
+    } finally {
+      server.close();
+    }
+  });
+});
