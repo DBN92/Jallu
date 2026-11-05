@@ -12,7 +12,7 @@ import { LunaOrb } from './LunaOrb';
 export function VoiceFocus({
   open,
   state,
-  level,
+  levelRef,
   heard,
   reply,
   hint,
@@ -21,7 +21,7 @@ export function VoiceFocus({
 }: {
   open: boolean;
   state: AssistantState;
-  level: number;
+  levelRef: { current: number };
   heard: string;
   reply: string;
   hint: string;
@@ -58,7 +58,7 @@ export function VoiceFocus({
   const size = Math.round(Math.min(landscape ? vp.h * 0.78 : vp.w * 0.92, landscape ? vp.w * 0.5 : vp.h * 0.55, 560));
 
   return createPortal(
-    <div className={`overlay-full z-[66] flex bg-ink-950/92 backdrop-blur-md ${leaving ? 'focus-out' : 'focus-in'}`}>
+    <div className={`overlay-full z-[66] flex bg-ink-950/96 ${leaving ? 'focus-out' : 'focus-in'}`}>
       <button
         onClick={onClose}
         className="absolute top-[max(env(safe-area-inset-top),1rem)] right-4 z-10 rounded-sm border border-cyan-300/30 bg-ink-900/70 p-2.5 text-cyan-100/80 hover:border-cyan-300/60"
@@ -68,7 +68,7 @@ export function VoiceFocus({
       </button>
       <div className={`flex w-full flex-1 items-center justify-center gap-6 px-6 pt-safe pb-safe ${landscape ? 'flex-row' : 'flex-col'}`}>
         <div className="focus-orb">
-          <LunaOrb state={state} level={level} size={size} onClick={onOrb} />
+          <LunaOrb state={state} levelRef={levelRef} size={size} onClick={onOrb} />
         </div>
         <div className={`flex max-w-xl flex-col gap-3 ${landscape ? 'items-start text-left' : 'items-center text-center'}`}>
           <p className="hud-label text-sm">{STATE_LABEL[state]}</p>

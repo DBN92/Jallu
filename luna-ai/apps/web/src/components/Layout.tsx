@@ -20,7 +20,7 @@ function ConnectionBar() {
   const ha = useDevices((s) => s.haConnected);
   if (server && ha !== false) return null;
   return (
-    <div className="font-hud fixed inset-x-0 top-0 z-50 border-b border-rose-400/50 bg-rose-950/90 pt-safe pb-1 text-center text-xs font-semibold tracking-[0.2em] text-rose-200 uppercase backdrop-blur">
+    <div className="font-hud fixed inset-x-0 top-0 z-50 border-b border-rose-400/50 bg-rose-950/90 pt-safe pb-1 text-center text-xs font-semibold tracking-[0.2em] text-rose-200 uppercase">
       ⚠ {!server ? 'Link em tempo real perdido — reconectando' : 'Home Assistant offline — estados podem estar desatualizados'}
     </div>
   );
@@ -33,7 +33,7 @@ export function Layout() {
       <AnimatedBackground />
       <ConnectionBar />
       {/* Barra lateral (tablet/computador) */}
-      <aside className="relative z-10 hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/60 p-4 backdrop-blur md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
+      <aside className="relative z-10 hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-cyan-300/10 bg-ink-950/90 p-4 md:flex [@media(max-height:560px)]:w-16 [@media(max-height:560px)]:p-2">
         <div className="mb-8 px-2 pt-2 [@media(max-height:560px)]:mb-3 [@media(max-height:560px)]:px-0 [@media(max-height:560px)]:text-center">
           <p className="hud-title hud-glow text-lg font-bold text-cyan-50 [@media(max-height:560px)]:text-[11px]">LUNA</p>
           <p className="hud-label mt-0.5 text-[9px] [@media(max-height:560px)]:hidden">assistente // v0.1</p>
@@ -69,7 +69,7 @@ export function Layout() {
       </main>
 
       {/* Navegação inferior (celular) */}
-      <nav className="relative z-40 grid shrink-0 grid-cols-7 border-t border-cyan-300/20 bg-ink-950/92 pb-safe shadow-[0_-8px_24px_rgba(0,229,255,0.06)] backdrop-blur-xl md:hidden">
+      <nav className="relative z-40 grid shrink-0 grid-cols-7 border-t border-cyan-300/20 bg-ink-950 pb-safe shadow-[0_-8px_24px_rgba(0,229,255,0.06)] md:hidden">
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}

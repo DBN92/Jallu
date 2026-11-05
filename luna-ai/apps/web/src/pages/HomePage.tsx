@@ -253,7 +253,6 @@ export default function HomePage() {
   }, [ambientEnabled, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
   const hasChat = messages.length > 0 || !!interim;
-  const level = realtime.active ? realtime.level : 0;
   const err = voiceError ?? realtime.error ?? wake.error;
 
   return (
@@ -317,7 +316,7 @@ export default function HomePage() {
                 </p>
               </div>
             )}
-            <LunaOrb state={state} level={level} size={hasChat ? Math.min(150, Math.round(vh * 0.22)) : Math.max(150, Math.min(270, Math.round(vh * 0.42)))} onClick={onMic} label={STATE_LABEL[state]} />
+            <LunaOrb state={state} levelRef={realtime.levelRef} size={hasChat ? Math.min(150, Math.round(vh * 0.22)) : Math.max(150, Math.min(270, Math.round(vh * 0.42)))} onClick={onMic} label={STATE_LABEL[state]} />
             {!hasChat && (
               <p className="home-tall-only font-hud mt-3 max-w-sm text-center text-sm text-cyan-100/45">
                 Toque no núcleo para falar · “acenda a luz da sala” · “vai chover hoje?”
@@ -396,7 +395,7 @@ export default function HomePage() {
       <VoiceFocus
         open={voiceFocus}
         state={state}
-        level={level}
+        levelRef={realtime.levelRef}
         heard={state === 'listening' ? interim : lastHeard}
         reply={state === 'listening' ? '' : lastReply}
         hint={voiceMode === 'realtime' ? 'Pode falar — estou ouvindo.' : 'Fale agora…'}
@@ -434,7 +433,7 @@ export default function HomePage() {
             setNeedsTap(false);
             setTick((t) => t + 1);
           }}
-          className="overlay-full z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center backdrop-blur-sm"
+          className="overlay-full z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center"
         >
           <span className="hud-title hud-glow text-2xl font-bold text-cyan-50">TOQUE PARA ATIVAR</span>
           <span className="font-hud max-w-sm text-base text-cyan-100/70">

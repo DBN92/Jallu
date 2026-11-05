@@ -74,18 +74,15 @@ body {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px);
-  mix-blend-mode: overlay;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
 }
 
 /* ---------- Painéis HUD (cantos chanfrados + colchetes) ---------- */
 .glass,
 .hud-panel {
   position: relative;
-  background: linear-gradient(180deg, rgba(8, 26, 42, 0.78), rgba(4, 14, 24, 0.7));
+  background: linear-gradient(180deg, rgba(8, 26, 42, 0.9), rgba(4, 14, 24, 0.86));
   border: 1px solid var(--hud-line);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   box-shadow: inset 0 0 24px rgba(0, 229, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
 .hud-panel {
@@ -156,17 +153,20 @@ body {
 .hud-core[data-state='acting'] { --core: #ffb547; --spin: 5; }
 .hud-core[data-state='speaking'] { --core: #3aa8ff; --spin: 1.4; }
 .hud-core[data-state='error'] { --core: #ff4d6a; --spin: 0.3; }
-.hud-core .spin-slow { animation: spin calc(90s / var(--spin)) linear infinite; transform-origin: 150px 150px; }
-.hud-core .spin-rev { animation: spin calc(40s / var(--spin)) linear infinite reverse; transform-origin: 150px 150px; }
-.hud-core .spin-fast { animation: spin calc(14s / var(--spin)) linear infinite; transform-origin: 150px 150px; }
-.hud-core .core-glow { animation: breathe 4s ease-in-out infinite; transform-origin: 150px 150px; }
-.hud-core[data-state='listening'] .core-glow { animation-duration: 1.4s; }
-.hud-core[data-state='speaking'] .core-glow { animation-duration: 0.8s; }
-.hud-core[data-state='listening'] .pulse-ring { animation: ripple 1.8s ease-out infinite; transform-origin: 150px 150px; }
+/* Camadas do núcleo: só transform/opacity (composição na GPU, sem repintura) */
+.hud-core .orb-layer { position: absolute; inset: 0; will-change: transform; pointer-events: none; }
+.hud-core .orb-spin-slow { animation: spin 80s linear infinite; }
+.hud-core .orb-spin-rev { animation: spin 36s linear infinite reverse; }
+.hud-core .orb-spin-fast { animation: spin 12s linear infinite; }
+.hud-core[data-state='processing'] .orb-spin-fast, .hud-core[data-state='acting'] .orb-spin-fast { animation-duration: 3s; }
+.hud-core[data-state='processing'] .orb-spin-rev, .hud-core[data-state='acting'] .orb-spin-rev { animation-duration: 10s; }
+.hud-core .orb-glow { filter: drop-shadow(0 0 3px currentColor); }
+.hud-core .orb-pulse { opacity: 0; }
+.hud-core[data-state='listening'] .orb-pulse { animation: ripple 1.8s ease-out infinite; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes breathe { 0%, 100% { opacity: 0.7; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1.03); } }
-@keyframes ripple { 0% { transform: scale(0.9); opacity: 0.9; } 100% { transform: scale(1.25); opacity: 0; } }
+@keyframes ripple { 0% { transform: scale(0.95); opacity: 0.9; } 100% { transform: scale(1.12); opacity: 0; } }
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes blink { 50% { opacity: 0.25; } }
 .animate-fade-up { animation: fade-up 260ms ease-out both; }
@@ -176,7 +176,7 @@ body {
 .orb { width: var(--size, 220px); height: var(--size, 220px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .hud-core .spin-slow, .hud-core .spin-rev, .hud-core .spin-fast, .hud-core .core-glow, .hud-core .pulse-ring { animation: none !important; }
+  .hud-core .orb-layer { animation: none !important; }
 }
 
 input[type='range'] { accent-color: #00e5ff; }
@@ -209,18 +209,6 @@ select option { background: #050c14; }
   .home-mobile-only, .home-tall-only { display: none; }
 }
 
-/* ---------- Avatar ---------- */
-.hud-core .globe-float { animation: avatar-float 7s ease-in-out infinite; }
-.hud-core .eye-spin { animation: spin 0.9s linear infinite; transform-origin: 0 0; }
-.hud-core .scan-move { animation: scan-move 3s linear infinite; }
-.hud-core .ear-wave { animation: ear-wave 1.2s ease-out infinite; transform-origin: 150px 150px; }
-@keyframes avatar-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes scan-move { from { transform: translateY(0); } to { transform: translateY(8px); } }
-@keyframes ear-wave { 0% { opacity: 0.9; transform: scale(0.97); } 100% { opacity: 0; transform: scale(1.08); } }
-@media (prefers-reduced-motion: reduce) {
-  .hud-core .globe-float, .hud-core .eye-spin, .hud-core .scan-move, .hud-core .ear-wave { animation: none !important; }
-}
-
 /* ---------- Fundo animado ---------- */
 .hud-beam {
   position: absolute;
@@ -230,12 +218,13 @@ select option { background: #050c14; }
   top: -120px;
   background: linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.025) 60%, rgba(0, 229, 255, 0.08) 98%, transparent);
   animation: beam 11s linear infinite;
+  will-change: transform;
 }
 @keyframes beam { from { transform: translateY(0); } to { transform: translateY(calc(100vh + 240px)); } }
 @media (prefers-reduced-motion: reduce) { .hud-beam { display: none; } }
 
 /* ---------- Modo ambiente ---------- */
-@keyframes ambient-in { from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ambient-in { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes ambient-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .ambient-slide { animation: ambient-in 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
@@ -245,10 +234,11 @@ select option { background: #050c14; }
 /* ---------- Conversa por voz em tela cheia ---------- */
 @keyframes focus-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes focus-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes orb-grow { from { transform: scale(0.35) translateY(-20%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes orb-shrink { from { transform: none; opacity: 1; } to { transform: scale(0.35) translateY(-20%); opacity: 0; } }
+@keyframes orb-grow { from { transform: translate3d(0, -20%, 0) scale(0.35); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes orb-shrink { from { transform: none; opacity: 1; } to { transform: translate3d(0, -20%, 0) scale(0.35); opacity: 0; } }
 .focus-in { animation: focus-in 350ms ease both; }
 .focus-out { animation: focus-out 450ms ease both; }
+.focus-orb { will-change: transform, opacity; }
 .focus-in .focus-orb { animation: orb-grow 600ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
 .focus-out .focus-orb { animation: orb-shrink 450ms ease both; }
 

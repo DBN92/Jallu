@@ -30,7 +30,7 @@ export function useRealtimeVoice(opts: {
   const [active, setActive] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [level, setLevel] = useState(0);
+  const levelRef = useRef(0);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const micRef = useRef<MediaStream | null>(null);
@@ -85,7 +85,7 @@ export function useRealtimeVoice(opts: {
     micRef.current = null;
     setActive(false);
     setConnecting(false);
-    setLevel(0);
+    levelRef.current = 0;
     optsRef.current.onState('idle');
   }, []);
 
@@ -116,7 +116,7 @@ export function useRealtimeVoice(opts: {
         a.getByteTimeDomainData(buf);
         for (const v of buf) max = Math.max(max, Math.abs(v - 128) / 128);
       }
-      setLevel(Math.min(1, max * 2.2));
+      levelRef.current = Math.min(1, max * 2.2);
       rafRef.current = requestAnimationFrame(tick);
     };
     tick();
@@ -275,5 +275,5 @@ export function useRealtimeVoice(opts: {
 
   useEffect(() => () => stop(), [stop]);
 
-  return { active, connecting, error, level, start, stop, interrupt };
+  return { active, connecting, error, levelRef, start, stop, interrupt };
 }
