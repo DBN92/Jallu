@@ -91,4 +91,14 @@ MediaPipe (Google), que roda **no próprio aparelho** — nenhuma imagem vai par
 ser mantido ~1 s (mão passando não conta); a mesma regra não repete por 5 s. A ação passa pelo servidor com
 as mesmas validações e fica no histórico (origem “gesture”). O modelo (~8 MB) é baixado no build com sha256 conferido.
 
+Como a Luna melhora o reconhecimento:
+- **Segue a mão:** depois de achar a mão, analisa só a região em volta dela (zoom) nos quadros seguintes.
+- **Procura mãos pequenas:** sem mão na imagem inteira, procura em 4 partes ampliadas (uma por quadro).
+- **Tolera falhas:** decide pela maioria dos quadros recentes — um quadro borrado não cancela o gesto.
+- **Sensibilidade** (por aparelho): *Alta* (longe/escuro), *Normal* ou *Precisa* (quase não aciona sem querer).
+- Câmeras diretas enviam 4 quadros/s da área escolhida, até 1280 px.
+
+A prévia mostra “mão vista — gesto não reconhecido” quando acha a mão mas não entende o gesto
+(aproxime, vire a palma para a câmera ou melhore a luz) e como a mão foi achada (zoom, partes, imagem inteira).
+
 Dicas: de frente para a câmera, a 1–3 m, com luz. À noite (infravermelho) funciona pior.

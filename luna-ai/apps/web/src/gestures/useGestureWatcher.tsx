@@ -3,8 +3,8 @@ import { create } from 'zustand';
 import type { GestureRuleDto } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useSettings } from '../stores/settings';
-import { GestureStabilizer } from './stabilizer';
-import { cameraFrame, detect, loadRecognizer } from './recognizer';
+import { GestureStabilizer, SENSITIVITY } from './stabilizer';
+import { cameraFrame, HandTracker, loadRecognizer } from './recognizer';
 
 interface GestureToastState {
   toast: { text: string; ok: boolean; at: number } | null;
@@ -21,7 +21,7 @@ export const useGestureToast = create<GestureToastState>((set) => ({
   setStatus: (status) => set({ status }),
 }));
 
-const INTERVAL_MS = 330; // ~3 análises por segundo por câmera
+const INTERVAL_MS = 250; // ~4 análises por segundo por câmera
 
 /**
  * Analisa gestos neste aparelho (ligado em Ajustes › Gestos): olha só as câmeras que têm regras
@@ -30,6 +30,7 @@ const INTERVAL_MS = 330; // ~3 análises por segundo por câmera
  */
 export function useGestureWatcher(enabled: boolean) {
   const on = useSettings((s) => s.gestureWatch) && enabled;
+  const sensitivity = useSettings((s) => s.gestureSensitivity);
 
   useEffect(() => {
     if (!on) {
@@ -42,6 +43,7 @@ export function useGestureWatcher(enabled: boolean) {
     let video: HTMLVideoElement | null = null;
     let stream: MediaStream | null = null;
     const stabilizers = new Map<string, GestureStabilizer>();
+    const trackers = new Map<string, HandTracker>();
     const status = useGestureToast.getState().setStatus;
 
     const loadRules = async () => {
@@ -106,10 +108,12 @@ export function useGestureWatcher(enabled: boolean) {
             }
             else img = await cameraFrame(src, ctrl.signal);
             if (!img) continue;
-            const d = await detect(img);
+            let tr = trackers.get(src);
+            if (!tr) trackers.set(src, (tr = new HandTracker()));
+            const d = await tr.analyze(img);
             if (img instanceof ImageBitmap) img.close();
             let st = stabilizers.get(src);
-            if (!st) stabilizers.set(src, (st = new GestureStabilizer()));
+            if (!st) stabilizers.set(src, (st = new GestureStabilizer(SENSITIVITY[sensitivity])));
             const g = st.push(d.gesture, d.score, Date.now());
             if (g) void fire(g, src);
           } catch {
@@ -125,7 +129,7 @@ export function useGestureWatcher(enabled: boolean) {
       ctrl.abort();
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [on]);
+  }, [on, sensitivity]);
 }
 
 /** Aviso flutuante quando um gesto aciona algo. */

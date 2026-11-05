@@ -325,8 +325,8 @@ export class DirectCamerasService {
       '-hls_segment_filename', join(dir, 'seg%05d.ts'), join(dir, 'index.m3u8'),
       // Foto atual, 1 por segundo
       '-map', '0:v:0', '-vf', `fps=1,${scale}`, '-q:v', '6', '-f', 'image2', '-update', '1', join(dir, 'latest.jpg'),
-      // Quadros para gestos: 3 por segundo, só a área escolhida e na resolução original (a mão fica maior)
-      '-map', '0:v:0', '-vf', `fps=3,${zoneCrop(parseZone(r.gestureZone))}scale='min(720,iw)':-2`, '-q:v', '5', '-f', 'image2', '-update', '1', join(dir, 'gesture.jpg'),
+      // Quadros para gestos: 4 por segundo, só a área escolhida, até 1280 px (a mão fica maior)
+      '-map', '0:v:0', '-vf', `fps=4,${zoneCrop(parseZone(r.gestureZone))}scale='min(1280,iw)':-2`, '-q:v', '5', '-f', 'image2', '-update', '1', join(dir, 'gesture.jpg'),
     ];
     const proc = spawn(ff, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     const s: Session = { proc, dir, lastUsed: Date.now(), stderr: [], exited: false };

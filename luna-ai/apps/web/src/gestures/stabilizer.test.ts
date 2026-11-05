@@ -1,33 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { GestureStabilizer, mapCategory } from './stabilizer';
+import { GestureStabilizer, mapCategory, SENSITIVITY } from './stabilizer';
+import type { GestureName } from '@luna/shared/types';
 
-describe('gestos: estabilizador', () => {
-  it('só dispara com o gesto mantido ~1 s e não repete com a mão parada', () => {
-    const s = new GestureStabilizer(900, 3, 4000);
-    expect(s.push('open_palm', 0.9, 0)).toBeNull();
-    expect(s.push('open_palm', 0.9, 330)).toBeNull();
-    expect(s.push('open_palm', 0.9, 660)).toBeNull();
-    expect(s.push('open_palm', 0.9, 990)).toBe('open_palm');
-    expect(s.push('open_palm', 0.9, 1320)).toBeNull(); // mão continua aberta
-    expect(s.push('open_palm', 0.9, 6000)).toBeNull(); // ainda o mesmo gesto contínuo
+/** Simula quadros a cada `step` ms; retorna os instantes em que disparou. */
+function run(s: GestureStabilizer, frames: (GestureName | null)[], step = 250, score = 0.9, t0 = 0) {
+  const fired: [number, GestureName][] = [];
+  frames.forEach((g, i) => {
+    const t = t0 + i * step;
+    const r = s.push(g, score, t);
+    if (r) fired.push([t, r]);
+  });
+  return fired;
+}
+
+describe('gestos: estabilizador (janela com tolerância)', () => {
+  it('dispara com o gesto mantido ~0,8 s e não repete com a mão parada', () => {
+    const s = new GestureStabilizer(SENSITIVITY.normal);
+    const fired = run(s, Array(30).fill('open_palm'));
+    expect(fired).toEqual([[1000, 'open_palm']]);
   });
 
-  it('mão passando (um quadro só) ou com baixa confiança não dispara', () => {
-    const s = new GestureStabilizer(900, 3, 4000);
-    expect(s.push('open_palm', 0.9, 0)).toBeNull();
-    expect(s.push(null, 0, 330)).toBeNull();
-    expect(s.push('closed_fist', 0.4, 660)).toBeNull();
-    expect(s.push('closed_fist', 0.4, 990)).toBeNull();
-    expect(s.push('closed_fist', 0.4, 2000)).toBeNull();
+  it('um quadro perdido no meio não cancela o gesto', () => {
+    const s = new GestureStabilizer(SENSITIVITY.normal);
+    const fired = run(s, ['open_palm', 'open_palm', null, 'open_palm', 'open_palm', 'open_palm']);
+    expect(fired.length).toBe(1);
   });
 
-  it('respeita o intervalo entre gestos diferentes', () => {
-    const s = new GestureStabilizer(900, 3, 4000);
-    [0, 330, 660].forEach((t) => s.push('open_palm', 0.9, t));
-    expect(s.push('open_palm', 0.9, 990)).toBe('open_palm');
-    [1300, 1630, 1960].forEach((t) => s.push('closed_fist', 0.9, t));
-    expect(s.push('closed_fist', 0.9, 2300)).toBeNull(); // dentro dos 4 s
-    expect(s.push('closed_fist', 0.9, 5100)).toBe('closed_fist');
+  it('mão passando ou baixa certeza não dispara', () => {
+    const s = new GestureStabilizer(SENSITIVITY.normal);
+    expect(run(s, ['open_palm', null, null, null, 'open_palm', null, null])).toEqual([]);
+    expect(run(new GestureStabilizer(SENSITIVITY.normal), Array(10).fill('closed_fist'), 250, 0.4)).toEqual([]);
+  });
+
+  it('precisa soltar a mão para repetir; outro gesto respeita o intervalo', () => {
+    const s = new GestureStabilizer(SENSITIVITY.normal);
+    const frames: (GestureName | null)[] = [...Array(8).fill('open_palm'), ...Array(6).fill(null), ...Array(30).fill('closed_fist')];
+    const fired = run(s, frames);
+    expect(fired[0]).toEqual([1000, 'open_palm']);
+    // punho mantido: só dispara após o intervalo de 4 s desde o primeiro disparo
+    expect(fired[1]![1]).toBe('closed_fist');
+    expect(fired[1]![0]).toBeGreaterThanOrEqual(5000);
+    expect(fired).toHaveLength(2);
+  });
+
+  it('sensibilidade alta aciona com menos quadros e menos certeza', () => {
+    expect(run(new GestureStabilizer(SENSITIVITY.alta), Array(4).fill('victory'), 250, 0.5).length).toBe(1);
+    expect(run(new GestureStabilizer(SENSITIVITY.precisa), Array(4).fill('victory'), 250, 0.5).length).toBe(0);
   });
 
   it('traduz as categorias do reconhecedor', () => {

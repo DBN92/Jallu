@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { SettingsDto, SettingsUpdate } from '@luna/shared';
 import { api } from '../services/api';
 import { isTvDevice } from '../lib/tv';
+import type { Sensitivity } from '../gestures/stabilizer';
 
 export type VoiceMode = 'basic' | 'realtime';
 export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
@@ -38,6 +39,8 @@ interface SettingsState {
   tvMode: TvModePref;
   /** Este aparelho analisa gestos de mão (câmeras com regras e/ou a câmera dele). */
   gestureWatch: boolean;
+  /** Sensibilidade dos gestos neste aparelho */
+  gestureSensitivity: Sensitivity;
   load: () => Promise<void>;
   update: (patch: SettingsUpdate) => Promise<void>;
   setHome: (home: { name: string; latitude: number; longitude: number } | null) => Promise<void>;
@@ -48,6 +51,7 @@ interface SettingsState {
   setAmbientMode: (v: boolean) => void;
   setTvMode: (v: TvModePref) => void;
   setGestureWatch: (v: boolean) => void;
+  setGestureSensitivity: (v: Sensitivity) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -59,6 +63,7 @@ export const useSettings = create<SettingsState>((set) => ({
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
+  gestureSensitivity: readLocal<Sensitivity>('luna.gestureSensitivity', 'normal'),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -70,6 +75,10 @@ export const useSettings = create<SettingsState>((set) => ({
   setAmbientMode: (ambientMode) => {
     writeLocal('luna.ambientMode', ambientMode);
     set({ ambientMode });
+  },
+  setGestureSensitivity: (gestureSensitivity) => {
+    writeLocal('luna.gestureSensitivity', gestureSensitivity);
+    set({ gestureSensitivity });
   },
   setGestureWatch: (gestureWatch) => {
     writeLocal('luna.gestureWatch', gestureWatch);

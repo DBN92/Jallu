@@ -7,7 +7,8 @@ import { useDevices } from '../stores/devices';
 import { useSettings } from '../stores/settings';
 import { Button, Toggle } from '../components/ui';
 import { useGestureToast } from './useGestureWatcher';
-import { cameraFrame, detect, type Detection } from './recognizer';
+import { cameraFrame, HandTracker, type Detection } from './recognizer';
+import type { Sensitivity } from './stabilizer';
 
 const ACTIONS: { value: GestureRuleDto['action']; label: string }[] = [
   { value: 'turn_on', label: 'Ligar' },
@@ -22,6 +23,8 @@ export function GestureSettings({ isAdmin }: { isAdmin: boolean }) {
   const watch = useSettings((s) => s.gestureWatch);
   const setWatch = useSettings((s) => s.setGestureWatch);
   const status = useGestureToast((s) => s.status);
+  const sensitivity = useSettings((s) => s.gestureSensitivity);
+  const setSensitivity = useSettings((s) => s.setGestureSensitivity);
   const { cameras, load: loadCameras } = useCameras();
   const devices = useDevices((s) => s.devices);
   const [rules, setRules] = useState<GestureRuleDto[] | null>(null);
@@ -75,6 +78,28 @@ export function GestureSettings({ isAdmin }: { isAdmin: boolean }) {
           <p className="text-xs text-white/40">Estado: {status}</p>
         </div>
         <Toggle label="Analisar gestos neste aparelho" checked={watch} onChange={setWatch} />
+      </div>
+      <div>
+        <p className="mb-1 text-xs text-white/50">Sensibilidade neste aparelho</p>
+        <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
+          {(
+            [
+              ['alta', 'Alta', 'longe/escuro'],
+              ['normal', 'Normal', 'equilibrada'],
+              ['precisa', 'Precisa', 'sem acionar à toa'],
+            ] as [Sensitivity, string, string][]
+          ).map(([v, label, hint]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setSensitivity(v)}
+              className={`rounded-sm py-1.5 text-sm leading-tight ${sensitivity === v ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}
+            >
+              {label}
+              <span className="block text-[10px] text-white/40">{hint}</span>
+            </button>
+          ))}
+        </div>
       </div>
       {error && <p className="text-xs text-rose-300">{error}</p>}
 
@@ -180,6 +205,7 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
     let alive = true;
     let stream: MediaStream | null = null;
     const video = document.createElement('video');
+    const tracker = new HandTracker();
     (async () => {
       try {
         if (source === 'device') {
@@ -193,7 +219,7 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
           const img = source === 'device' ? video : await cameraFrame(source);
           const w = img instanceof HTMLVideoElement ? img.videoWidth : img.width;
           const h = img instanceof HTMLVideoElement ? img.videoHeight : img.height;
-          const d = await detect(img);
+          const d = await tracker.analyze(img);
           const c = canvas.current;
           if (c && w) {
             c.width = w;
@@ -209,7 +235,7 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
           if (img instanceof ImageBitmap) img.close();
           setDet(d);
           setMsg('');
-          await new Promise((r) => setTimeout(r, 300));
+          await new Promise((r) => setTimeout(r, 250));
         }
       } catch (e) {
         setMsg(errorMessage(e));
@@ -231,8 +257,18 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
       </div>
       <canvas ref={canvas} className="w-full rounded-sm bg-black" style={{ transform: source === 'device' ? 'scaleX(-1)' : undefined }} />
       <p className="font-hud text-center text-lg text-cyan-50">
-        {msg || (det?.gesture ? `${GESTURE_LABELS[det.gesture].emoji} ${GESTURE_LABELS[det.gesture].label} · ${Math.round(det.score * 100)}%` : 'nenhum gesto')}
+        {msg ||
+          (det?.gesture
+            ? `${GESTURE_LABELS[det.gesture].emoji} ${GESTURE_LABELS[det.gesture].label} · ${Math.round(det.score * 100)}%`
+            : det?.box
+              ? 'mão vista — gesto não reconhecido'
+              : 'nenhuma mão')}
       </p>
+      {det?.via && (
+        <p className="text-center text-xs text-cyan-200/60">
+          {det.via === 'track' ? 'seguindo a mão (zoom)' : det.via === 'tile' ? 'mão pequena: achada procurando por partes' : 'achada na imagem inteira'}
+        </p>
+      )}
       <p className="text-center text-xs text-white/40">Dica: de frente para a câmera, mão bem visível. Se a mão parecer pequena, defina a “Área da câmera” só onde você costuma ficar.</p>
     </div>
   );
