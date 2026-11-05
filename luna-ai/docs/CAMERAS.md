@@ -66,3 +66,12 @@ Como funciona: enquanto alguém assiste, um único ffmpeg por câmera converte o
 (até 960 px, 10 quadros/s)**, que toca no iPhone, Android e Fire TV, e grava uma foto por segundo.
 Sem ninguém assistindo por 45 s, ele desliga sozinho (não gasta CPU à toa).
 Câmeras diretas não têm girar/inclinar (isso exige ONVIF no Home Assistant).
+
+### Movimento das câmeras diretas (girar, inclinar, zoom)
+
+Em **Ajustes › Câmeras diretas**, toque em **Ativar movimento** na câmera. A Luna procura o ONVIF nas
+portas comuns (5000 nas Yoosee, depois 80, 8899, 8000, 8080, 2020), autentica com o mesmo usuário/senha
+(digest WS-Security, a senha não trafega em texto) e salva a porta encontrada. Depois disso aparecem os
+controles na tela da câmera (segure para mover) e, na TV, as setas do controle giram a câmera.
+Se todas as portas aparecerem como “fechada”, o ONVIF está desligado: ative **ONVIF** ou **NVR** nas
+configurações da câmera no app do fabricante. Se o comando para não chegar, a câmera para sozinha em 2,5 s.

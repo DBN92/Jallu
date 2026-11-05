@@ -144,8 +144,17 @@ export class CamerasService {
 
   /** Movimento da câmera (ONVIF): girar, inclinar e zoom. */
   async ptz(entityId: string, action: PtzAction, userId: string) {
+    if (this.direct?.isDirect(entityId)) {
+      try {
+        await this.direct.ptz(entityId, action);
+        if (action !== 'stop') await this.logs.log({ userId, source: 'ui', tool: 'camera_ptz', target: entityId, args: { action }, success: true });
+      } catch (err) {
+        await this.logs.log({ userId, source: 'ui', tool: 'camera_ptz', target: entityId, args: { action }, success: false, detail: (err as Error).message });
+        throw err;
+      }
+      return { ok: true };
+    }
     const cam = await this.get(entityId);
-    if (cam.platform === 'luna') throw badRequest(`${cam.name} é lida diretamente pela Luna, sem controle de movimento (é preciso ONVIF no Home Assistant).`);
     if (!cam.ptz) throw badRequest(`${cam.name} não tem controle de movimento pelo Home Assistant (é preciso a integração ONVIF).`);
     const data: Record<string, unknown> = { entity_id: entityId };
     if (action === 'stop') data.move_mode = 'Stop';

@@ -106,7 +106,13 @@ export function CameraControls({ camera, containerRef }: { camera: CameraDto; co
         </div>
       </div>
       <Diagnose camera={camera} />
-      {!camera.ptz && <p className="font-hud text-center text-xs text-cyan-100/45">Para girar/inclinar, adicione esta câmera ao Home Assistant pela integração ONVIF.</p>}
+      {!camera.ptz && (
+        <p className="font-hud text-center text-xs text-cyan-100/45">
+          {camera.platform === 'luna'
+            ? 'Para girar/inclinar: Ajustes › Câmeras diretas › Ativar movimento.'
+            : 'Para girar/inclinar, adicione esta câmera ao Home Assistant pela integração ONVIF.'}
+        </p>
+      )}
       {error && <p className="font-hud text-center text-xs text-rose-300">{error}</p>}
     </div>
   );

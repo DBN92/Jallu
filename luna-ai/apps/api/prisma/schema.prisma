@@ -153,6 +153,7 @@ model DirectCamera {
   username  String?
   password  String?
   transport String   @default("udp") // udp | tcp
+  onvifPort Int? // porta ONVIF detectada (movimento); vazio = sem movimento
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

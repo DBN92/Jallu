@@ -56,6 +56,10 @@ export async function cameraRoutes(app: FastifyInstance) {
   app.post('/api/cameras/direct', { preHandler: requireAdmin }, async (req) => directCameras.create(directBody.parse(req.body)));
   app.patch('/api/cameras/direct/:id', { preHandler: requireAdmin }, async (req) => directCameras.update(directId.parse(req.params).id, directBody.partial().parse(req.body)));
   app.delete('/api/cameras/direct/:id', { preHandler: requireAdmin }, async (req) => directCameras.remove(directId.parse(req.params).id));
+  app.post('/api/cameras/direct/:id/onvif', { preHandler: requireAdmin, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) =>
+    directCameras.detectOnvif(directId.parse(req.params).id, z.object({ port: z.coerce.number().int().min(1).max(65535).optional() }).parse(req.body ?? {}).port),
+  );
+  app.delete('/api/cameras/direct/:id/onvif', { preHandler: requireAdmin }, async (req) => directCameras.disableOnvif(directId.parse(req.params).id));
   app.post('/api/cameras/direct/test', { preHandler: requireAdmin, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) =>
     directCameras.test(directBody.omit({ name: true }).extend({ id: z.string().regex(/^[a-z0-9]{8,40}$/).optional() }).parse(req.body)),
   );

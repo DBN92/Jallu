@@ -3,7 +3,8 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { CameraDto } from '@luna/shared';
+import type { CameraDto, PtzAction } from '@luna/shared';
+import { ONVIF_PORTS, OnvifClient, OnvifError } from '../../integrations/onvif/onvif-client';
 import type { Db } from '../../lib/db';
 import { AppError, badRequest, notFound } from '../../lib/errors';
 import { PROJECT_ROOT } from '../../config/env';
@@ -29,9 +30,11 @@ export interface DirectCameraInfo {
   username: string | null;
   hasPassword: boolean;
   transport: 'udp' | 'tcp';
+  /** Porta ONVIF ativa (movimento) ou null */
+  onvifPort: number | null;
 }
 
-type Row = { id: string; name: string; url: string; username: string | null; password: string | null; transport: string };
+type Row = { id: string; name: string; url: string; username: string | null; password: string | null; transport: string; onvifPort: number | null };
 
 interface Session {
   proc: ChildProcess;
@@ -125,7 +128,7 @@ export class DirectCamerasService {
   }
 
   private info(r: Row): DirectCameraInfo {
-    return { id: r.id, entityId: DIRECT_PREFIX + r.id, name: r.name, url: r.url, username: r.username, hasPassword: !!r.password, transport: r.transport === 'tcp' ? 'tcp' : 'udp' };
+    return { id: r.id, entityId: DIRECT_PREFIX + r.id, name: r.name, url: r.url, username: r.username, hasPassword: !!r.password, transport: r.transport === 'tcp' ? 'tcp' : 'udp', onvifPort: r.onvifPort };
   }
 
   async listInfo(): Promise<DirectCameraInfo[]> {
@@ -140,7 +143,7 @@ export class DirectCamerasService {
       state: this.sessions.has(DIRECT_PREFIX + r.id) ? 'streaming' : 'idle',
       available: ff,
       stream: ff,
-      ptz: false,
+      ptz: !!r.onvifPort,
       platform: 'luna',
     }));
   }
@@ -168,6 +171,7 @@ export class DirectCamerasService {
     if (input.password) data.password = input.password;
     if (input.transport) data.transport = input.transport;
     const r = await this.db.directCamera.update({ where: { id: cur.id }, data });
+    this.onvif.delete(DIRECT_PREFIX + id);
     await this.stop(DIRECT_PREFIX + id); // reabre com a nova configuração
     return this.info(r);
   }
@@ -201,6 +205,67 @@ export class DirectCamerasService {
         done({ ok: false, detail: explain(err, code), ms });
       });
     });
+  }
+
+  /* ---------------- movimento (ONVIF direto) ---------------- */
+
+  private onvif = new Map<string, OnvifClient>();
+  private autoStop = new Map<string, NodeJS.Timeout>();
+
+  private client(r: Row, port: number) {
+    const host = new URL(r.url).hostname.replace(/^\[|\]$/g, '');
+    return new OnvifClient({ host, port, username: r.username, password: r.password });
+  }
+
+  /**
+   * Procura a porta ONVIF (5000 nas Yoosee) e confirma que o movimento responde.
+   * Ao achar, salva — a câmera passa a mostrar os controles de girar/inclinar.
+   */
+  async detectOnvif(id: string, preferred?: number) {
+    const r = await this.row(DIRECT_PREFIX + id);
+    const ports = [...new Set([preferred, r.onvifPort, ...ONVIF_PORTS].filter((p): p is number => !!p))];
+    const tried: string[] = [];
+    for (const port of ports) {
+      try {
+        await this.client(r, port).resolve();
+        await this.db.directCamera.update({ where: { id }, data: { onvifPort: port } });
+        this.onvif.delete(DIRECT_PREFIX + id);
+        return { ok: true, port, detail: `movimento ativado (ONVIF na porta ${port})` };
+      } catch (err) {
+        const msg = err instanceof OnvifError ? err.message : (err as Error).message;
+        // Porta certa mas recusou login/PTZ: não adianta tentar as outras
+        if (/senha|PTZ|perfil/.test(msg)) return { ok: false, port, detail: `porta ${port}: ${msg}` };
+        tried.push(`${port}: ${msg}`);
+      }
+    }
+    return { ok: false, port: null, detail: `ONVIF não encontrado na câmera (portas testadas — ${tried.join(' · ')}). Ative “ONVIF” ou “NVR” no app da câmera e tente de novo.` };
+  }
+
+  async disableOnvif(id: string) {
+    await this.row(DIRECT_PREFIX + id);
+    await this.db.directCamera.update({ where: { id }, data: { onvifPort: null } });
+    this.onvif.delete(DIRECT_PREFIX + id);
+    return { ok: true };
+  }
+
+  async ptz(entityId: string, action: PtzAction) {
+    const r = await this.row(entityId);
+    if (!r.onvifPort) throw badRequest(`${r.name} ainda não tem o movimento ativado (Ajustes › Câmeras diretas › Ativar movimento).`);
+    let c = this.onvif.get(entityId);
+    if (!c) {
+      c = this.client(r, r.onvifPort);
+      this.onvif.set(entityId, c);
+    }
+    clearTimeout(this.autoStop.get(entityId));
+    try {
+      await c.move(action);
+    } catch (err) {
+      this.onvif.delete(entityId); // redescobre na próxima (a câmera pode ter reiniciado)
+      throw new AppError(502, `Não consegui mover ${r.name}: ${(err as Error).message}`, 'ptz_error');
+    }
+    // Segurança: se o “soltar” se perder (rede/celular), para sozinho
+    if (action !== 'stop') this.autoStop.set(entityId, setTimeout(() => void c!.move('stop').catch(() => undefined), 2500).unref());
+    return { ok: true };
   }
 
   /* ---------------- sessões de vídeo ---------------- */
