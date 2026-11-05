@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { MessageList } from '../components/Messages';
-import { ClockPanel, DevicesPanel, SensorsPanel, SystemPanel, WeatherPanel } from '../components/Dashboard';
+import { EnvPanel, HomeRingPanel, LocationPanel, RoutinePanel, StatusPanel, VoicePanel } from '../components/HudPanels';
+import { useAutomations, useHealth } from '../hooks/useHudData';
+import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
 import { VoiceFocus } from '../components/VoiceFocus';
 import { Banner } from '../components/ui';
@@ -18,10 +20,10 @@ import { useSettings } from '../stores/settings';
 import { greeting, playChime, STATE_LABEL } from '../lib/text';
 import { takeSentences } from '../lib/speechText';
 
-function useViewportHeight() {
-  const [h, setH] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
+function useViewport() {
+  const [v, setV] = useState(() => ({ w: typeof window === 'undefined' ? 400 : window.innerWidth, h: typeof window === 'undefined' ? 800 : window.innerHeight }));
   useEffect(() => {
-    const on = () => setH(window.innerHeight);
+    const on = () => setV({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener('resize', on);
     window.addEventListener('orientationchange', on);
     return () => {
@@ -29,7 +31,7 @@ function useViewportHeight() {
       window.removeEventListener('orientationchange', on);
     };
   }, []);
-  return h;
+  return v;
 }
 
 const STATE_DOT: Record<string, string> = {
@@ -240,7 +242,7 @@ export default function HomePage() {
     inputRef.current?.focus();
   };
 
-  const vh = useViewportHeight();
+  const { w: vw, h: vh } = useViewport();
 
   const voiceBusy = realtime.active || realtime.connecting || sr.listening || recorder.recording || tts.speaking || (voiceFocus && state !== 'idle' && state !== 'error');
   useEffect(() => {
@@ -283,29 +285,46 @@ export default function HomePage() {
     return () => clearInterval(t);
   }, [ambientEnabled, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
+
+  // ---- Dados dos painéis HUD ----
+  const health = useHealth();
+  const rules = useAutomations();
+  const serverConnected = useAssistant((s) => s.serverConnected);
+  const haConnected = useDevices((s) => s.haConnected);
+  const allDevices = useDevices((s) => s.devices);
+  const controllable = Object.values(allDevices).filter((d) => d.controllable && !d.hidden);
+  const devicesTotal = controllable.length;
+  const lightsOn = controllable.filter((d) => d.domain === 'light' && d.isOn).length;
+  const nextRain = weather.data?.hourly.find((h) => h.precipitationProbability >= 40);
+  const rainTag = weather.data ? (nextRain ? `Chuva às ${Number(nextRain.time.slice(11, 13))}h` : 'Sem chuva prevista') : 'Clima';
+  const aiTag = `IA ${settings?.aiMode === 'local' ? 'local' : settings?.aiMode === 'cloud' ? 'nuvem' : 'híbrida'}${health?.services.ollama.ok ? ` · ${health.services.ollama.model}` : ''}`;
+  const place = settings?.homeLocation?.name ?? weather.data?.location.name ?? (useSettings.getState().useGps ? 'Localização atual' : 'Defina em Ajustes');
+  const coords = weather.data ? `${weather.data.location.latitude.toFixed(2)}, ${weather.data.location.longitude.toFixed(2)}` : null;
   const hasChat = messages.length > 0 || !!interim;
+  const wide = vw >= 900 && vh > 560;
+  const short = vh <= 560;
+  const orbSize = hasChat
+    ? Math.round(Math.min(150, vh * 0.2))
+    : Math.round(wide ? Math.min(vh * 0.46, 430) : short ? Math.min(vh * 0.36, 190) : Math.min(vw * 0.72, vh * 0.36, 360));
   const err = voiceError ?? realtime.error ?? wake.error;
 
   return (
     <div className="flex h-full flex-col">
-      {/* Barra superior */}
-      <header className="flex items-center justify-between gap-3 border-b border-cyan-300/10 px-4 pt-safe pb-2 md:px-6 md:pt-4">
-        <div className="flex items-center gap-3">
-          <p className="hud-title hud-glow text-base font-bold text-cyan-50 md:hidden">LUNA</p>
-          <div className="font-hud flex items-center gap-2 rounded-sm border border-cyan-300/20 bg-ink-900/70 px-2.5 py-1 text-xs font-semibold tracking-[0.18em] text-cyan-100/80 uppercase" aria-live="polite">
-            <span className={`h-2 w-2 rounded-full ${STATE_DOT[state]}`} />
-            {STATE_LABEL[state]}
-            {(wake.armed || (realtime.active && settings?.wakeWordEnabled)) && state !== 'speaking' && (
-              <span className="hidden text-cyan-300/60 sm:inline">· diga “Ei, Luna”</span>
-            )}
-          </div>
+      {/* Cabeçalho: comando de voz · LUNA + hora · ações */}
+      <header className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-4 pt-safe md:px-8 md:pt-5 [@media(max-height:560px)]:pt-2">
+        <div className="font-hud flex min-w-0 items-center gap-2 justify-self-start border border-cyan-300/25 bg-ink-950/75 px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.18em] text-cyan-300/85 uppercase [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)] md:px-3.5 md:text-xs" aria-live="polite">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${STATE_DOT[state]}`} />
+          <span className="truncate">
+            {state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? <>Comando de voz · <b className="text-emerald-300">Ei, Luna</b></> : 'Disponível'}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMuted((m) => !m)}
-            className="rounded-sm border border-cyan-300/20 bg-ink-900/70 p-2 text-cyan-200/80 hover:border-cyan-300/50"
-            aria-label={muted ? 'Ativar voz das respostas' : 'Silenciar respostas'}
-          >
+        <div className={`text-center transition-opacity ${hasChat ? 'max-md:hidden' : ''}`}>
+          <p className="hud-title text-[11px] tracking-[0.6em] text-cyan-100 [text-shadow:0_0_10px_#00e5ff] md:text-sm [@media(max-height:560px)]:hidden">LUNA</p>
+          <p className="hud-title hud-glow text-4xl leading-tight font-bold text-cyan-50 tabular-nums md:text-5xl [@media(max-height:560px)]:text-2xl">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="hud-label text-[10px] md:text-xs [@media(max-height:560px)]:hidden">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
+        </div>
+        <div className="flex items-center gap-2 justify-self-end">
+          <button onClick={() => setMuted((m) => !m)} className="rounded-sm border border-cyan-300/25 bg-ink-950/75 p-2 text-cyan-200/80 hover:border-cyan-300/50" aria-label={muted ? 'Ativar voz das respostas' : 'Silenciar respostas'}>
             {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
           {hasChat && (
@@ -314,7 +333,7 @@ export default function HomePage() {
                 tts.cancel();
                 newConversation();
               }}
-              className="font-hud flex items-center gap-1 rounded-sm border border-cyan-300/20 bg-ink-900/70 px-3 py-1.5 text-xs font-semibold tracking-[0.14em] text-cyan-100/80 uppercase hover:border-cyan-300/50"
+              className="font-hud flex items-center gap-1 rounded-sm border border-cyan-300/25 bg-ink-950/75 px-2.5 py-1.5 text-xs font-semibold tracking-[0.14em] text-cyan-100/80 uppercase hover:border-cyan-300/50"
             >
               <Plus className="h-3.5 w-3.5" /> Nova
             </button>
@@ -322,50 +341,56 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="home-grid min-h-0 flex-1 px-4 pt-3 pb-3 md:pb-4 lg:px-6">
-        {/* Painéis laterais (tablet, celular deitado e computador) */}
-        <aside className="home-left min-h-0 flex-col gap-4 overflow-y-auto pb-2">
-          <ClockPanel now={now} name={user?.displayName} greeting={greeting(now)} />
-          <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
-          <div className="home-left-extra">
-            <DevicesPanel />
-            <SensorsPanel />
-            <SystemPanel />
+      <div className="home3d hud3d-mid relative z-10 min-h-0 flex-1 gap-4 px-4 pt-3 pb-2 md:px-8">
+        {/* Celular em pé: três mini painéis (também ampliam ao tocar) */}
+        {!hasChat && (
+          <div className="strip strip-tilt grid-cols-3 gap-2">
+            <EnvPanel weather={weather.data} mini />
+            <HomeRingPanel mini />
+            <StatusPanel health={health} server={serverConnected} ha={haConnected} mini />
           </div>
-        </aside>
+        )}
 
-        {/* Centro: núcleo + conversa */}
-        <section className="home-center flex min-h-0 flex-col">
-          <div className={`flex flex-col items-center transition-all duration-500 ${hasChat ? 'pt-0' : 'pt-2 md:pt-6'}`}>
+        <div className="side">
+          <div className="hud3d-col l col-l flex flex-col gap-3">
+            <StatusPanel health={health} server={serverConnected} ha={haConnected} />
+            <EnvPanel weather={weather.data} />
+            <VoicePanel messages={messages} state={state} />
+          </div>
+          <div className="hud3d-col r col-r flex flex-col gap-3">
+            <LocationPanel place={place} coords={coords} />
+            <RoutinePanel rules={rules} />
+            <HomeRingPanel />
+          </div>
+        </div>
+
+        {/* Centro: globo, etiquetas, conversa e campo de comando */}
+        <section className="center flex min-h-0 flex-col">
+          <div className={`relative flex items-center justify-center ${hasChat ? 'pt-1' : 'flex-1'}`} style={{ minHeight: orbSize + 20 }}>
+            <div className="radar-floor" style={{ width: orbSize * 1.35, bottom: -orbSize * 0.18 }} />
+            <LunaOrb state={state} levelRef={realtime.levelRef} size={orbSize} onClick={onMic} label={hasChat ? undefined : STATE_LABEL[state]} />
             {!hasChat && (
-              <div className="mb-2 text-center md:hidden">
-                <p className="hud-label">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short' })}</p>
-                <p className="hud-title hud-glow mt-1 text-4xl font-bold text-cyan-50 tabular-nums">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-                <p className="font-hud mt-1 text-base text-cyan-100/70">
-                  {greeting(now)}, <span className="font-bold text-cyan-300">{user?.displayName}</span>
-                  {weather.data && <span className="text-cyan-100/50"> · {Math.round(weather.data.current.temperature)}° {weather.data.current.condition.toLowerCase()}</span>}
-                </p>
-              </div>
-            )}
-            <LunaOrb state={state} levelRef={realtime.levelRef} size={hasChat ? Math.min(150, Math.round(vh * 0.22)) : Math.max(150, Math.min(270, Math.round(vh * 0.42)))} onClick={onMic} label={STATE_LABEL[state]} />
-            {!hasChat && (
-              <p className="home-tall-only font-hud mt-3 max-w-sm text-center text-sm text-cyan-100/45">
-                Toque no núcleo para falar · “acenda a luz da sala” · “vai chover hoje?”
-              </p>
+              <>
+                <span className="hud-tag tl" style={{ left: 0, top: '14%' }}>{lightsOn} {lightsOn === 1 ? 'luz acesa' : 'luzes acesas'}</span>
+                <span className="hud-tag tr" style={{ right: 0, top: '22%' }}>{rainTag}</span>
+                <span className="hud-tag bl max-md:hidden [@media(max-height:560px)]:hidden" style={{ left: '2%', bottom: '18%' }}>{aiTag}</span>
+                <span className="hud-tag br max-md:hidden [@media(max-height:560px)]:hidden" style={{ right: '2%', bottom: '12%' }}>{devicesTotal} dispositivos</span>
+              </>
             )}
           </div>
 
           {err && (
-            <div className="mt-3">
+            <div className="mt-2">
               <Banner onClose={() => setVoiceError(null)}>{err}</Banner>
             </div>
           )}
 
-          <div className={`min-h-0 flex-1 overflow-y-auto ${hasChat ? 'mt-3' : ''}`}>
-            <MessageList messages={messages} interim={interim} />
-          </div>
+          {hasChat && (
+            <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+              <MessageList messages={messages} interim={interim} />
+            </div>
+          )}
 
-          {/* Entrada de comando */}
           <form onSubmit={onSubmit} className="hud-panel mt-3 flex items-center gap-2 p-2">
             <span className="hud-label pl-2 text-cyan-300/60">›</span>
             <input
@@ -405,22 +430,7 @@ export default function HomePage() {
               </button>
             )}
           </form>
-
-          {/* Celular: painéis abaixo da conversa quando ainda não há mensagens */}
-          {!hasChat && (
-            <div className="home-mobile-only mt-4 flex flex-col gap-4">
-              <DevicesPanel />
-              <WeatherPanel data={weather.data} loading={weather.loading} error={weather.error} />
-            </div>
-          )}
         </section>
-
-        {/* Coluna direita (computador): casa e diagnóstico */}
-        <aside className="home-right min-h-0 flex-col gap-4 overflow-y-auto">
-          <DevicesPanel />
-          <SensorsPanel />
-          <SystemPanel />
-        </aside>
       </div>
 
       <VoiceFocus

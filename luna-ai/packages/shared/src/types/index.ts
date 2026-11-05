@@ -151,6 +151,8 @@ export interface HealthDto {
   status: 'ok' | 'degraded';
   version: string;
   uptimeSeconds: number;
+  /** Uso do servidor (porcentagens 0–100) */
+  system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number };
   services: {
     database: ServiceHealth;
     homeAssistant: ServiceHealth & { websocket: boolean };

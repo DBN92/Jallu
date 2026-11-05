@@ -1,3 +1,4 @@
+import os from 'node:os';
 import type { FastifyInstance } from 'fastify';
 import type { HealthDto } from '@luna/shared';
 import { APP_VERSION } from '../config/env';
@@ -24,7 +25,25 @@ export async function healthRoutes(app: FastifyInstance) {
       ollama: { ...ollamaRes, model: ollama.model },
       openai: { ...openaiRes, configured: openai.isConfigured(), model: openai.model },
     };
+    // Uso do servidor: carga média de 1 min / núcleos e memória (MemAvailable no Linux)
+    const cpus = os.cpus().length || 1;
+    const total = os.totalmem();
+    let available = os.freemem();
+    try {
+      const mi = (await import('node:fs')).readFileSync('/proc/meminfo', 'utf8').match(/MemAvailable:\s+(\d+)/);
+      if (mi) available = Number(mi[1]) * 1024;
+    } catch {
+      /* não-Linux */
+    }
+    const system = {
+      cpuPercent: Math.min(100, Math.round((os.loadavg()[0]! / cpus) * 100)),
+      memoryPercent: Math.round(((total - available) / total) * 100),
+      memoryUsedGb: Math.round(((total - available) / 1024 ** 3) * 10) / 10,
+      memoryTotalGb: Math.round((total / 1024 ** 3) * 10) / 10,
+      serverUptimeHours: Math.round(os.uptime() / 360) / 10,
+    };
     return {
+      system,
       status: db.ok && haRes.ok && (ollamaRes.ok || openaiRes.ok) ? 'ok' : 'degraded',
       version: APP_VERSION,
       uptimeSeconds: Math.round(process.uptime()),
