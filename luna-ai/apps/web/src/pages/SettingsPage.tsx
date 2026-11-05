@@ -10,6 +10,7 @@ import { useAuth } from '../stores/auth';
 import { useLocation } from '../stores/location';
 import { useSettings, type ScreenOrientationPref } from '../stores/settings';
 import { applyOrientation, currentOrientation } from '../lib/orientation';
+import { DirectCameras } from '../components/DirectCameras';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -392,6 +393,12 @@ export default function SettingsPage() {
           <Toggle label="Ei, Luna" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
       </Section>
+
+      {isAdmin && (
+        <Section title="Câmeras diretas">
+          <DirectCameras />
+        </Section>
+      )}
 
       <Section title="Localização">
         <Row label="Usar GPS deste aparelho" hint="Usado só no momento da consulta (clima). As coordenadas não são salvas.">

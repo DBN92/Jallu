@@ -45,3 +45,24 @@ Se o vídeo contínuo não iniciar (alguns modelos/firmwares), a Luna mostra aut
 - Não exponha as câmeras diretamente na internet (sem redirecionar portas no roteador).
   Fora de casa, o acesso já passa pela Luna/Cloudflare com login.
 - Use uma senha forte nas câmeras e mantenha o firmware atualizado.
+
+## Câmeras diretas (quando o Home Assistant não mostra a câmera)
+
+Algumas câmeras (ex.: **Yoosee em H.265 que só aceita UDP**) não funcionam pelo processador de vídeo do
+Home Assistant: no log do HA aparecem `Invalid data found when processing input`, `Error demuxing stream`
+ou `Connection refused`. Nesses casos a **própria Luna** lê a câmera:
+
+1. Instale o conversor de vídeo (uma vez; o `update.sh` também faz isso automaticamente):
+   `sudo bash scripts/ffmpeg-setup.sh` — baixa o ffmpeg estático (~29 MB) para `runtime/ffmpeg/`,
+   confere o sha256, sem Docker e sem alterar o sistema.
+2. Na Luna (como administrador): **Ajustes › Câmeras diretas › + Adicionar câmera direta**
+   - Nome: ex. `Entrada` (uma câmera do HA com o mesmo nome deixa de aparecer na Luna)
+   - Endereço: `rtsp://192.168.15.112:554/onvif1` (Yoosee: `onvif1` = principal, `onvif2` = leve)
+   - Usuário `admin` e a senha da câmera (fica só no servidor; nunca volta ao navegador)
+   - Protocolo: **UDP** para Yoosee
+   - Toque em **Testar conexão** — deve mostrar algo como “Conectou: vídeo HEVC 1920x2160”.
+
+Como funciona: enquanto alguém assiste, um único ffmpeg por câmera converte o vídeo para **H.264
+(até 960 px, 10 quadros/s)**, que toca no iPhone, Android e Fire TV, e grava uma foto por segundo.
+Sem ninguém assistindo por 45 s, ele desliga sozinho (não gasta CPU à toa).
+Câmeras diretas não têm girar/inclinar (isso exige ONVIF no Home Assistant).

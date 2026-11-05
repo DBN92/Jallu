@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { ptzSchema } from '@luna/shared';
-import { requireAuth } from '../../middleware/auth';
+import { requireAdmin, requireAuth } from '../../middleware/auth';
 
 const idParam = z.object({ entityId: z.string().regex(/^camera\.[a-z0-9_]+$/, 'câmera inválida') });
 
@@ -40,6 +40,25 @@ export async function cameraRoutes(app: FastifyInstance) {
     const path = (req.params as { '*': string })['*'];
     return pipe(reply, await cameras.hls(token, path));
   });
+
+  /* ---------- câmeras diretas (RTSP lido pela Luna) — só administradores ---------- */
+  const { directCameras } = app.services;
+  const directBody = z.object({
+    name: z.string().trim().min(1).max(60),
+    url: z.string().trim().min(8).max(500),
+    username: z.string().max(100).nullish(),
+    password: z.string().max(200).nullish(),
+    transport: z.enum(['udp', 'tcp']).default('udp'),
+  });
+  const directId = z.object({ id: z.string().regex(/^[a-z0-9]{8,40}$/) });
+
+  app.get('/api/cameras/direct', { preHandler: requireAdmin }, async () => ({ ffmpeg: !!directCameras.ffmpegPath(), cameras: await directCameras.listInfo() }));
+  app.post('/api/cameras/direct', { preHandler: requireAdmin }, async (req) => directCameras.create(directBody.parse(req.body)));
+  app.patch('/api/cameras/direct/:id', { preHandler: requireAdmin }, async (req) => directCameras.update(directId.parse(req.params).id, directBody.partial().parse(req.body)));
+  app.delete('/api/cameras/direct/:id', { preHandler: requireAdmin }, async (req) => directCameras.remove(directId.parse(req.params).id));
+  app.post('/api/cameras/direct/test', { preHandler: requireAdmin, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) =>
+    directCameras.test(directBody.omit({ name: true }).extend({ id: z.string().regex(/^[a-z0-9]{8,40}$/).optional() }).parse(req.body)),
+  );
 
   app.post('/api/cameras/:entityId/ptz', { preHandler: requireAuth, config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (req) =>
     cameras.ptz(idParam.parse(req.params).entityId, ptzSchema.parse(req.body).action, req.user!.id),

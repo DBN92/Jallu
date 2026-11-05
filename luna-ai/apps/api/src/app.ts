@@ -36,6 +36,7 @@ import { aiRoutes } from './modules/ai/ai.routes';
 import { voiceRoutes } from './modules/voice/voice.routes';
 import { CamerasService } from './modules/cameras/cameras.service';
 import { cameraRoutes } from './modules/cameras/cameras.routes';
+import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
 
@@ -48,6 +49,8 @@ export interface AppDeps {
   fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike };
   /** Desativa a conexão WebSocket com o HA (testes) */
   disableHaWs?: boolean;
+  /** Entrada do ffmpeg das câmeras diretas (testes usam uma fonte sintética no lugar do RTSP) */
+  cameraInput?: InputArgs;
 }
 
 function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['log']) {
@@ -79,6 +82,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   );
   const auth = new AuthService(db, { setupCode: env.LUNA_SETUP_CODE, sessionTtlHours: env.LUNA_SESSION_TTL_HOURS });
 
+  const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);
+  cameras.setDirect(directCameras);
   chat.setCameras(cameras);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
@@ -91,7 +96,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, cameras, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { ha, haWs, actionLogs, devices, cameras, directCameras, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -219,6 +224,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('onClose', async () => {
     app.services.haWs.stop();
+    await app.services.directCameras.close();
     await db.$disconnect();
   });
 

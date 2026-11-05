@@ -3,6 +3,8 @@ import { AppError, badRequest, notFound } from '../../lib/errors';
 import { normalize, significantTokens } from '../../lib/text';
 import type { HomeAssistantRestClient } from '../../integrations/home-assistant/rest-client';
 import type { ActionLogService } from '../devices/action-log.service';
+import { randomBytes } from 'node:crypto';
+import type { DirectCamerasService } from './direct.service';
 
 type Registry = () => Promise<Map<string, { platform: string; hidden: boolean }>>;
 type WsCommand = <T>(payload: Record<string, unknown>) => Promise<T>;
@@ -17,6 +19,13 @@ const ENTITY_RE = /^camera\.[a-z0-9_]+$/;
 export class CamerasService {
   /** Sessões HLS emitidas para usuários autenticados (token do HA → expiração). */
   private hlsTokens = new Map<string, number>();
+  /** Sessões HLS de câmeras diretas (token aleatório → câmera + expiração). */
+  private directTokens = new Map<string, { entityId: string; exp: number }>();
+  private direct: DirectCamerasService | null = null;
+
+  setDirect(direct: DirectCamerasService) {
+    this.direct = direct;
+  }
 
   constructor(
     private readonly ha: HomeAssistantRestClient,
@@ -32,6 +41,17 @@ export class CamerasService {
   }
 
   async list(): Promise<CameraDto[]> {
+    const direct = this.direct ? await this.direct.list() : [];
+    // Uma câmera direta com o mesmo nome substitui a do Home Assistant (que não funcionava)
+    const taken = new Set(direct.map((c) => normalize(c.name)));
+    const ha = await this.haList().catch((err) => {
+      if (direct.length) return [] as CameraDto[];
+      throw err;
+    });
+    return [...direct, ...ha.filter((c) => !taken.has(normalize(c.name)))].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
+
+  private async haList(): Promise<CameraDto[]> {
     const [states, reg] = await Promise.all([this.ha.getStates(), this.registry().catch(() => new Map())]);
     return states
       .filter((s) => s.entity_id.startsWith('camera.') && !reg.get(s.entity_id)?.hidden)
@@ -60,6 +80,7 @@ export class CamerasService {
   /** Foto atual da câmera (JPEG). */
   async snapshot(entityId: string): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
+    if (this.direct?.isDirect(entityId)) return this.direct.snapshot(entityId);
     const res = await this.ha.raw(`/api/camera_proxy/${entityId}`, { timeoutMs: 12_000 });
     if (!res.ok) {
       const detail = (await res.text().catch(() => '')).slice(0, 160);
@@ -71,6 +92,7 @@ export class CamerasService {
   /** Vídeo ao vivo em MJPEG (alternativa quando HLS não está disponível). */
   async mjpeg(entityId: string, signal: AbortSignal): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
+    if (this.direct?.isDirect(entityId)) throw new AppError(409, 'Use o vídeo HLS para esta câmera.', 'no_mjpeg');
     const res = await this.ha.raw(`/api/camera_proxy_stream/${entityId}`, { timeoutMs: 6 * 60 * 60_000, signal });
     if (!res.ok) throw new AppError(502, 'Não consegui abrir o vídeo desta câmera.', 'camera_error');
     return res;
@@ -78,6 +100,12 @@ export class CamerasService {
 
   /** Abre uma sessão HLS no HA e devolve a URL repassada pela Luna. */
   async startStream(entityId: string): Promise<{ url: string }> {
+    if (this.direct?.isDirect(entityId)) {
+      await this.direct.startStream(entityId);
+      const token = randomBytes(18).toString('base64url');
+      this.directTokens.set(token, { entityId, exp: Date.now() + 30 * 60_000 });
+      return { url: `/api/cameras/hls/${token}/index.m3u8` };
+    }
     const cam = await this.get(entityId);
     if (!cam.stream) throw new AppError(409, 'Esta câmera não oferece vídeo contínuo pelo Home Assistant; usando imagens.', 'no_stream');
     let result: { url: string };
@@ -94,6 +122,12 @@ export class CamerasService {
 
   /** Repasse do HLS: só para sessões abertas pela Luna para um usuário autenticado. */
   async hls(token: string, path: string): Promise<Response> {
+    const d = this.directTokens.get(token);
+    if (d && this.direct) {
+      if (d.exp < Date.now()) throw new AppError(404, 'Sessão de vídeo expirada.', 'hls_expired');
+      d.exp = Date.now() + 30 * 60_000;
+      return this.direct.hlsFile(d.entityId, path);
+    }
     const exp = this.hlsTokens.get(token);
     if (!exp || exp < Date.now() || !/^[A-Za-z0-9_\-/.]+$/.test(path) || path.includes('..')) {
       throw new AppError(404, 'Sessão de vídeo expirada.', 'hls_expired');
@@ -111,6 +145,7 @@ export class CamerasService {
   /** Movimento da câmera (ONVIF): girar, inclinar e zoom. */
   async ptz(entityId: string, action: PtzAction, userId: string) {
     const cam = await this.get(entityId);
+    if (cam.platform === 'luna') throw badRequest(`${cam.name} é lida diretamente pela Luna, sem controle de movimento (é preciso ONVIF no Home Assistant).`);
     if (!cam.ptz) throw badRequest(`${cam.name} não tem controle de movimento pelo Home Assistant (é preciso a integração ONVIF).`);
     const data: Record<string, unknown> = { entity_id: entityId };
     if (action === 'stop') data.move_mode = 'Stop';
@@ -136,6 +171,7 @@ export class CamerasService {
    * foto via HA e início do vídeo HLS. Não expõe senhas nem tokens.
    */
   async diagnose(entityId: string) {
+    if (this.direct?.isDirect(entityId)) return this.direct.diagnose(entityId);
     const steps: { step: string; ok: boolean; detail: string; ms?: number }[] = [];
     const cam = await this.get(entityId);
     steps.push({

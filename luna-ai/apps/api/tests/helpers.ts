@@ -19,6 +19,7 @@ const db = createDb(testDbUrl());
 export async function resetDb() {
   // Ordem respeita chaves estrangeiras
   await db.actionLog.deleteMany();
+  await db.directCamera.deleteMany();
   await db.automationRule.deleteMany();
   await db.message.deleteMany();
   await db.conversation.deleteMany();
@@ -30,7 +31,7 @@ export async function resetDb() {
   await db.user.deleteMany();
 }
 
-export async function makeApp(envOverrides: Record<string, string> = {}, opts: { login?: boolean } = { login: true }): Promise<TestCtx> {
+export async function makeApp(envOverrides: Record<string, string> = {}, opts: { login?: boolean; cameraInput?: import('../src/modules/cameras/direct.service').InputArgs } = { login: true }): Promise<TestCtx> {
   await resetDb();
   const ha = new FakeHomeAssistant();
   const llm = new FakeLlm();
@@ -52,6 +53,7 @@ export async function makeApp(envOverrides: Record<string, string> = {}, opts: {
     db: createDb(testDbUrl()),
     fetch: { ha: ha.fetch, ollama: llm.ollamaFetch, openai: llm.openaiFetch, weather: weather.fetch },
     disableHaWs: true,
+    cameraInput: opts.cameraInput,
   });
   await app.ready();
 

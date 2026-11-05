@@ -143,3 +143,16 @@ model AutomationRule {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
+
+/// Câmera lida diretamente pela Luna (RTSP + ffmpeg), sem passar pelo Home Assistant.
+/// A senha fica só no servidor e nunca é devolvida ao navegador.
+model DirectCamera {
+  id        String   @id @default(cuid())
+  name      String
+  url       String // rtsp://ip:porta/caminho (sem usuário/senha)
+  username  String?
+  password  String?
+  transport String   @default("udp") // udp | tcp
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

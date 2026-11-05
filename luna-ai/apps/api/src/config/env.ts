@@ -61,6 +61,8 @@ const envSchema = z.object({
   TZ: z.string().default('America/Sao_Paulo'),
 
   LUNA_WEB_DIST: z.string().optional(),
+  /** ffmpeg para câmeras diretas (RTSP). Vazio = runtime/ffmpeg/ffmpeg ou o do sistema. */
+  FFMPEG_PATH: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
