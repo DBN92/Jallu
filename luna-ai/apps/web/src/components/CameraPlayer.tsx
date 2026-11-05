@@ -15,6 +15,7 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
   const [tick, setTick] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const snapFailed = useRef(false);
+  const [broken, setBroken] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,9 +79,10 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
       {mode === 'images' && (
         <img
           src={`/api/cameras/${camera.entityId}/snapshot?t=${tick}`}
-          alt={camera.name}
-          className="h-full w-full object-contain"
+          alt=""
+          className={`h-full w-full object-contain ${broken ? 'invisible' : ''}`}
           onError={() => {
+            setBroken(true);
             if (snapFailed.current) return;
             snapFailed.current = true;
             api<{ steps: { step: string; ok: boolean; detail: string }[] }>(`/api/cameras/${camera.entityId}/diagnose`)
@@ -91,11 +93,15 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
               .catch(() => setMessage('A câmera não respondeu. Ela está ligada e na rede?'));
           }}
           onLoad={() => {
+            setBroken(false);
             // Só limpa o aviso se ele era de falha na foto (mantém o motivo da troca para imagens)
             if (snapFailed.current) setMessage(null);
             snapFailed.current = false;
           }}
         />
+      )}
+      {mode === 'images' && broken && (
+        <div className="font-hud absolute inset-0 grid place-items-center px-6 text-center text-sm text-cyan-100/60">Sem imagem da câmera no momento — tentando de novo…</div>
       )}
       {mode === 'loading' && (
         <div className="absolute inset-0 grid place-items-center text-cyan-200">
