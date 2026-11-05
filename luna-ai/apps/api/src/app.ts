@@ -60,7 +60,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const memory = new MemoryService(db);
   const settings = new SettingsService(db, env.LUNA_AI_MODE);
   const automations = new AutomationsService(db, ha, devices, actionLogs);
-  const ollama = new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL, env.OLLAMA_TIMEOUT_MS, deps.fetch?.ollama);
+  const keepAlive = /^-?\d+$/.test(env.OLLAMA_KEEP_ALIVE) ? Number(env.OLLAMA_KEEP_ALIVE) : env.OLLAMA_KEEP_ALIVE;
+  const ollama = new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL, env.OLLAMA_TIMEOUT_MS, deps.fetch?.ollama, keepAlive);
   const openai = new OpenAIProvider(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_MODEL, env.OPENAI_TIMEOUT_MS, deps.fetch?.openai);
   const voice = new OpenAIVoiceClient(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_REALTIME_MODEL, env.OPENAI_TRANSCRIBE_MODEL, deps.fetch?.openai);
   const tools = new ToolExecutor(devices, weather, memory, settings, automations, env.TZ);
@@ -189,6 +190,20 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   app.addHook('onReady', async () => {
     if (!deps.disableHaWs) app.services.haWs.start();
+    // Aquece o modelo local em segundo plano (tenta por até ~10 min, enquanto o Ollama sobe)
+    if (env.NODE_ENV !== 'test') {
+      let tries = 0;
+      const attempt = () => {
+        app.services.chat
+          .warmup()
+          .then((ok) => {
+            if (ok) app.log.info('Modelo local aquecido e pronto.');
+            else if (++tries < 20) setTimeout(attempt, 30_000);
+          })
+          .catch(() => (++tries < 20 ? setTimeout(attempt, 30_000) : undefined));
+      };
+      setTimeout(attempt, 2_000);
+    }
   });
   app.addHook('onClose', async () => {
     app.services.haWs.stop();

@@ -52,3 +52,45 @@ export async function api<T = unknown>(path: string, opts: { method?: string; bo
 }
 
 export const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Algo deu errado.');
+
+/**
+ * POST com resposta em fluxo (Server-Sent Events). Chama onEvent para cada evento recebido.
+ */
+export async function apiStream(path: string, body: unknown, onEvent: (event: string, data: unknown) => void): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrfToken(), accept: 'text/event-stream' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, navigator.onLine ? 'Não consegui falar com o servidor da Luna.' : 'Você está sem internet.', 'offline');
+  }
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    if (res.status === 401 && data.error === 'unauthenticated') unauthorizedListeners.forEach((l) => l());
+    throw new ApiError(res.status, data.message ?? `Erro ${res.status}`, data.error ?? 'error');
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      let event = 'message';
+      let data = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) data += line.slice(5).trim();
+      }
+      if (data) onEvent(event, JSON.parse(data));
+    }
+  }
+}

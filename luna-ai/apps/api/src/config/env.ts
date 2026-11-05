@@ -42,7 +42,9 @@ const envSchema = z.object({
 
   OLLAMA_URL: z.string().default('http://127.0.0.1:11434'),
   OLLAMA_MODEL: z.string().default('qwen2.5:3b'),
-  OLLAMA_TIMEOUT_MS: z.coerce.number().int().default(90_000),
+  OLLAMA_TIMEOUT_MS: z.coerce.number().int().default(120_000),
+  /** Tempo que o modelo fica carregado na RAM (-1 = sempre, recomendado em CPU). */
+  OLLAMA_KEEP_ALIVE: z.string().default('-1'),
 
   OPENAI_API_KEY: z.string().default(''),
   OPENAI_MODEL: z.string().default('gpt-4.1-mini'),

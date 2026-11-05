@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Instala o Ollama (IA local, gratuita) NATIVAMENTE em /DATA — sem Docker — como serviço systemd,
 # baixa o modelo e configura a Luna para usá-lo. Uso: sudo bash scripts/ollama-setup.sh [--model qwen2.5:3b]
+#
+# Modelos sugeridos para CPU sem AVX2 (ex.: Mac mini 2012, 16 GB):
+#   qwen2.5:3b   — equilíbrio (padrão), bom com ferramentas
+#   qwen3:4b     — mais esperto, um pouco mais lento (a Luna desliga o “pensamento” para ganhar velocidade)
+#   qwen2.5:1.5b — o mais rápido, menos esperto
+# Para trocar depois, rode de novo com --model (o Ollama já instalado é reaproveitado).
 source "$(dirname "$0")/lib.sh"
 [ "$(id -u)" -eq 0 ] || fail "Rode com sudo: sudo bash scripts/ollama-setup.sh"
 
@@ -52,8 +58,10 @@ ExecStart=$DIR/bin/ollama serve
 Environment=HOME=$DIR
 Environment=OLLAMA_HOST=127.0.0.1:11434
 Environment=OLLAMA_MODELS=$DIR/models
-# Mantém o modelo carregado na memória para respostas rápidas (16 GB de RAM são suficientes)
-Environment=OLLAMA_KEEP_ALIVE=24h
+# Mantém o modelo SEMPRE carregado na memória (recarregar custa dezenas de segundos em CPU)
+Environment=OLLAMA_KEEP_ALIVE=-1
+# Atenção otimizada (menos memória; mais rápido onde suportado)
+Environment=OLLAMA_FLASH_ATTENTION=1
 Environment=OLLAMA_NUM_PARALLEL=1
 Environment=OLLAMA_MAX_LOADED_MODELS=1
 Restart=always
@@ -68,7 +76,8 @@ PrivateTmp=true
 WantedBy=multi-user.target
 UNITEOF
 systemctl daemon-reload
-systemctl enable --now ollama >/dev/null 2>&1 || systemctl restart ollama
+systemctl enable ollama >/dev/null 2>&1 || true
+systemctl restart ollama  # aplica as configurações novas mesmo se já estava rodando
 for i in $(seq 1 20); do http_get http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; sleep 1; done
 http_get http://127.0.0.1:11434/api/tags >/dev/null 2>&1 || fail "O Ollama não respondeu. Veja: journalctl -u ollama -n 30"
 ok "Serviço 'ollama' ativo"
@@ -84,6 +93,7 @@ ok "Modelo pronto ($(( $(date +%s) - start ))s na primeira carga)"
 cd "$LUNA_ROOT"
 env_set OLLAMA_URL "http://127.0.0.1:11434"
 env_set OLLAMA_MODEL "$MODEL"
+env_set OLLAMA_KEEP_ALIVE "-1"
 ok "Luna configurada para usar $MODEL"
 bash scripts/stop.sh >/dev/null 2>&1 || true
 bash scripts/start.sh

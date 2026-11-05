@@ -29,7 +29,11 @@ export interface AIProvider {
   readonly isCloud: boolean;
   isConfigured(): boolean;
   isAvailable(): Promise<boolean>;
-  chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<ProviderResponse>;
+  /**
+   * onDelta (opcional): recebe pedaços do texto conforme são gerados (streaming).
+   * Provedores sem streaming simplesmente não chamam onDelta.
+   */
+  chat(messages: ChatMessage[], tools: ToolDefinition[], opts?: { onDelta?: (text: string) => void; maxTokens?: number }): Promise<ProviderResponse>;
 }
 
 export class ProviderError extends Error {

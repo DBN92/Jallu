@@ -21,7 +21,14 @@ export class OllamaProvider implements AIProvider {
     readonly model: string,
     private readonly timeoutMs = 90_000,
     private readonly fetchImpl: FetchLike = fetch,
+    /** Mantém o modelo carregado na RAM (-1 = sempre). Recarregar custa dezenas de segundos em CPU. */
+    private readonly keepAlive: string | number = -1,
   ) {}
+
+  /** Modelos de “raciocínio” (qwen3, deepseek-r1…): desliga o pensamento longo para responder rápido. */
+  private get thinkingModel() {
+    return /^(qwen3|deepseek-r1|magistral|gpt-oss)/i.test(this.model);
+  }
 
   isConfigured() {
     return Boolean(this.baseUrl && this.model);
@@ -61,13 +68,53 @@ export class OllamaProvider implements AIProvider {
     }
   }
 
-  async chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<ProviderResponse> {
+  /** Lê o NDJSON do Ollama, repassando texto (fora de blocos <think>) assim que chega. */
+  private async readStream(body: ReadableStream<Uint8Array>, onDelta: (text: string) => void): Promise<OllamaMessage> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    let emitted = 0;
+    const toolCalls: NonNullable<OllamaMessage['tool_calls']> = [];
+    const emit = () => {
+      // Não repassa nada que esteja dentro de <think>…</think>
+      const visible = stripThinking(content.replace(/<think>[\s\S]*$/, ''));
+      if (visible.length > emitted) {
+        onDelta(visible.slice(emitted));
+        emitted = visible.length;
+      }
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) buffer += '\n'; // processa a última linha mesmo sem quebra no final
+      else buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const chunk = safeParse(line) as { message?: OllamaMessage; error?: string };
+        if (chunk.error) throw new ProviderError('ollama', `Ollama: ${chunk.error}`);
+        if (chunk.message?.content) {
+          content += chunk.message.content;
+          emit();
+        }
+        if (chunk.message?.tool_calls) toolCalls.push(...chunk.message.tool_calls);
+      }
+      if (done) break;
+    }
+    return { role: 'assistant', content, tool_calls: toolCalls };
+  }
+
+  async chat(messages: ChatMessage[], tools: ToolDefinition[], opts: { onDelta?: (text: string) => void; maxTokens?: number } = {}): Promise<ProviderResponse> {
+    const stream = Boolean(opts.onDelta);
     const body = {
       model: this.model,
-      stream: false,
+      stream,
       // Contexto menor e respostas limitadas = mais rápido em CPU
-      options: { temperature: 0.4, num_ctx: 4096, num_predict: 320 },
-      keep_alive: '30m',
+      options: { temperature: 0.5, top_p: 0.9, num_ctx: 4096, num_predict: opts.maxTokens ?? 320 },
+      keep_alive: this.keepAlive,
+      ...(this.thinkingModel ? { think: false } : {}),
       messages: messages.map<OllamaMessage>((m) => {
         if (m.role === 'assistant') {
           return {
@@ -103,8 +150,13 @@ export class OllamaProvider implements AIProvider {
       }
       throw new ProviderError('ollama', `Ollama retornou erro ${res.status}: ${text.slice(0, 160)}`);
     }
-    const data = (await res.json()) as { message?: OllamaMessage };
-    const msg = data.message ?? { role: 'assistant', content: '' };
+    let msg: OllamaMessage;
+    if (stream && res.body) {
+      msg = await this.readStream(res.body, opts.onDelta!);
+    } else {
+      const data = (await res.json()) as { message?: OllamaMessage };
+      msg = data.message ?? { role: 'assistant', content: '' };
+    }
     return {
       content: stripThinking(msg.content ?? ''),
       toolCalls: (msg.tool_calls ?? []).map((c, i) => ({

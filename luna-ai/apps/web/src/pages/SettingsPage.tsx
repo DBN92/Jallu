@@ -3,7 +3,7 @@ import { CheckCircle2, LogOut, MapPin, Search, Share, Trash2, XCircle } from 'lu
 import type { ActionLogDto, AiMode, HealthDto, PublicUser } from '@luna/shared';
 import { Page } from '../components/Layout';
 import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '../components/ui';
-import { isIOS, isStandalone, useSpeechSynthesis } from '../hooks/speech';
+import { bestVoice, isHighQuality, isIOS, isStandalone, useSpeechSynthesis } from '../hooks/speech';
 import { wakeWordSupport } from '../hooks/useWakeWord';
 import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
@@ -334,19 +334,36 @@ export default function SettingsPage() {
           <label className="block text-sm">
             Voz do aparelho
             <select className={`${inputClass} mt-1`} value={settings.voiceName ?? ''} onChange={(e) => void save({ voiceName: e.target.value || null })}>
-              <option value="">Padrão (pt-BR)</option>
+              <option value="">Automática — melhor voz disponível{tts.voices[0] ? ` (${bestVoice(tts.voices)?.name ?? ''})` : ''}</option>
               {tts.voices.map((v) => (
                 <option key={v.name} value={v.name}>
+                  {isHighQuality(v) ? '★ ' : ''}
                   {v.name} ({v.lang})
                 </option>
               ))}
             </select>
           </label>
+          {!tts.voices.some(isHighQuality) && (
+            <div className="rounded-sm border border-cyan-300/20 bg-cyan-400/5 p-3 text-xs leading-relaxed text-cyan-100/70">
+              <p className="hud-label mb-1">Voz mais natural, grátis</p>
+              {isIOS() ? (
+                <p>
+                  No iPhone: <b>Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português (Brasil) › Luciana</b> e baixe a versão <b>Premium</b> (ou
+                  “Aprimorada”). Depois feche e reabra a Luna — ela passa a usar essa voz automaticamente.
+                </p>
+              ) : (
+                <p>
+                  No Android: instale/atualize o app <b>Speech Services by Google</b>, depois em <b>Configurações › Acessibilidade › Saída de conversão de texto em voz</b>{' '}
+                  escolha o mecanismo do Google, idioma <b>Português (Brasil)</b> e baixe uma voz feminina de alta qualidade.
+                </p>
+              )}
+            </div>
+          )}
           <label className="block text-sm">
             Velocidade da fala: {settings.voiceRate.toFixed(1)}x
             <input type="range" min={0.5} max={2} step={0.1} value={settings.voiceRate} onChange={(e) => void save({ voiceRate: Number(e.target.value) })} className="mt-2 w-full" />
           </label>
-          <Button variant="ghost" onClick={() => tts.speak('Olá! Eu sou a Luna, sua assistente pessoal.', { voiceName: settings.voiceName, rate: settings.voiceRate })} disabled={!tts.supported}>
+          <Button variant="ghost" onClick={() => tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate })} disabled={!tts.supported}>
             Testar voz
           </Button>
           {caps?.realtime && (

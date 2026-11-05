@@ -63,6 +63,17 @@ http.createServer(async (req, res) => {
   if (req.url === '/api/chat') {
     const b = await body(req);
     const last = b.messages.at(-1);
+    // Simula um modelo LENTO em fluxo (uma palavra a cada 150 ms), como numa CPU antiga
+    if (b.stream && last.role === 'user' && /hist[oó]ria/i.test(last.content)) {
+      res.writeHead(200, { 'content-type': 'application/x-ndjson' });
+      const words = 'Era uma vez uma lua curiosa que adorava conversar. Toda noite ela contava histórias para as estrelas. E as estrelas brilhavam mais forte para ouvir.'.split(/(?<= )/);
+      for (const w of words) {
+        res.write(JSON.stringify({ message: { role: 'assistant', content: w } }) + '\n');
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      res.end(JSON.stringify({ message: { role: 'assistant', content: '' }, done: true }) + '\n');
+      return;
+    }
     if (last.role === 'tool') return send(res, 200, { message: { role: 'assistant', content: 'A temperatura da sala está em 24,6 °C. Está agradável!' } });
     if (/temperatura/i.test(last.content)) return send(res, 200, { message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'get_device_state', arguments: { device: 'temperatura da sala' } } }] } });
     return send(res, 200, { message: { role: 'assistant', content: 'Oi! Eu sou a Luna. Posso controlar sua casa, ver o clima e conversar com você.' } });

@@ -7,7 +7,7 @@ import type { MemoryService } from '../memory/memory.service';
 import type { SettingsService } from '../settings/settings.service';
 import type { WeatherService } from '../weather/weather.service';
 import { parseIntent, pickOption, type Intent } from './nlu';
-import { buildSystemPrompt } from './prompt';
+import { buildSystemPrompt, nowMessage } from './prompt';
 import { askWhich, listJoin, powerReply, stateReply, weatherReply } from './replies';
 import { classify, routeProviders } from './router';
 import { TOOL_DEFINITIONS, type ToolContext, type ToolExecutor } from './tools';
@@ -51,7 +51,8 @@ export class ChatService {
     return new Intl.DateTimeFormat('pt-BR', { timeZone: this.timezone, dateStyle: 'full', timeStyle: 'short' }).format(new Date());
   }
 
-  async handle(user: PublicUser, req: ChatRequest): Promise<ChatResponse> {
+  /** onDelta (opcional): recebe o texto da resposta enquanto é gerado (streaming). */
+  async handle(user: PublicUser, req: ChatRequest, onDelta?: (text: string) => void): Promise<ChatResponse> {
     const conversation = req.conversationId
       ? await this.db.conversation.findFirst({ where: { id: req.conversationId, userId: user.id } })
       : await this.db.conversation.create({ data: { userId: user.id, title: truncate(req.message, 60) } });
@@ -62,7 +63,7 @@ export class ChatService {
 
     let result: TurnResult;
     try {
-      result = await this.turn(user, conversation.id, conversation.summary, req);
+      result = await this.turn(user, conversation.id, conversation.summary, req, onDelta);
     } catch (err) {
       this.onState(user.id, 'error', conversation.id);
       throw err;
@@ -84,7 +85,7 @@ export class ChatService {
     return { conversationId: conversation.id, messageId: saved.id, ...result };
   }
 
-  private async turn(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest): Promise<TurnResult> {
+  private async turn(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest, onDelta?: (text: string) => void): Promise<TurnResult> {
     const ctx: ToolContext = { userId: user.id, source: 'ai:luna-nlu', location: req.location, cloud: false };
 
     // 1) Resposta a uma pergunta de desambiguação pendente
@@ -105,7 +106,7 @@ export class ChatService {
     }
 
     // 3) Modelos de linguagem com ferramentas
-    return this.llm(user, conversationId, summary, req);
+    return this.llm(user, conversationId, summary, req, onDelta);
   }
 
   private local(r: { reply: string; actions: ActionResult[] }): TurnResult {
@@ -255,7 +256,7 @@ export class ChatService {
     return matches;
   }
 
-  private async llm(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest): Promise<TurnResult> {
+  private async llm(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest, onDelta?: (text: string) => void): Promise<TurnResult> {
     const settings = await this.settings.get(user.id);
     const order = routeProviders(req.message, settings.aiMode, this.providers);
     const notices: string[] = [];
@@ -271,16 +272,20 @@ export class ChatService {
         continue;
       }
       const memories = !provider.isCloud || settings.allowCloudMemory ? await this.memory.promptContext(user.id) : null;
-      const system = buildSystemPrompt({ userName: user.displayName, now: this.nowText(), memories, summary, cloud: provider.isCloud, voice: req.channel === 'voice' });
+      const system = buildSystemPrompt({ userName: user.displayName, memories, summary, cloud: provider.isCloud, voice: req.channel === 'voice' });
       const ctx: ToolContext = { userId: user.id, source: `ai:${provider.name}`, location: req.location, cloud: provider.isCloud };
-      const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past];
+      // Início estável (cacheável) + data/hora no fim
+      const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past.slice(0, -1), nowMessage(this.nowText()), ...past.slice(-1)];
       const actions: ActionResult[] = [];
       try {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
           // Conversa simples no modelo local: sem a lista de ferramentas o prompt fica bem menor
           // e a resposta sai muito mais rápido em CPUs antigas.
           const lightweight = !provider.isCloud && classify(req.message) === 'simple';
-          const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS && !lightweight ? TOOL_DEFINITIONS : []);
+          const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS && !lightweight ? TOOL_DEFINITIONS : [], {
+            onDelta,
+            maxTokens: req.channel === 'voice' ? 200 : 380,
+          });
           if (!res.toolCalls.length) {
             const reply = res.content.trim() || this.fallbackReply(actions);
             return { reply, provider: provider.name, model: provider.model, actions, notices: notices.length ? [...notices, `Respondi usando ${provider.name === 'ollama' ? 'o modelo local' : 'a OpenAI'}.`] : [] };
@@ -315,6 +320,25 @@ export class ChatService {
   private fallbackReply(actions: ActionResult[]): string {
     if (!actions.length) return 'Desculpe, não consegui formular uma resposta agora.';
     return actions.map((a) => (a.ok ? `✓ ${a.summary}` : `✗ ${a.summary}`)).join('\n');
+  }
+
+  /**
+   * Aquece o modelo local: carrega na RAM e pré-processa as instruções fixas (com e sem
+   * ferramentas), para que a primeira pergunta real já aproveite o cache do Ollama.
+   */
+  async warmup(): Promise<boolean> {
+    const ollama = this.providers.ollama;
+    if (!(await ollama.isAvailable())) return false;
+    const user = await this.db.user.findFirst({ orderBy: { createdAt: 'asc' } });
+    if (!user) return false;
+    const memories = await this.memory.promptContext(user.id);
+    for (const voice of [true, false]) {
+      const system = buildSystemPrompt({ userName: user.displayName, memories, summary: null, cloud: false, voice });
+      for (const tools of [[], TOOL_DEFINITIONS]) {
+        await ollama.chat([{ role: 'system', content: system }, { role: 'user', content: 'oi' }], tools, { maxTokens: 1 }).catch(() => undefined);
+      }
+    }
+    return true;
   }
 
   /** Gera um resumo da conversa (preferindo o modelo local) e o salva como memória do tipo "summary". */

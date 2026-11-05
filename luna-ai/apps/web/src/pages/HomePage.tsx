@@ -16,6 +16,7 @@ import { useAssistant } from '../stores/assistant';
 import { useAuth } from '../stores/auth';
 import { useSettings } from '../stores/settings';
 import { greeting, playChime, STATE_LABEL } from '../lib/text';
+import { takeSentences } from '../lib/speechText';
 
 function useViewportHeight() {
   const [h, setH] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
@@ -79,36 +80,58 @@ export default function HomePage() {
   const followUpRef = useRef(false);
   const startListeningRef = useRef<(followUp?: boolean) => void>(() => undefined);
 
-  const speakReply = useCallback(
-    (reply: string, continueAfter = false) => {
-      if (muted || !settings?.autoSpeak || !tts.supported) {
+  /**
+   * Envia por voz e FALA EM FLUXO: cada frase pronta entra na fila de fala enquanto o
+   * modelo ainda gera o resto — a Luna começa a responder bem antes de terminar de pensar.
+   */
+  const sendVoice = useCallback(
+    async (t: string, continueAfter = false) => {
+      const canSpeak = !muted && Boolean(settings?.autoSpeak) && tts.supported;
+      const opts = {
+        voiceName: settings?.voiceName,
+        rate: settings?.voiceRate,
+        onError: (code: string) => {
+          if (code === 'not-allowed' || code === 'not-started') setNeedsTap(true);
+        },
+      };
+      let buffer = '';
+      let spoke = false;
+      const res = await send(
+        t,
+        'voice',
+        canSpeak
+          ? (piece) => {
+              buffer += piece;
+              const { ready, rest } = takeSentences(buffer);
+              buffer = rest;
+              for (const sentence of ready) {
+                if (!spoke) {
+                  spoke = true;
+                  setState('speaking');
+                }
+                tts.enqueue(sentence, opts);
+              }
+            }
+          : undefined,
+      );
+      if (!res) {
+        tts.cancel();
         setState('idle');
         return;
       }
+      if (!canSpeak) {
+        setState('idle');
+        return;
+      }
+      // Respostas diretas (comandos da casa, hora, clima) chegam inteiras
+      tts.enqueue(spoke ? buffer : res.reply, opts);
       setState('speaking');
-      tts.speak(reply, {
-        voiceName: settings.voiceName,
-        rate: settings.voiceRate,
-        onError: (code) => {
-          if (code === 'not-allowed' || code === 'not-started') setNeedsTap(true);
-        },
-        onEnd: () => {
-          if (useAssistant.getState().state === 'speaking') setState('idle');
-          // Conversa contínua: após responder, escuta mais uma vez sem precisar de “Luna”
-          if (continueAfter) setTimeout(() => startListeningRef.current(true), 450);
-        },
+      tts.finishQueue(() => {
+        if (useAssistant.getState().state === 'speaking') setState('idle');
+        if (continueAfter) setTimeout(() => startListeningRef.current(true), 450);
       });
     },
-    [muted, settings, tts, setState],
-  );
-
-  const sendVoice = useCallback(
-    async (t: string, continueAfter = false) => {
-      const res = await send(t, 'voice');
-      if (res) speakReply(res.reply, continueAfter);
-      else setState('idle');
-    },
-    [send, speakReply, setState],
+    [send, muted, settings, tts, setState],
   );
 
   // Palavra de ativação (somente em primeiro plano e navegadores compatíveis)
@@ -211,7 +234,7 @@ export default function HomePage() {
 
   const vh = useViewportHeight();
 
-  const voiceBusy = realtime.active || realtime.connecting || sr.listening || recorder.recording || (voiceFocus && state !== 'idle' && state !== 'error');
+  const voiceBusy = realtime.active || realtime.connecting || sr.listening || recorder.recording || tts.speaking || (voiceFocus && state !== 'idle' && state !== 'error');
   useEffect(() => {
     if (!voiceFocus || voiceBusy) return;
     const t = setTimeout(() => {

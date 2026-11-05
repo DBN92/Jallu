@@ -43,7 +43,8 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  async chat(messages: ChatMessage[], tools: ToolDefinition[]): Promise<ProviderResponse> {
+  async chat(messages: ChatMessage[], tools: ToolDefinition[], opts: { onDelta?: (text: string) => void; maxTokens?: number } = {}): Promise<ProviderResponse> {
+    void opts; // sem streaming aqui: a resposta completa é enviada ao final
     if (!this.isConfigured()) throw new ProviderError('openai', 'A OpenAI não está configurada.', false);
     const body = {
       model: this.model,

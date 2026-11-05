@@ -101,8 +101,18 @@ export class FakeLlm {
     if (!this.available) throw new TypeError('fetch failed');
     if (url.pathname === '/api/tags') return json({ models: [{ name: 'qwen2.5:3b', model: 'qwen2.5:3b' }] });
     if (url.pathname === '/api/chat') {
-      this.requests.push(JSON.parse(String(init?.body)));
+      const body = JSON.parse(String(init?.body)) as { stream?: boolean };
+      this.requests.push(body);
       const step = this.next();
+      if (body.stream) {
+        // NDJSON como o Ollama real: vários pedaços e um final com done
+        const lines =
+          'tool' in step
+            ? [{ message: { role: 'assistant', content: '', tool_calls: [{ function: { name: step.tool, arguments: step.args } }] } }]
+            : step.content.split(/(?<= )/).map((piece) => ({ message: { role: 'assistant', content: piece } }));
+        const ndjson = [...lines, { message: { role: 'assistant', content: '' }, done: true }].map((l) => JSON.stringify(l)).join('\n') + '\n';
+        return new Response(ndjson, { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+      }
       if ('tool' in step) return json({ message: { role: 'assistant', content: '', tool_calls: [{ function: { name: step.tool, arguments: step.args } }] } });
       return json({ message: { role: 'assistant', content: step.content } });
     }
