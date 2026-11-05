@@ -76,7 +76,15 @@ export default function HomePage() {
 
   // Android/Chrome só libera áudio depois de um toque na tela (política de autoplay)
   const [needsTap, setNeedsTap] = useState(false);
-  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!needsTap) return;
+    const release = () => {
+      tts.unlock();
+      setNeedsTap(false);
+    };
+    window.addEventListener('pointerdown', release, { once: true });
+    return () => window.removeEventListener('pointerdown', release);
+  }, [needsTap]); // eslint-disable-line react-hooks/exhaustive-deps
   const followUpRef = useRef(false);
   const startListeningRef = useRef<(followUp?: boolean) => void>(() => undefined);
 
@@ -448,29 +456,16 @@ export default function HomePage() {
         />
       )}
 
-      {(needsTap || (wakeEnabled && !hasUserActivation())) &&
+      {needsTap &&
         createPortal(
-        <button
-          onClick={() => {
-            tts.unlock();
-            setNeedsTap(false);
-            setTick((t) => t + 1);
-          }}
-          className="overlay-full z-[70] flex flex-col items-center justify-center gap-4 bg-ink-950/85 px-8 text-center"
-        >
-          <span className="hud-title hud-glow text-2xl font-bold text-cyan-50">TOQUE PARA ATIVAR</span>
-          <span className="font-hud max-w-sm text-base text-cyan-100/70">
-            O Android só libera o som e a voz da Luna depois de um toque na tela. É necessário uma vez cada vez que o app é aberto.
-          </span>
-        </button>,
+          <div className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),0.75rem)] z-[70] flex justify-center px-4">
+            <div className="font-hud animate-fade-up rounded-sm border border-amber-300/50 bg-ink-950/95 px-4 py-2 text-sm text-amber-100 shadow-[0_0_16px_rgba(255,181,71,0.25)]">
+              🔊 Toque em qualquer lugar da tela para liberar a voz da Luna
+            </div>
+          </div>,
           document.body,
         )}
     </div>
   );
 }
 
-/** O usuário já tocou na página desde que ela abriu? (requisito do navegador para áudio) */
-function hasUserActivation() {
-  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
-  return ua ? ua.hasBeenActive : true;
-}
