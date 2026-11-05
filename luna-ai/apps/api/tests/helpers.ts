@@ -20,6 +20,7 @@ export async function resetDb() {
   // Ordem respeita chaves estrangeiras
   await db.actionLog.deleteMany();
   await db.directCamera.deleteMany();
+  await db.gestureRule.deleteMany();
   await db.automationRule.deleteMany();
   await db.message.deleteMany();
   await db.conversation.deleteMany();

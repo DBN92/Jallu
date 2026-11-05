@@ -182,3 +182,20 @@ describe('resumo do teste de conexão', () => {
     expect(summarizeVideo('frame=    0 fps=0.0')).toBeNull();
   });
 });
+
+describe.skipIf(!hasFfmpeg)('área de gestos', () => {
+  it('recorta só a área escolhida para os quadros de gesto', async () => {
+    ctx = await makeApp({}, { login: true, cameraInput: synthetic });
+    const created = await ctx.inject('POST', '/api/cameras/direct', { name: 'Sala', url: 'rtsp://192.168.15.23:554/onvif1', transport: 'udp' });
+    expect((await ctx.inject('PUT', `/api/cameras/direct/${created.json.id}/zone`, { zone: { x: 0.5, y: 0.5, w: 1.5, h: 0.2 } })).status).toBe(400);
+    const z = await ctx.inject('PUT', `/api/cameras/direct/${created.json.id}/zone`, { zone: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } });
+    expect(z.json.gestureZone).toEqual({ x: 0.25, y: 0.25, w: 0.5, h: 0.5 });
+    const frame = await raw(`/api/cameras/camera.luna_${created.json.id}/gesture-frame`);
+    expect(frame.statusCode).toBe(200);
+    expect(frame.headers['content-type']).toBe('image/jpeg');
+    // 1280x720 recortado pela metade → 640x360 (dimensões no cabeçalho SOF do JPEG)
+    const buf = frame.rawPayload;
+    const sof = buf.indexOf(Buffer.from([0xff, 0xc0]));
+    expect([buf.readUInt16BE(sof + 7), buf.readUInt16BE(sof + 5)]).toEqual([640, 360]);
+  }, 60_000);
+});

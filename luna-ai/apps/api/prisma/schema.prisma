@@ -154,6 +154,19 @@ model DirectCamera {
   password  String?
   transport String   @default("udp") // udp | tcp
   onvifPort Int? // porta ONVIF detectada (movimento); vazio = sem movimento
+  gestureZone String? // JSON {x,y,w,h} (0–1): área da imagem analisada para gestos
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Comando por gesto de mão: “mão aberta na câmera Sala → ligar Luz da Sala”.
+model GestureRule {
+  id        String   @id @default(cuid())
+  gesture   String // open_palm | closed_fist | thumb_up | thumb_down | victory | pointing_up | i_love_you
+  source    String // "device" (câmera do aparelho) ou entity_id da câmera
+  action    String // turn_on | turn_off | toggle
+  target    String // entity_id ou "all_lights"
+  enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

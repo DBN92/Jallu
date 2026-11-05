@@ -3,6 +3,18 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
+import { cpSync, existsSync } from 'node:fs';
+
+/** Copia os arquivos WebAssembly do reconhecedor de gestos para public/mediapipe (dev e build). */
+function mediapipeAssets() {
+  return {
+    name: 'luna-mediapipe-assets',
+    buildStart() {
+      const src = fileURLToPath(new URL('../../node_modules/@mediapipe/tasks-vision/wasm', import.meta.url));
+      if (existsSync(src)) cpSync(src, fileURLToPath(new URL('./public/mediapipe', import.meta.url)), { recursive: true });
+    },
+  };
+}
 
 const apiTarget = process.env.LUNA_API_URL ?? 'http://127.0.0.1:8787';
 
@@ -17,6 +29,7 @@ export default defineConfig({
     ],
   },
   plugins: [
+    mediapipeAssets(),
     react(),
     tailwindcss(),
     VitePWA({
@@ -46,7 +59,7 @@ export default defineConfig({
         runtimeCaching: [],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // O player de vídeo (hls.js) só é baixado quando uma câmera é aberta
-        globIgnores: ['**/hls-*.js'],
+        globIgnores: ['**/hls-*.js', 'mediapipe/**', 'models/**', '**/vision_bundle*.js', '**/gestures-*.js'],
       },
     }),
   ],

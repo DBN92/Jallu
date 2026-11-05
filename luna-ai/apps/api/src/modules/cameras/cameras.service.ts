@@ -89,6 +89,13 @@ export class CamerasService {
     return res;
   }
 
+  /** Quadro para análise de gestos: área recortada (câmeras diretas) ou a foto inteira (HA). */
+  async gestureFrame(entityId: string): Promise<Response> {
+    if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
+    if (this.direct?.isDirect(entityId)) return this.direct.gestureFrame(entityId);
+    return this.snapshot(entityId);
+  }
+
   /** Vídeo ao vivo em MJPEG (alternativa quando HLS não está disponível). */
   async mjpeg(entityId: string, signal: AbortSignal): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');

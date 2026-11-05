@@ -11,6 +11,7 @@ import { useLocation } from '../stores/location';
 import { useSettings, type ScreenOrientationPref } from '../stores/settings';
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
+import { GestureSettings } from '../gestures/GestureSettings';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -399,6 +400,10 @@ export default function SettingsPage() {
           <DirectCameras />
         </Section>
       )}
+
+      <Section title="Gestos (comandos por mão)">
+        <GestureSettings isAdmin={isAdmin} />
+      </Section>
 
       <Section title="Localização">
         <Row label="Usar GPS deste aparelho" hint="Usado só no momento da consulta (clima). As coordenadas não são salvas.">

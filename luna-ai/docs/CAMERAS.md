@@ -75,3 +75,20 @@ portas comuns (5000 nas Yoosee, depois 80, 8899, 8000, 8080, 2020), autentica co
 controles na tela da câmera (segure para mover) e, na TV, as setas do controle giram a câmera.
 Se todas as portas aparecerem como “fechada”, o ONVIF está desligado: ative **ONVIF** ou **NVR** nas
 configurações da câmera no app do fabricante. Se o comando para não chegar, a câmera para sozinha em 2,5 s.
+
+## Comandos por gesto de mão (✋ acende, ✊ apaga…)
+
+**Ajustes › Gestos (comandos por mão)**:
+1. Escolha o gesto (✋ mão aberta, ✊ punho, 👍, 👎, ✌️, ☝️, 🤟), **onde** (uma câmera da Luna ou a câmera
+   frontal do aparelho), a **ação** (ligar, desligar, alternar) e o **aparelho** (ou “todas as luzes”).
+2. Use **Testar o reconhecimento** para ver ao vivo o que a Luna entende (mostra o gesto e a % de certeza).
+3. Em câmeras diretas, **Área da câmera**: desenhe um retângulo só onde você costuma ficar — a mão fica
+   maior na imagem e o reconhecimento melhora muito (essencial em câmeras de lente aberta, como as Yoosee).
+4. Ligue **Analisar gestos neste aparelho** no aparelho que fica sempre com a Luna aberta (ex.: o Android da parede).
+
+Como funciona: o aparelho busca ~3 quadros por segundo (só da área escolhida) e reconhece a mão com o
+MediaPipe (Google), que roda **no próprio aparelho** — nenhuma imagem vai para a internet. O gesto precisa
+ser mantido ~1 s (mão passando não conta); a mesma regra não repete por 5 s. A ação passa pelo servidor com
+as mesmas validações e fica no histórico (origem “gesture”). O modelo (~8 MB) é baixado no build com sha256 conferido.
+
+Dicas: de frente para a câmera, a 1–3 m, com luz. À noite (infravermelho) funciona pior.

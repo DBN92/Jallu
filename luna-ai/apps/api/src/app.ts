@@ -37,6 +37,8 @@ import { voiceRoutes } from './modules/voice/voice.routes';
 import { CamerasService } from './modules/cameras/cameras.service';
 import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
+import { GesturesService } from './modules/gestures/gestures.service';
+import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
 
@@ -84,6 +86,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
 
   const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);
   cameras.setDirect(directCameras);
+  const gestures = new GesturesService(db, devices);
   chat.setCameras(cameras);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
@@ -96,7 +99,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, cameras, directCameras, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { ha, haWs, actionLogs, devices, cameras, directCameras, gestures, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -129,7 +132,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       useDefaults: true,
       directives: {
         'default-src': ["'self'"],
-        'script-src': ["'self'"],
+        // 'wasm-unsafe-eval': permite só WebAssembly (reconhecedor de gestos local), não eval de JS
+        'script-src': ["'self'", "'wasm-unsafe-eval'"],
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", 'data:', 'blob:'],
         'media-src': ["'self'", 'blob:'],
@@ -143,7 +147,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     hsts: false, // HTTPS/HSTS é tratado pelo Cloudflare
   });
   app.addHook('onSend', async (_req, reply) => {
-    reply.header('Permissions-Policy', 'microphone=(self), geolocation=(self), camera=()');
+    reply.header('Permissions-Policy', 'microphone=(self), geolocation=(self), camera=(self)');
   });
   // Sem lista de exceções: atrás do cloudflared todo tráfego chega de 127.0.0.1.
   // O Cloudflare define CF-Connecting-IP com o IP real do cliente (não falsificável via Cloudflare).
@@ -183,6 +187,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(aiRoutes);
   await app.register(voiceRoutes);
   await app.register(cameraRoutes);
+  await app.register(gestureRoutes);
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel

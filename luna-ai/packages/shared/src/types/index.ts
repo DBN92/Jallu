@@ -211,3 +211,27 @@ export interface CameraDto {
 }
 
 export type PtzAction = 'up' | 'down' | 'left' | 'right' | 'zoom_in' | 'zoom_out' | 'stop';
+
+/** Gestos reconhecidos (nomes do reconhecedor de mãos, em minúsculas). */
+export const GESTURES = ['open_palm', 'closed_fist', 'thumb_up', 'thumb_down', 'victory', 'pointing_up', 'i_love_you'] as const;
+export type GestureName = (typeof GESTURES)[number];
+export const GESTURE_LABELS: Record<GestureName, { emoji: string; label: string }> = {
+  open_palm: { emoji: '✋', label: 'Mão aberta' },
+  closed_fist: { emoji: '✊', label: 'Punho fechado' },
+  thumb_up: { emoji: '👍', label: 'Polegar para cima' },
+  thumb_down: { emoji: '👎', label: 'Polegar para baixo' },
+  victory: { emoji: '✌️', label: 'Dois dedos (paz)' },
+  pointing_up: { emoji: '☝️', label: 'Indicador para cima' },
+  i_love_you: { emoji: '🤟', label: 'Te amo (🤟)' },
+};
+
+export interface GestureRuleDto {
+  id: string;
+  gesture: GestureName;
+  /** "device" = câmera do próprio aparelho; senão, entity_id da câmera */
+  source: string;
+  action: 'turn_on' | 'turn_off' | 'toggle';
+  /** entity_id ou "all_lights" */
+  target: string;
+  enabled: boolean;
+}

@@ -36,6 +36,8 @@ interface SettingsState {
   /** Orientação forçada neste aparelho (app instalado). */
   orientation: ScreenOrientationPref;
   tvMode: TvModePref;
+  /** Este aparelho analisa gestos de mão (câmeras com regras e/ou a câmera dele). */
+  gestureWatch: boolean;
   load: () => Promise<void>;
   update: (patch: SettingsUpdate) => Promise<void>;
   setHome: (home: { name: string; latitude: number; longitude: number } | null) => Promise<void>;
@@ -45,6 +47,7 @@ interface SettingsState {
   setOrientation: (v: ScreenOrientationPref) => void;
   setAmbientMode: (v: boolean) => void;
   setTvMode: (v: TvModePref) => void;
+  setGestureWatch: (v: boolean) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -55,6 +58,7 @@ export const useSettings = create<SettingsState>((set) => ({
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
+  gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -66,6 +70,10 @@ export const useSettings = create<SettingsState>((set) => ({
   setAmbientMode: (ambientMode) => {
     writeLocal('luna.ambientMode', ambientMode);
     set({ ambientMode });
+  },
+  setGestureWatch: (gestureWatch) => {
+    writeLocal('luna.gestureWatch', gestureWatch);
+    set({ gestureWatch });
   },
   setTvMode: (tvMode) => {
     writeLocal('luna.tvMode', tvMode);

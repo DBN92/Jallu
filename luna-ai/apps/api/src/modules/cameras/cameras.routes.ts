@@ -23,6 +23,11 @@ export async function cameraRoutes(app: FastifyInstance) {
     pipe(reply, await cameras.snapshot(idParam.parse(req.params).entityId)),
   );
 
+  // ~3 quadros/s por aparelho que analisa gestos
+  app.get('/api/cameras/:entityId/gesture-frame', { preHandler: requireAuth, config: { rateLimit: { max: 400, timeWindow: '1 minute' } } }, async (req, reply) =>
+    pipe(reply, await cameras.gestureFrame(idParam.parse(req.params).entityId)),
+  );
+
   app.get('/api/cameras/:entityId/mjpeg', { preHandler: requireAuth }, async (req, reply) => {
     const ctrl = new AbortController();
     req.raw.on('close', () => ctrl.abort()); // para o vídeo quando o usuário sai
@@ -59,6 +64,11 @@ export async function cameraRoutes(app: FastifyInstance) {
   app.post('/api/cameras/direct/:id/onvif', { preHandler: requireAdmin, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) =>
     directCameras.detectOnvif(directId.parse(req.params).id, z.object({ port: z.coerce.number().int().min(1).max(65535).optional() }).parse(req.body ?? {}).port),
   );
+  app.put('/api/cameras/direct/:id/zone', { preHandler: requireAdmin }, async (req) => {
+    const unit = z.number().min(0).max(1);
+    const body = z.object({ zone: z.object({ x: unit, y: unit, w: unit, h: unit }).nullable() }).parse(req.body);
+    return directCameras.setZone(directId.parse(req.params).id, body.zone);
+  });
   app.delete('/api/cameras/direct/:id/onvif', { preHandler: requireAdmin }, async (req) => directCameras.disableOnvif(directId.parse(req.params).id));
   app.post('/api/cameras/direct/test', { preHandler: requireAdmin, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) =>
     directCameras.test(directBody.omit({ name: true }).extend({ id: z.string().regex(/^[a-z0-9]{8,40}$/).optional() }).parse(req.body)),

@@ -32,9 +32,27 @@ export interface DirectCameraInfo {
   transport: 'udp' | 'tcp';
   /** Porta ONVIF ativa (movimento) ou null */
   onvifPort: number | null;
+  /** Área analisada para gestos (0–1) ou null = imagem inteira */
+  gestureZone: Zone | null;
 }
 
-type Row = { id: string; name: string; url: string; username: string | null; password: string | null; transport: string; onvifPort: number | null };
+export interface Zone {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const parseZone = (z: string | null): Zone | null => {
+  try {
+    const v = z ? (JSON.parse(z) as Zone) : null;
+    return v && [v.x, v.y, v.w, v.h].every((n) => typeof n === 'number' && n >= 0 && n <= 1) && v.w > 0.02 && v.h > 0.02 ? v : null;
+  } catch {
+    return null;
+  }
+};
+
+type Row = { id: string; name: string; url: string; username: string | null; password: string | null; transport: string; onvifPort: number | null; gestureZone: string | null };
 
 interface Session {
   proc: ChildProcess;
@@ -128,7 +146,7 @@ export class DirectCamerasService {
   }
 
   private info(r: Row): DirectCameraInfo {
-    return { id: r.id, entityId: DIRECT_PREFIX + r.id, name: r.name, url: r.url, username: r.username, hasPassword: !!r.password, transport: r.transport === 'tcp' ? 'tcp' : 'udp', onvifPort: r.onvifPort };
+    return { id: r.id, entityId: DIRECT_PREFIX + r.id, name: r.name, url: r.url, username: r.username, hasPassword: !!r.password, transport: r.transport === 'tcp' ? 'tcp' : 'udp', onvifPort: r.onvifPort, gestureZone: parseZone(r.gestureZone) };
   }
 
   async listInfo(): Promise<DirectCameraInfo[]> {
@@ -307,6 +325,8 @@ export class DirectCamerasService {
       '-hls_segment_filename', join(dir, 'seg%05d.ts'), join(dir, 'index.m3u8'),
       // Foto atual, 1 por segundo
       '-map', '0:v:0', '-vf', `fps=1,${scale}`, '-q:v', '6', '-f', 'image2', '-update', '1', join(dir, 'latest.jpg'),
+      // Quadros para gestos: 3 por segundo, só a área escolhida e na resolução original (a mão fica maior)
+      '-map', '0:v:0', '-vf', `fps=3,${zoneCrop(parseZone(r.gestureZone))}scale='min(720,iw)':-2`, '-q:v', '5', '-f', 'image2', '-update', '1', join(dir, 'gesture.jpg'),
     ];
     const proc = spawn(ff, args, { stdio: ['ignore', 'ignore', 'pipe'] });
     const s: Session = { proc, dir, lastUsed: Date.now(), stderr: [], exited: false };
@@ -346,6 +366,23 @@ export class DirectCamerasService {
     const file = await this.waitFile(entityId, s, 'latest.jpg', 25_000);
     const body = await readFile(file);
     return new Response(body, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+  }
+
+  /** Quadro atual para análise de gestos (área recortada). */
+  async gestureFrame(entityId: string): Promise<Response> {
+    const s = await this.ensure(entityId);
+    const file = await this.waitFile(entityId, s, 'gesture.jpg', 25_000);
+    return new Response(await readFile(file), { status: 200, headers: { 'content-type': 'image/jpeg', 'cache-control': 'no-store' } });
+  }
+
+  /** Define (ou limpa) a área analisada para gestos; reinicia o vídeo para aplicar. */
+  async setZone(id: string, zone: Zone | null) {
+    await this.row(DIRECT_PREFIX + id);
+    const z = zone ? parseZone(JSON.stringify(zone)) : null;
+    if (zone && !z) throw badRequest('Área inválida.');
+    await this.db.directCamera.update({ where: { id }, data: { gestureZone: z ? JSON.stringify(z) : null } });
+    await this.stop(DIRECT_PREFIX + id);
+    return { ok: true, gestureZone: z };
   }
 
   async startStream(entityId: string): Promise<{ url: string; token: string }> {
@@ -393,6 +430,13 @@ export class DirectCamerasService {
     clearInterval(this.sweeper);
     await Promise.all([...this.sessions.keys()].map((id) => this.stop(id)));
   }
+}
+
+/** Filtro de recorte do ffmpeg para a área de gestos (coordenadas pares, exigidas pelo codificador). */
+function zoneCrop(z: Zone | null): string {
+  if (!z) return '';
+  const f = (v: number) => v.toFixed(4);
+  return `crop=trunc(iw*${f(z.w)}/2)*2:trunc(ih*${f(z.h)}/2)*2:trunc(iw*${f(z.x)}):trunc(ih*${f(z.y)}),`;
 }
 
 /**

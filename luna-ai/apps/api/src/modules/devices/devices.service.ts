@@ -10,7 +10,7 @@ import { CONTROLLABLE_DOMAINS, SUPPORTED_DOMAINS, domainOf, toDeviceDto } from '
 
 /** Quem está pedindo a ação. Ações vindas da IA exigem dispositivo autorizado para IA. */
 export interface Actor {
-  source: 'ui' | 'voice' | `ai:${string}` | 'automation';
+  source: 'ui' | 'voice' | `ai:${string}` | 'automation' | 'gesture';
   userId?: string | null;
 }
 

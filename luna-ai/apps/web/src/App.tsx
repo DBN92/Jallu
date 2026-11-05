@@ -13,6 +13,7 @@ import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useTv } from './stores/tv';
+import { GestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { applyOrientation } from './lib/orientation';
 
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
@@ -69,6 +70,7 @@ export default function App() {
   }, [status, loadSettings]);
 
   useRealtimeConnection(status === 'ready');
+  useGestureWatcher(status === 'ready');
 
   // Orientação da tela (app instalado): reaplica ao abrir e ao voltar do segundo plano
   const orientation = useSettings((s) => s.orientation);
@@ -96,11 +98,13 @@ export default function App() {
     return (
       <Suspense fallback={<Splash />}>
         <TvApp />
+        <GestureToast />
       </Suspense>
     );
 
   return (
     <BrowserRouter>
+      <GestureToast />
       <Suspense
         fallback={
           <div className="flex flex-1 items-center justify-center">

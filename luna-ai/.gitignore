@@ -11,3 +11,6 @@ apps/api/tests/.tmp/
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 .DS_Store
+# Baixados/copiados no build (reconhecedor de gestos)
+apps/web/public/models/
+apps/web/public/mediapipe/
