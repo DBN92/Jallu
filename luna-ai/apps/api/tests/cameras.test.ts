@@ -19,6 +19,19 @@ async function withCameras() {
 }
 
 describe('câmeras (via Home Assistant)', () => {
+  it('erro de imagem mostra o motivo; diagnóstico aponta a etapa que falha', async () => {
+    await withCameras();
+    ctx.ha.states.set('camera.offline', { entity_id: 'camera.offline', state: 'idle', attributes: { friendly_name: 'Quintal', supported_features: 2 } });
+    const snap = await ctx.inject('GET', '/api/cameras/camera.offline/snapshot');
+    expect(snap.status).toBe(502);
+    expect(snap.json.message).toMatch(/HTTP 500: Error fetching camera image/);
+    const ok = await ctx.inject('GET', '/api/cameras/camera.garagem/diagnose');
+    expect(ok.json.steps.every((s: { ok: boolean }) => s.ok)).toBe(true);
+    expect(ok.json.steps.map((s: { step: string }) => s.step)).toEqual(['Câmera no Home Assistant', 'Foto (Home Assistant → câmera)', 'Início do vídeo (HLS)', 'Lista de vídeo (playlist)']);
+    const bad = await ctx.inject('GET', '/api/cameras/camera.offline/diagnose');
+    expect(bad.json.steps.find((s: { ok: boolean }) => !s.ok).step).toBe('Foto (Home Assistant → câmera)');
+  });
+
   it('lista câmeras e identifica vídeo ao vivo e controle de movimento (ONVIF)', async () => {
     await withCameras();
     const r = await ctx.inject('GET', '/api/cameras');
@@ -45,6 +58,9 @@ describe('câmeras (via Home Assistant)', () => {
     const pl = await ctx.app.inject({ method: 'GET', url: s.json.url });
     expect(pl.statusCode).toBe(200);
     expect(pl.body).toContain('#EXTM3U');
+    // endereço absoluto do HA reescrito para passar pela Luna
+    expect(pl.body).toContain('/api/cameras/hls/tok123/playlist.m3u8');
+    expect(pl.body).not.toMatch(/^\/api\/hls\//m);
     expect((await ctx.app.inject({ method: 'GET', url: '/api/cameras/hls/naoexiste/master_playlist.m3u8' })).statusCode).toBe(404);
     expect((await ctx.app.inject({ method: 'GET', url: '/api/cameras/hls/tok123/../../states' })).statusCode).toBe(404);
     expect((await ctx.inject('POST', '/api/cameras/camera.sala/stream')).status).toBe(409);

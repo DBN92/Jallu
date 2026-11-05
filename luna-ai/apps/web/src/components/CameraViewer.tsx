@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize, Stethoscope, X, ZoomIn, ZoomOut } from 'lucide-react';
 import type { CameraDto, PtzAction } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useCameras } from '../stores/cameras';
@@ -24,6 +24,39 @@ function PtzButton({ camera, action, label, children, onError }: { camera: Camer
     >
       {children}
     </button>
+  );
+}
+
+/** Testa cada etapa (HA, foto, vídeo) e mostra onde falha. */
+function Diagnose({ camera }: { camera: CameraDto }) {
+  const [steps, setSteps] = useState<{ step: string; ok: boolean; detail: string; ms?: number }[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      setSteps((await api<{ steps: { step: string; ok: boolean; detail: string; ms?: number }[] }>(`/api/cameras/${camera.entityId}/diagnose`)).steps);
+    } catch (e) {
+      setSteps([{ step: 'Diagnóstico', ok: false, detail: errorMessage(e) }]);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="text-center">
+      <button onClick={() => void run()} disabled={busy} className="hud-label inline-flex items-center gap-1.5 text-cyan-300/70 hover:text-cyan-200 disabled:opacity-50">
+        <Stethoscope className="h-3.5 w-3.5" /> {busy ? 'testando…' : 'diagnóstico'}
+      </button>
+      {steps && (
+        <ul className="font-hud mt-2 space-y-1 text-left text-xs">
+          {steps.map((s) => (
+            <li key={s.step} className={s.ok ? 'text-emerald-300' : 'text-rose-300'}>
+              {s.ok ? '✓' : '✗'} <b>{s.step}</b>
+              {s.ms !== undefined ? ` (${(s.ms / 1000).toFixed(1)} s)` : ''}: <span className="text-cyan-100/70">{s.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -72,6 +105,7 @@ export function CameraControls({ camera, containerRef }: { camera: CameraDto; co
           </div>
         </div>
       </div>
+      <Diagnose camera={camera} />
       {!camera.ptz && <p className="font-hud text-center text-xs text-cyan-100/45">Para girar/inclinar, adicione esta câmera ao Home Assistant pela integração ONVIF.</p>}
       {error && <p className="font-hud text-center text-xs text-rose-300">{error}</p>}
     </div>

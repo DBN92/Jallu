@@ -14,6 +14,7 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
   const [mode, setMode] = useState<Mode>('loading');
   const [tick, setTick] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
+  const snapFailed = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,9 +47,9 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
         }
         el.onplaying = () => !cancelled && setMode('live');
         el.onerror = () => fallback('O vídeo ao vivo falhou; mostrando imagens.');
-        await el.play().catch(() => undefined);
-        // Se em 12 s não começar, usa imagens
-        setTimeout(() => !cancelled && el.readyState < 2 && fallback('O vídeo demorou para começar; mostrando imagens.'), 12_000);
+        // O tempo limite começa ANTES de play(): no iPhone, play() pode ficar esperando para sempre
+        setTimeout(() => !cancelled && el.readyState < 2 && fallback('O vídeo ao vivo não começou em 15 s; mostrando imagens.'), 15_000);
+        void el.play().catch(() => undefined);
       } catch (err) {
         fallback(err instanceof ApiError && err.status !== 409 ? err.message : undefined);
       }
@@ -79,7 +80,21 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
           src={`/api/cameras/${camera.entityId}/snapshot?t=${tick}`}
           alt={camera.name}
           className="h-full w-full object-contain"
-          onError={() => setMessage('A câmera não respondeu. Ela está ligada e na rede?')}
+          onError={() => {
+            if (snapFailed.current) return;
+            snapFailed.current = true;
+            api<{ steps: { step: string; ok: boolean; detail: string }[] }>(`/api/cameras/${camera.entityId}/diagnose`)
+              .then((d) => {
+                const bad = d.steps.find((st) => !st.ok);
+                setMessage(bad ? `${bad.step}: ${bad.detail}` : 'A câmera não respondeu agora.');
+              })
+              .catch(() => setMessage('A câmera não respondeu. Ela está ligada e na rede?'));
+          }}
+          onLoad={() => {
+            // Só limpa o aviso se ele era de falha na foto (mantém o motivo da troca para imagens)
+            if (snapFailed.current) setMessage(null);
+            snapFailed.current = false;
+          }}
         />
       )}
       {mode === 'loading' && (

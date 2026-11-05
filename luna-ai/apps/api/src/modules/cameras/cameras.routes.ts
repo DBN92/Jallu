@@ -29,6 +29,8 @@ export async function cameraRoutes(app: FastifyInstance) {
     return pipe(reply, await cameras.mjpeg(idParam.parse(req.params).entityId, ctrl.signal));
   });
 
+  app.get('/api/cameras/:entityId/diagnose', { preHandler: requireAuth }, async (req) => cameras.diagnose(idParam.parse(req.params).entityId));
+
   app.post('/api/cameras/:entityId/stream', { preHandler: requireAuth }, async (req) => cameras.startStream(idParam.parse(req.params).entityId));
 
   // Sem cookie: o próprio token (aleatório, emitido a um usuário logado, expira) autoriza.

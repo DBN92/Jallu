@@ -61,7 +61,10 @@ export class CamerasService {
   async snapshot(entityId: string): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
     const res = await this.ha.raw(`/api/camera_proxy/${entityId}`, { timeoutMs: 12_000 });
-    if (!res.ok) throw new AppError(502, 'A câmera não enviou imagem agora. Ela está ligada e na rede?', 'camera_error');
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => '')).slice(0, 160);
+      throw new AppError(502, `O Home Assistant não conseguiu a imagem desta câmera (HTTP ${res.status}${detail ? `: ${detail}` : ''}). Confira se ela aparece no próprio Home Assistant.`, 'camera_error');
+    }
     return res;
   }
 
@@ -96,7 +99,13 @@ export class CamerasService {
       throw new AppError(404, 'Sessão de vídeo expirada.', 'hls_expired');
     }
     this.hlsTokens.set(token, Date.now() + 30 * 60_000); // renova enquanto assiste
-    return this.ha.raw(`/api/hls/${token}/${path}`, { auth: false, timeoutMs: 20_000 });
+    const res = await this.ha.raw(`/api/hls/${token}/${path}`, { auth: false, timeoutMs: 20_000 });
+    if (path.endsWith('.m3u8') && res.ok) {
+      // Algumas versões do HA usam endereços absolutos (/api/hls/...): reescreve para /api/cameras/hls/...
+      const text = (await res.text()).replace(/(^|[\s"'])\/api\/hls\//gm, '$1/api/cameras/hls/');
+      return new Response(text, { status: 200, headers: { 'content-type': 'application/vnd.apple.mpegurl' } });
+    }
+    return res;
   }
 
   /** Movimento da câmera (ONVIF): girar, inclinar e zoom. */
@@ -120,6 +129,54 @@ export class CamerasService {
       throw err;
     }
     return { ok: true };
+  }
+
+  /**
+   * Diagnóstico passo a passo (para descobrir onde o vídeo falha): estado no HA,
+   * foto via HA e início do vídeo HLS. Não expõe senhas nem tokens.
+   */
+  async diagnose(entityId: string) {
+    const steps: { step: string; ok: boolean; detail: string; ms?: number }[] = [];
+    const cam = await this.get(entityId);
+    steps.push({
+      step: 'Câmera no Home Assistant',
+      ok: cam.available,
+      detail: `estado “${cam.state}”, integração ${cam.platform ?? 'desconhecida'}, vídeo contínuo ${cam.stream ? 'sim' : 'não'}, movimento ${cam.ptz ? 'sim' : 'não'}`,
+    });
+    let t = Date.now();
+    try {
+      const res = await this.ha.raw(`/api/camera_proxy/${entityId}`, { timeoutMs: 15_000 });
+      const body = res.ok ? await res.arrayBuffer() : null;
+      steps.push({
+        step: 'Foto (Home Assistant → câmera)',
+        ok: res.ok && (body?.byteLength ?? 0) > 500,
+        detail: res.ok ? `${Math.round((body?.byteLength ?? 0) / 1024)} KB recebidos` : `HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 160) || 'sem detalhes'}`,
+        ms: Date.now() - t,
+      });
+    } catch (err) {
+      steps.push({ step: 'Foto (Home Assistant → câmera)', ok: false, detail: (err as Error).message, ms: Date.now() - t });
+    }
+    if (cam.stream) {
+      t = Date.now();
+      try {
+        const { url } = await this.wsCommand<{ url: string }>({ type: 'camera/stream', entity_id: entityId, format: 'hls' });
+        steps.push({ step: 'Início do vídeo (HLS)', ok: true, detail: 'o Home Assistant aceitou abrir o vídeo', ms: Date.now() - t });
+        t = Date.now();
+        const res = await this.ha.raw(url, { auth: false, timeoutMs: 25_000 });
+        const text = await res.text().catch(() => '');
+        steps.push({
+          step: 'Lista de vídeo (playlist)',
+          ok: res.ok && text.includes('#EXTM3U'),
+          detail: res.ok
+            ? text.split('\n').slice(0, 3).join(' ')
+            : `HTTP ${res.status} — o Home Assistant não conseguiu ler o vídeo (RTSP) da câmera. Confira a URL/senha RTSP na integração e veja Configurações › Sistema › Logs do HA (procure por “stream”).`,
+          ms: Date.now() - t,
+        });
+      } catch (err) {
+        steps.push({ step: 'Início do vídeo (HLS)', ok: false, detail: (err as Error).message, ms: Date.now() - t });
+      }
+    }
+    return { camera: cam.name, steps };
   }
 
   /** Encontra câmeras pelo nome falado (“câmera da garagem”). */
