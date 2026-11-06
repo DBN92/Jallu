@@ -55,7 +55,7 @@ export interface ModernHomeProps {
   gesturesOn: boolean;
 }
 
-/** Tela inicial dos temas modernos: cartões arredondados, onda colorida e controles diretos. */
+/** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da DIA e controles diretos. */
 export function ModernHome(p: ModernHomeProps) {
   const navigate = useNavigate();
   const devicesMap = useDevices((s) => s.devices);
@@ -76,7 +76,7 @@ export function ModernHome(p: ModernHomeProps) {
     const el = trackRef.current;
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
   };
-  // Ao falar com a DIA (ou chegar resposta), volta para a onda
+  // Ao falar com a DIA (ou chegar resposta), volta para o cartão da DIA
   useEffect(() => {
     if (p.state !== 'idle' || p.hasChat) goTo(0);
   }, [p.state, p.hasChat]);
@@ -136,7 +136,7 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
       </div>
       <div className="my-3 flex justify-center">
-        <LunaOrb state={p.state} levelRef={p.levelRef} size={waveW} height={p.hasChat ? (land ? 44 : 70) : p.wide ? 150 : land ? 62 : 110} onClick={p.onMic} />
+        <LunaOrb state={p.state} levelRef={p.levelRef} size={waveW} height={p.hasChat ? (land ? 48 : 76) : p.wide ? 200 : land ? 84 : 150} onClick={p.onMic} />
       </div>
       {p.hasChat && (
         <div className="mb-3 max-h-[38vh] min-h-0 overflow-y-auto">

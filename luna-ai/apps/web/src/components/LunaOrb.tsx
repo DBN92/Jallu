@@ -2,32 +2,107 @@ import { useEffect, useRef } from 'react';
 import type { AssistantState } from '@luna/shared';
 import { waveColors } from '../lib/theme';
 
-const STATE_RGB: Record<AssistantState, [number, number, number]> = {
-  idle: [0, 229, 255],
-  listening: [95, 246, 255],
-  processing: [154, 140, 255],
-  acting: [255, 181, 71],
-  speaking: [58, 200, 255],
-  error: [255, 77, 106],
-};
-/** Velocidade das ondas (fase por segundo) em cada estado. */
-const STATE_SPEED: Record<AssistantState, number> = { idle: 1.2, listening: 2.4, processing: 6, acting: 7, speaking: 3.6, error: 0.6 };
-/** Altura “sintética” das ondas quando não há áudio real. */
-const STATE_LEVEL: Record<AssistantState, number> = { idle: 0.24, listening: 0.42, processing: 0.32, acting: 0.34, speaking: 0.75, error: 0.03 };
+type V3 = [number, number, number];
+type Shape = 'dust' | 'shell' | 'core' | 'net';
 
-/** Camadas de onda: frequência, opacidade, espessura, deslocamento de fase e sentido. */
-const WAVES = [
-  { freq: 1, alpha: 0.95, width: 2.6, phase: 0, dir: 1 },
-  { freq: 1.6, alpha: 0.55, width: 1.8, phase: 1.3, dir: -1 },
-  { freq: 2.3, alpha: 0.38, width: 1.5, phase: 2.1, dir: 1 },
-  { freq: 0.7, alpha: 0.28, width: 1.2, phase: 0.6, dir: -1 },
-];
+/** Forma da nuvem em cada estado da DIA. */
+const STATE_SHAPE: Record<AssistantState, Shape> = { idle: 'shell', listening: 'shell', processing: 'core', acting: 'core', speaking: 'net', error: 'shell' };
+/** Velocidade de giro (rad/s) em cada estado. */
+const STATE_SPIN: Record<AssistantState, number> = { idle: 0.22, listening: 0.3, processing: 1.6, acting: 1.8, speaking: 0.35, error: 0.1 };
+/** “Voz” sintética quando não há áudio real. */
+const STATE_LEVEL: Record<AssistantState, number> = { idle: 0.08, listening: 0.2, processing: 0.25, acting: 0.3, speaking: 0.6, error: 0 };
+const ERROR_RGB: V3 = [255, 77, 106];
+const BUCKETS = 4; // tons entre a cor 1 e a cor 2 do tema
+
+/** Gerador determinístico: a nuvem tem sempre o mesmo “desenho”. */
+function rng(seed: number) {
+  let s = seed;
+  const next = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const gauss = () => {
+    let u = 0;
+    let v = 0;
+    while (!u) u = next();
+    while (!v) v = next();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  };
+  return { next, gauss };
+}
+
+/** Posições de cada partícula em cada forma + ligações da rede (calculadas uma vez). */
+function buildCloud(n: number, nodes: number, aspect: number) {
+  const { next, gauss } = rng(11);
+  const shapes: Record<Shape, Float32Array> = { dust: new Float32Array(n * 3), shell: new Float32Array(n * 3), core: new Float32Array(n * 3), net: new Float32Array(n * 3) };
+  const phase = new Float32Array(n);
+  const dot = new Float32Array(n);
+  const tone = new Uint8Array(n);
+  const set = (k: Shape, i: number, v: V3) => shapes[k].set(v, i * 3);
+  for (let i = 0; i < n; i++) {
+    const th = next() * Math.PI * 2;
+    const ph = Math.acos(2 * next() - 1);
+    const dir: V3 = [Math.sin(ph) * Math.cos(th), Math.cos(ph), Math.sin(ph) * Math.sin(th)];
+    // poeira espalhada pela área toda
+    set('dust', i, [(next() - 0.5) * 2.8 * Math.max(1, aspect), (next() - 0.5) * 2.8 * Math.max(1, 1 / aspect), (next() - 0.5) * 2.6]);
+    // casca: esfera com algumas partículas “escapando”
+    const sr = 0.95 + Math.abs(gauss()) * 0.1 + (next() < 0.15 ? next() * next() * 0.7 : 0);
+    set('shell', i, [dir[0] * sr, dir[1] * sr, dir[2] * sr]);
+    // núcleo denso
+    const cr = Math.abs(gauss()) * 0.18;
+    set('core', i, [dir[0] * cr, dir[1] * cr, dir[2] * cr]);
+    // rede: nós distribuídos uniformemente (espiral de Fibonacci) + recheio
+    if (i < nodes) {
+      const y = 1 - (2 * (i + 0.5)) / nodes;
+      const r = Math.sqrt(1 - y * y);
+      const a = (i + 0.5) * 2.39996;
+      const j = 1.05 * (1 + gauss() * 0.03);
+      set('net', i, [Math.cos(a) * r * j, y * j, Math.sin(a) * r * j]);
+    } else {
+      const rr = 0.55 + next() * 0.5;
+      set('net', i, [dir[0] * rr, dir[1] * rr, dir[2] * rr]);
+    }
+    phase[i] = next() * Math.PI * 2;
+    dot[i] = 0.6 + next() * 1.4;
+    tone[i] = Math.min(BUCKETS - 1, Math.floor(next() * BUCKETS));
+  }
+  // cada nó liga aos 5 vizinhos mais próximos
+  const net = shapes.net;
+  const pairs: number[] = [];
+  const d: [number, number][] = [];
+  for (let i = 0; i < nodes; i++) {
+    d.length = 0;
+    for (let j = 0; j < nodes; j++) {
+      if (j === i) continue;
+      const dx = net[i * 3]! - net[j * 3]!;
+      const dy = net[i * 3 + 1]! - net[j * 3 + 1]!;
+      const dz = net[i * 3 + 2]! - net[j * 3 + 2]!;
+      d.push([dx * dx + dy * dy + dz * dz, j]);
+    }
+    d.sort((x, y) => x[0] - y[0]);
+    for (let k = 0; k < 5; k++) if (i < d[k]![1]) pairs.push(i, d[k]![1]);
+  }
+  return { shapes, phase, dot, tone, pairs: Uint16Array.from(pairs) };
+}
+
+/** Pontinho com brilho, pré-desenhado (desenhar imagem é bem mais leve que gradiente por partícula). */
+function sprite(rgb: V3) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.18, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},1)`);
+  grad.addColorStop(0.38, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.32)`);
+  grad.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  return c;
+}
 
 /**
- * Núcleo da DIA em estilo osciloscópio: ondas de linha que dançam com a voz.
- * Desenhado num único canvas a 60 fps (sem re-renderizar o React); o brilho é “falso”
- * (traço largo e transparente por baixo) para continuar leve no celular e na TV.
- * Cor, velocidade e altura mudam suavemente conforme o estado.
+ * Núcleo visual da DIA: nuvem de partículas 3D nas cores do tema.
+ * Em repouso é uma esfera que respira; ouvindo, pulsa com a voz; pensando, vira um núcleo
+ * brilhante; falando, vira uma esfera de rede (pontos ligados) que pulsa com a fala.
+ * Um único canvas, sem re-render do React; pausa quando sai da tela ou o app fica oculto,
+ * e usa menos partículas em telas pequenas e aparelhos fracos (TV).
  */
 export function LunaOrb({
   state,
@@ -41,7 +116,7 @@ export function LunaOrb({
   /** Nível de áudio em tempo real (0–1), lido a cada quadro sem re-render. */
   levelRef?: { current: number };
   size?: number;
-  /** Altura (padrão = size, quadrado). Mais baixa = onda larga, para cartões. */
+  /** Altura (padrão = size, quadrado). Mais baixa = faixa larga, para cartões. */
   height?: number;
   onClick?: () => void;
   label?: string;
@@ -49,149 +124,188 @@ export function LunaOrb({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const live = useRef({ state, levelRef });
   live.current = { state, levelRef };
+  const H = height ?? size;
+  const kick = useRef<() => void>(() => {});
+  useEffect(() => kick.current(), [state]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d', { alpha: true });
     if (!canvas || !ctx) return;
-    const H = height ?? size;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2, 1100 / size);
-    canvas.width = Math.round(size * dpr);
+    const W = size;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const s = size / 300;
-    const left = 14 * s;
-    const right = size - 14 * s;
-    const mid = H / 2;
-    const span = right - left;
-    const step = Math.max(2, Math.round(3 * s)); // px entre pontos (≈ 100 pontos por onda)
-    const maxAmp = Math.min(size * 0.36, H * 0.44);
-    // Cores do tema (temas modernos: degradê entre os dois destaques)
+    // Quantidade de partículas conforme o tamanho e o aparelho
+    const R = Math.min(W, H) * 0.36; // raio da esfera em px
+    const weak = (navigator.hardwareConcurrency || 4) <= 4 || /AFT|Tizen|Web0S|SMART-TV/i.test(navigator.userAgent);
+    const n = Math.round(Math.max(260, Math.min(2400, R * R * 0.35)) * (weak ? 0.55 : 1));
+    const nodes = Math.round(Math.min(n * 0.38, 800));
+    const cloud = buildCloud(n, nodes, W / H);
+    const pos = new Float32Array(cloud.shapes[STATE_SHAPE[live.current.state]]);
+    const proj = new Float32Array(n * 3); // x, y, profundidade (0–1)
+
     let theme = waveColors();
-    const onTheme = () => (theme = waveColors());
+    let sprites: HTMLCanvasElement[] = [];
+    let errSprite = sprite(ERROR_RGB);
+    const tones = (): V3[] => Array.from({ length: BUCKETS }, (_, i) => theme.a.map((v, k) => Math.round(v + (theme.b[k]! - v) * (i / (BUCKETS - 1)))) as V3);
+    const paint = () => {
+      sprites = tones().map(sprite);
+      errSprite = sprite(ERROR_RGB);
+    };
+    paint();
+    const onTheme = () => {
+      theme = waveColors();
+      paint();
+    };
     window.addEventListener('luna-theme', onTheme);
 
-    let speed = STATE_SPEED[live.current.state];
     let level = 0;
-    let phase = 0;
-    const rgb = [...STATE_RGB[live.current.state]];
+    let netMix = STATE_SHAPE[live.current.state] === 'net' ? 1 : 0;
+    let coreMix = STATE_SHAPE[live.current.state] === 'core' ? 1 : 0;
+    let errMix = 0;
+    let spin = STATE_SPIN[live.current.state];
+    let ry = 0;
     let raf = 0;
     let last = performance.now();
-    const col = (a: number) => `rgba(${rgb[0] | 0}, ${rgb[1] | 0}, ${rgb[2] | 0}, ${a})`;
-
-    const wave = (w: (typeof WAVES)[number], amp: number, time: number) => {
-      ctx.beginPath();
-      for (let x = left; x <= right + 0.5; x += step) {
-        const u = (x - size / 2) / (span / 2); // -1..1 (centro horizontal)
-        const env = (1 - u * u) * (1 - u * u); // some nas pontas
-        const y = mid + Math.sin(x * (0.025 / s) * w.freq + phase * w.dir * (1 + w.freq * 0.4) + w.phase) * env * amp * (0.55 + 0.45 * Math.sin(time * 1.7 + w.phase));
-        if (x === left) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-    };
+    let visible = true;
 
     const frame = (t: number) => {
       const dt = Math.min(0.05, (t - last) / 1000);
       last = t;
       const time = t / 1000;
       const st = live.current.state;
-      const k = 1 - Math.pow(0.001, dt);
-      const calm = st === 'idle' || st === 'listening' || st === 'speaking';
-      const target = theme.modern && calm ? theme.a : STATE_RGB[st];
-      for (let i = 0; i < 3; i++) rgb[i] = rgb[i]! + (target[i]! - rgb[i]!) * k * 0.6;
-      speed += (STATE_SPEED[st] - speed) * k * 0.5;
+      const shape = cloud.shapes[STATE_SHAPE[st]];
+      const k = reduce ? 1 : 1 - Math.pow(0.02, dt); // aproximação suave (~1 s); sem animação, vai direto
+
       const real = live.current.levelRef?.current ?? 0;
-      // Sem áudio real, a fala “sintética” oscila como uma voz (sílabas)
-      const synthetic = st === 'speaking' ? STATE_LEVEL.speaking * (0.45 + 0.55 * Math.abs(Math.sin(time * 2.1) * Math.sin(time * 3.7 + 1))) : STATE_LEVEL[st];
-      const want = real > 0.02 ? Math.min(1, 0.15 + real * 1.1) : synthetic;
-      level += (want - level) * Math.min(1, k * 3);
-      phase += speed * dt;
+      const synthetic = st === 'speaking' ? STATE_LEVEL.speaking * (0.4 + 0.6 * Math.abs(Math.sin(time * 9) * Math.sin(time * 2.3 + 1))) : STATE_LEVEL[st];
+      const want = real > 0.02 ? Math.min(1, 0.1 + real * 1.2) : synthetic;
+      level += (want - level) * Math.min(1, dt * 12);
+      netMix += ((STATE_SHAPE[st] === 'net' ? 1 : 0) - netMix) * k;
+      coreMix += ((STATE_SHAPE[st] === 'core' ? 1 : 0) - coreMix) * k * 1.5;
+      errMix += ((st === 'error' ? 1 : 0) - errMix) * k;
+      spin += (STATE_SPIN[st] - spin) * k;
+      ry += spin * dt;
+      const rx = 0.25 + Math.sin(time * 0.3) * 0.15;
+      const cy = Math.cos(ry);
+      const sy = Math.sin(ry);
+      const cx = Math.cos(rx);
+      const sx = Math.sin(rx);
+      const scale = R * (1 + level * 0.08) * (1 + 0.025 * Math.sin(time * 1.4)); // respiração
+      const pulse = STATE_SHAPE[st] === 'shell' ? 0.15 * level : 0;
 
-      ctx.clearRect(0, 0, size, H);
-      // Nos temas modernos, a onda vai da cor 1 à cor 2 do tema
-      let stroke: string | CanvasGradient | null = null;
-      if (theme.modern && calm) {
-        const g = ctx.createLinearGradient(left, 0, right, 0);
-        g.addColorStop(0, `rgb(${rgb[0] | 0}, ${rgb[1] | 0}, ${rgb[2] | 0})`);
-        g.addColorStop(1, `rgb(${theme.b[0]}, ${theme.b[1]}, ${theme.b[2]})`);
-        stroke = g;
-      }
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      // Linha de base e marcas (régua de osciloscópio) — só no tema HUD
-      if (!theme.modern) {
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = col(0.22);
-      ctx.beginPath();
-      ctx.moveTo(left, mid);
-      ctx.lineTo(right, mid);
-      for (let i = 0; i <= 10; i++) {
-        const x = left + (span * i) / 10;
-        const h = (i % 5 === 0 ? 7 : 3.5) * s;
-        ctx.moveTo(x, mid - h);
-        ctx.lineTo(x, mid + h);
-      }
-      ctx.stroke();
+      for (let i = 0; i < n; i++) {
+        const o = i * 3;
+        const ph = cloud.phase[i]!;
+        // cada partícula “anda” até a forma do estado atual
+        pos[o] = pos[o]! + (shape[o]! - pos[o]!) * k;
+        pos[o + 1] = pos[o + 1]! + (shape[o + 1]! - pos[o + 1]!) * k;
+        pos[o + 2] = pos[o + 2]! + (shape[o + 2]! - pos[o + 2]!) * k;
+        const p = 1 + pulse * Math.sin(ph + time * 4);
+        const x = pos[o]! * p + Math.sin(time * 1.3 + ph) * 0.02;
+        const y = pos[o + 1]! * p + Math.cos(time * 1.1 + ph) * 0.02;
+        const z = pos[o + 2]! * p;
+        const X = x * cy + z * sy;
+        const Z0 = -x * sy + z * cy;
+        const Y = y * cx - Z0 * sx;
+        const Z = y * sx + Z0 * cx;
+        const f = 2.6 / (2.6 + Z);
+        proj[o] = W / 2 + X * scale * f;
+        proj[o + 1] = H / 2 + Y * scale * f;
+        proj[o + 2] = Math.max(0.15, (2 - Z) / 3); // perto = mais forte
       }
 
-      const amp = maxAmp * (0.06 + level * 0.94);
-      // Camadas de trás para frente; a principal ganha brilho
-      for (let i = WAVES.length - 1; i >= 0; i--) {
-        const w = WAVES[i]!;
-        wave(w, amp * (i === 0 ? 1 : 0.85), time);
-        if (stroke) {
-          if (i === 0) {
-            ctx.globalAlpha = 0.14 + level * 0.12;
-            ctx.lineWidth = w.width * s * 4.5;
-            ctx.strokeStyle = stroke;
-            ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Linhas da rede (só ao falar), em 3 faixas de profundidade
+      if (netMix > 0.02) {
+        const grad = ctx.createLinearGradient(0, 0, W, H);
+        grad.addColorStop(0, `rgb(${theme.a.join(',')})`);
+        grad.addColorStop(1, `rgb(${theme.b.join(',')})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = Math.max(0.6, R / 140);
+        for (let band = 0; band < 3; band++) {
+          ctx.beginPath();
+          for (let q = 0; q < cloud.pairs.length; q += 2) {
+            const a = cloud.pairs[q]! * 3;
+            const b = cloud.pairs[q + 1]! * 3;
+            const depth = (proj[a + 2]! + proj[b + 2]!) / 2;
+            if (Math.min(2, Math.floor(depth * 3)) !== band) continue;
+            ctx.moveTo(proj[a]!, proj[a + 1]!);
+            ctx.lineTo(proj[b]!, proj[b + 1]!);
           }
-          ctx.globalAlpha = w.alpha;
-          ctx.lineWidth = w.width * s;
-          ctx.strokeStyle = stroke;
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-          continue;
-        }
-        if (i === 0) {
-          ctx.lineWidth = w.width * s * 4.5;
-          ctx.strokeStyle = col(0.12 + level * 0.12);
+          ctx.globalAlpha = netMix * (0.12 + band * 0.12) * (0.75 + level * 0.6);
           ctx.stroke();
         }
-        ctx.lineWidth = w.width * s;
-        ctx.strokeStyle = col(w.alpha);
-        ctx.stroke();
       }
 
-      // Pontos nas extremidades (pulsam levemente)
-      const dotR = (2.2 + level * 1.6) * s;
-      if (!theme.modern) {
-        ctx.fillStyle = col(0.9);
-        ctx.beginPath();
-        ctx.arc(left, mid, dotR, 0, Math.PI * 2);
-        ctx.arc(right, mid, dotR, 0, Math.PI * 2);
-        ctx.fill();
+      // Partículas
+      const dotScale = Math.max(0.75, Math.min(1.25, R / 110)) * 8;
+      const bright = 0.85 + coreMix * 0.4;
+      for (let i = 0; i < n; i++) {
+        const o = i * 3;
+        const X = proj[o]!;
+        const Y = proj[o + 1]!;
+        if (X < -10 || X > W + 10 || Y < -10 || Y > H + 10) continue;
+        const depth = proj[o + 2]!;
+        const ph = cloud.phase[i]!;
+        const a = (0.25 + depth) * bright * (0.7 + level * 0.4) * (0.7 + 0.3 * Math.sin(time * 2 + ph));
+        if (a < 0.03) continue;
+        const r = cloud.dot[i]! * dotScale * (0.6 + depth * 0.5) * (i < nodes ? 1 + netMix * 0.3 : 1);
+        ctx.globalAlpha = Math.min(1, a) * (1 - errMix);
+        ctx.drawImage(sprites[cloud.tone[i]!]!, X - r / 2, Y - r / 2, r, r);
+        if (errMix > 0.02) {
+          ctx.globalAlpha = Math.min(1, a) * errMix;
+          ctx.drawImage(errSprite, X - r / 2, Y - r / 2, r, r);
+        }
       }
 
-      if (!reduce) raf = requestAnimationFrame(frame);
+      // Brilho central ao pensar
+      if (coreMix > 0.02) {
+        const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, R * 0.7);
+        g.addColorStop(0, `rgba(235,250,255,${0.55 * coreMix})`);
+        g.addColorStop(0.4, `rgba(${theme.a.join(',')},${0.25 * coreMix})`);
+        g.addColorStop(1, `rgba(${theme.a.join(',')},0)`);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = g;
+        ctx.fillRect(W / 2 - R, H / 2 - R, R * 2, R * 2);
+      }
+      ctx.globalAlpha = 1;
+
+      if (!reduce && visible && document.visibilityState === 'visible') raf = requestAnimationFrame(frame);
     };
 
-    const onVis = () => {
+    const resume = () => {
       cancelAnimationFrame(raf);
       last = performance.now();
-      if (document.visibilityState === 'visible') raf = requestAnimationFrame(frame);
+      if (visible && document.visibilityState === 'visible') raf = requestAnimationFrame(frame);
     };
+    // Pausa quando sai da tela (ex.: outro slide do carrossel) para poupar bateria
+    const io = new IntersectionObserver(([e]) => {
+      visible = !!e?.isIntersecting;
+      resume();
+    });
+    io.observe(canvas);
     raf = requestAnimationFrame(frame);
-    document.addEventListener('visibilitychange', onVis);
+    // Com “reduzir movimento”, desenha um quadro só a cada troca de estado
+    kick.current = () => {
+      if (reduce) raf = requestAnimationFrame(frame);
+    };
+    document.addEventListener('visibilitychange', resume);
     return () => {
       cancelAnimationFrame(raf);
-      document.removeEventListener('visibilitychange', onVis);
+      io.disconnect();
+      kick.current = () => {};
+      document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('luna-theme', onTheme);
     };
-  }, [size, height]);
+  }, [size, H]);
 
   return (
     <button
@@ -200,11 +314,11 @@ export function LunaOrb({
       aria-label="Falar com a DIA"
       className="hud-core relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
       data-state={state}
-      style={{ width: size, height: height ?? size }}
+      style={{ width: size, height: H }}
     >
-      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: size, height: height ?? size }} />
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: size, height: H }} />
       {label && (
-        <span className="hud-label pointer-events-none absolute inset-x-0 text-center" style={{ bottom: size * 0.16, color: 'currentColor', fontSize: Math.max(9, size * 0.034) }}>
+        <span className="hud-label pointer-events-none absolute inset-x-0 text-center" style={{ bottom: Math.min(size, H) * 0.04, color: 'currentColor', fontSize: Math.max(9, Math.min(size, H) * 0.034) }}>
           {label}
         </span>
       )}
