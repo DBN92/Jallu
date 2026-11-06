@@ -25,11 +25,11 @@ export interface PublicUser {
 export interface DeviceDto {
   entityId: string;
   domain: string;
-  /** Nome exibido: o personalizado na Luna, ou o do Home Assistant */
+  /** Nome exibido: o personalizado na DIA, ou o do Home Assistant */
   name: string;
   /** Nome original no Home Assistant */
   originalName: string;
-  /** true quando o usuário renomeou na Luna */
+  /** true quando o usuário renomeou na DIA */
   renamed: boolean;
   category: DeviceCategory;
   state: string;
@@ -155,7 +155,7 @@ export interface HealthDto {
   system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number; temperatureC?: number | null };
   /** Acesso de fora de casa (endereço público, ex.: Cloudflare Tunnel) */
   publicAccess?: { configured: boolean; ok: boolean };
-  /** Último pedido feito à Luna por este usuário */
+  /** Último pedido feito à DIA por este usuário */
   lastCommand?: { text: string; at: string; channel: string } | null;
   services: {
     database: ServiceHealth;
@@ -198,7 +198,7 @@ export type ServerEvent =
   | { type: 'devices_reload' }
   | { type: 'ha_status'; connected: boolean }
   | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
-  /** Resposta da Luna (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
+  /** Resposta da DIA (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
   | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] };
 
 export interface CameraDto {

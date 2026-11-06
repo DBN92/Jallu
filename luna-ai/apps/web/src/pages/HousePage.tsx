@@ -110,7 +110,7 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
                   }}
                   className="shrink-0 rounded-sm p-1 text-cyan-300/50 hover:bg-cyan-400/10 hover:text-cyan-200"
                   aria-label={`Renomear ${device.name}`}
-                  title="Renomear (para a Luna entender melhor)"
+                  title="Renomear (para a DIA entender melhor)"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
@@ -138,7 +138,7 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
                     : 'Ligado'
                   : 'Desligado'
                 : `${device.state}${device.unit ? ` ${device.unit}` : ''}`}
-            {device.controllable && device.aiAllowed && <Bot className="ml-1.5 inline h-3 w-3 text-cyan-300" aria-label="Autorizado para a Luna" />}
+            {device.controllable && device.aiAllowed && <Bot className="ml-1.5 inline h-3 w-3 text-cyan-300" aria-label="Autorizado para a DIA" />}
           </p>
         </div>
         {device.controllable && (
@@ -158,8 +158,8 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
           <p className="font-mono text-[11px] text-white/35">{device.entityId}</p>
           {device.controllable && (
             <label className="flex items-center justify-between gap-2">
-              <span className="text-white/70">Luna pode controlar</span>
-              <Toggle label="Autorizar para a Luna" checked={device.aiAllowed} onChange={(v) => void update(device.entityId, { aiAllowed: v })} />
+              <span className="text-white/70">DIA pode controlar</span>
+              <Toggle label="Autorizar para a DIA" checked={device.aiAllowed} onChange={(v) => void update(device.entityId, { aiAllowed: v })} />
             </label>
           )}
           <label className="flex items-center justify-between gap-2">
@@ -225,12 +225,12 @@ export default function HousePage() {
       {error && <Banner>{error}</Banner>}
       {isAdmin && !manage && (
         <p className="font-hud mb-3 text-xs text-cyan-100/50">
-          Dica: toque no <Pencil className="inline h-3 w-3" /> para dar a cada dispositivo o nome que você fala (ex.: “abajur do quarto”). A Luna entende o novo nome e o original.
+          Dica: toque no <Pencil className="inline h-3 w-3" /> para dar a cada dispositivo o nome que você fala (ex.: “abajur do quarto”). A DIA entende o novo nome e o original.
         </p>
       )}
       {manage && (
         <Banner kind="info">
-          Modo de gerenciamento: escolha quais dispositivos a Luna pode controlar por voz/IA. Pelo painel você sempre controla todos os dispositivos controláveis.
+          Modo de gerenciamento: escolha quais dispositivos a DIA pode controlar por voz/IA. Pelo painel você sempre controla todos os dispositivos controláveis.
         </Banner>
       )}
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">

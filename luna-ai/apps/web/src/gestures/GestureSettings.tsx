@@ -69,7 +69,7 @@ export function GestureSettings({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="space-y-3 px-4 py-3">
       <p className="text-xs text-white/45">
-        Faça um gesto e segure por ~1 segundo: a Luna executa a ação. O reconhecimento roda <b>no aparelho</b> (nenhuma imagem vai para a internet). Ligue a análise no aparelho que fica sempre com a Luna
+        Faça um gesto e segure por ~1 segundo: a DIA executa a ação. O reconhecimento roda <b>no aparelho</b> (nenhuma imagem vai para a internet). Ligue a análise no aparelho que fica sempre com a DIA
         aberta (ex.: o Android da parede).
       </p>
       <div className="flex items-center justify-between gap-3">

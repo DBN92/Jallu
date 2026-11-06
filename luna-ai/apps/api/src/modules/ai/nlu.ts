@@ -22,11 +22,12 @@ const DEFERRED = /\b(automac\w*|rotina|cena|quando|sempre que|todo dia|todos os 
 
 const FILLER = /\b(por favor|agora|pra mim|para mim|ai|rapidinho|obrigad[oa])\b/g;
 
-/** Remove "ei luna", "luna," e cortesias do início. */
+/** Remove “oi, Dia”, “Dia,” e cortesias do início. */
 export function stripWake(text: string): string {
   return text
-    .replace(/^\s*(ei|oi|ola|hey|e ai)?\s*,?\s*luna\s*[,!.:]?\s*/i, '')
-    .replace(/^\s*(ei|oi|olá|ola|hey)\s*,?\s*luna\s*[,!.:]?\s*/i, '')
+    // “Oi, Dia, …” / “Dia, …” (e o nome antigo “Luna”); “dia” sem saudação nem vírgula fica (ex.: “dia 15…”)
+    .replace(/^\s*(ei|oi|olá|ola|hey|e ai)\s*,?\s*(dia|luna)\b\s*[,!.:]?\s*/i, '')
+    .replace(/^\s*(dia|luna)\s*[,!:]\s*/i, '')
     .trim();
 }
 

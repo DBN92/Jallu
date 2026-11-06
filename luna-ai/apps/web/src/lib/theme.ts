@@ -1,4 +1,4 @@
-/** Temas visuais da Luna. “hud” é o visual original; os outros são os modernos (cantos arredondados). */
+/** Temas visuais da DIA. “hud” é o visual original; os outros são os modernos (cantos arredondados). */
 export type ThemeId = 'hud' | 'aurora' | 'neon' | 'grafite';
 
 export interface ThemeInfo {

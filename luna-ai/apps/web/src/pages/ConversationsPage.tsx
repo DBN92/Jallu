@@ -127,7 +127,7 @@ export default function ConversationsPage() {
           <Spinner />
         </div>
       ) : list.length === 0 ? (
-        <Card className="text-center text-sm text-white/50">Nenhuma conversa ainda. Fale com a Luna na tela inicial.</Card>
+        <Card className="text-center text-sm text-white/50">Nenhuma conversa ainda. Fale com a DIA na tela inicial.</Card>
       ) : (
         <ul className="space-y-2">
           {list.map((c) => (

@@ -643,10 +643,10 @@ export default function TvApp() {
             <header className="tv-head">
               <div className="tv-pill">
                 <i className={server ? '' : 'off'} />
-                {server ? 'Ei, Luna · pelo celular' : 'Reconectando…'}
+                {server ? 'Oi, Dia · pelo celular' : 'Reconectando…'}
               </div>
               <div className="tv-brand">
-                <p>LUNA</p>
+                <p>DIA</p>
                 <b>{fmtTime(now)}</b>
                 <span>{fmtDate(now)}</span>
               </div>
@@ -671,7 +671,7 @@ export default function TvApp() {
         {reply && !saver && (
           <div className="tv-reply tv-panel">
             <div className="tv-h">
-              Luna<i>pedido pelo celular</i>
+              DIA<i>pedido pelo celular</i>
             </div>
             <p className="you">Você: “{reply.userText}”</p>
             <p>{reply.reply}</p>

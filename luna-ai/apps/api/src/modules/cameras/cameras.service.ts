@@ -14,7 +14,7 @@ const ENTITY_RE = /^camera\.[a-z0-9_]+$/;
 
 /**
  * Câmeras via Home Assistant (ex.: Yoosee pela integração ONVIF ou “câmera genérica” RTSP).
- * O token do HA e a senha das câmeras nunca chegam ao navegador: a Luna repassa imagens e vídeo.
+ * O token do HA e a senha das câmeras nunca chegam ao navegador: a DIA repassa imagens e vídeo.
  */
 export class CamerasService {
   /** Sessões HLS emitidas para usuários autenticados (token do HA → expiração). */
@@ -105,7 +105,7 @@ export class CamerasService {
     return res;
   }
 
-  /** Abre uma sessão HLS no HA e devolve a URL repassada pela Luna. */
+  /** Abre uma sessão HLS no HA e devolve a URL repassada pela DIA. */
   async startStream(entityId: string): Promise<{ url: string }> {
     if (this.direct?.isDirect(entityId)) {
       await this.direct.startStream(entityId);
@@ -127,7 +127,7 @@ export class CamerasService {
     return { url: `/api/cameras/hls/${m[1]}/${m[2]}` };
   }
 
-  /** Repasse do HLS: só para sessões abertas pela Luna para um usuário autenticado. */
+  /** Repasse do HLS: só para sessões abertas pela DIA para um usuário autenticado. */
   async hls(token: string, path: string): Promise<Response> {
     const d = this.directTokens.get(token);
     if (d && this.direct) {

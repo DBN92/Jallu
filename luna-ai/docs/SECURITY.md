@@ -21,8 +21,8 @@
 
 ## Recomendações
 
-- Use Cloudflare Access na frente da Luna.
-- Crie um usuário no HA só para a Luna (admin apenas se for usar automações) e gere o token nele.
+- Use Cloudflare Access na frente da DIA.
+- Crie um usuário no HA só para a DIA (admin apenas se for usar automações) e gere o token nele.
 - Mantenha `LUNA_HOST=127.0.0.1` se o `cloudflared` roda no próprio host e você não precisa de acesso por IP local.
 - Rode `bash scripts/update.sh` periodicamente.
 

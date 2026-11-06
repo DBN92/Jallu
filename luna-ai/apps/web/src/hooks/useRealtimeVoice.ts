@@ -20,7 +20,7 @@ export function useRealtimeVoice(opts: {
   onTranscript: (role: 'user' | 'assistant', text: string) => void;
   conversationId: string | null;
   onConversation: (id: string) => void;
-  /** Modo "Ei, Luna": só responde quando chamada pelo nome (ou logo após responder). */
+  /** Modo "Oi, Dia": só responde quando chamada pelo nome (ou logo após responder). */
   wakeWord?: boolean;
   /** Encerra a sessão após este tempo sem conversa (economia em aparelhos sempre ligados). */
   autoStopMs?: number;
@@ -137,7 +137,7 @@ export function useRealtimeVoice(opts: {
         break;
       case 'output_audio_buffer.stopped':
       case 'output_audio_buffer.cleared':
-        // Após a Luna falar, aceita continuação sem precisar dizer "Luna" de novo
+        // Após a DIA falar, aceita continuação sem precisar dizer "DIA" de novo
         followUntil.current = Date.now() + 15_000;
         speakingRef.current = false;
         bumpIdle();
@@ -155,7 +155,7 @@ export function useRealtimeVoice(opts: {
           void saveTranscript('user', text);
           send({ type: 'response.create' });
         } else {
-          // Fala não dirigida à Luna: descarta do contexto e não salva (privacidade)
+          // Fala não dirigida à DIA: descarta do contexto e não salva (privacidade)
           if (typeof ev.item_id === 'string') send({ type: 'conversation.item.delete', item_id: ev.item_id });
           optsRef.current.onState('listening');
         }
@@ -204,7 +204,7 @@ export function useRealtimeVoice(opts: {
       const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       micRef.current = mic;
       const session = await api<Session>('/api/voice/realtime/session', { body: { wakeWord: wakeRef.current } });
-      followUntil.current = Date.now() + 15_000; // logo ao abrir, já pode falar sem "Luna"
+      followUntil.current = Date.now() + 15_000; // logo ao abrir, já pode falar sem "DIA"
       wakeLockRef.current = true;
       void acquireScreen();
 
@@ -234,7 +234,7 @@ export function useRealtimeVoice(opts: {
         setConnecting(false);
         optsRef.current.onState('listening');
         bumpIdle();
-        // Pedido falado junto com a palavra de ativação ("Luna, acenda a luz") segue direto
+        // Pedido falado junto com a palavra de ativação ("Dia, acenda a luz") segue direto
         if (initialText) {
           void saveTranscript('user', initialText);
           send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: initialText }] } });
@@ -267,7 +267,7 @@ export function useRealtimeVoice(opts: {
     }
   }, [active, connecting, stop]);
 
-  /** Interrompe a fala atual da Luna. */
+  /** Interrompe a fala atual da DIA. */
   const interrupt = useCallback(() => {
     send({ type: 'response.cancel' });
     send({ type: 'output_audio_buffer.clear' });

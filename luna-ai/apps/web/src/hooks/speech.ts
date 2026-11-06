@@ -113,7 +113,7 @@ export function rankVoice(v: SpeechSynthesisVoice): number {
   if (/natural|neural|online/i.test(v.name)) score += 6;
   if (/google/i.test(v.name)) score += 4;
   if (!v.localService) score += 1;
-  // Identidade feminina da Luna
+  // Identidade feminina da DIA
   if (/luciana|francisca|fernanda|vit[oó]ria|maria|leila|thalita|camila|joana|raquel|let[ií]cia|female|feminin/i.test(v.name)) score += 3;
   if (/compact|eloquence|novelty|bad news|bells|boing|bubbles|cellos|jester|organ|superstar|whisper|zarvox|trinoids|wobble|albert|fred|junior|ralph|rocko|grandma|grandpa|shelley|sandy|flo|reed|eddy/i.test(v.name)) score -= 12;
   return score;

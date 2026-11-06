@@ -61,7 +61,7 @@ Depois: `bash scripts/stop.sh && bash scripts/start.sh` e `bash scripts/health-c
 ### Ollama no Mac mini 2012
 
 O processador (Ivy Bridge) tem AVX mas não AVX2: o Ollama funciona em CPU, porém mais devagar.
-Com 16 GB de RAM, `qwen2.5:3b` responde em alguns segundos. A Luna resolve comandos frequentes
+Com 16 GB de RAM, `qwen2.5:3b` responde em alguns segundos. A DIA resolve comandos frequentes
 (“acenda a luz da sala”, “que horas são”, “vai chover?”) com um interpretador local determinístico,
 **sem depender do LLM**, então o controle da casa continua rápido mesmo com o Ollama lento ou desligado.
 
@@ -73,7 +73,7 @@ Se a raiz do ZimaOS for somente leitura, instale o Ollama em `/DATA` conforme
 1. Publique pelo Cloudflare: [CLOUDFLARE.md](CLOUDFLARE.md).
 2. Abra `https://luna.seudominio.com` no Safari do iPhone.
 3. Crie o administrador usando o `LUNA_SETUP_CODE` do `.env`.
-4. **Minha casa › ⚙** — revise quais dispositivos a Luna pode controlar (luzes vêm autorizadas por padrão).
+4. **Minha casa › ⚙** — revise quais dispositivos a DIA pode controlar (luzes vêm autorizadas por padrão).
 5. **Configurações** — escolha o modo de IA, a voz e defina a localização de casa (ou permita o GPS).
 6. Safari › **Compartilhar › Adicionar à Tela de Início**.
 
@@ -106,7 +106,7 @@ sudo bash scripts/start.sh
 | Saúde | `bash scripts/health-check.sh [--public]` |
 | Desinstalar o serviço | `sudo systemctl disable --now luna-ai && sudo rm /etc/systemd/system/luna-ai.service && sudo systemctl daemon-reload` |
 
-A Luna sobrevive a reinicializações do servidor pelo `systemctl enable` (ou `pm2 startup`).
+A DIA sobrevive a reinicializações do servidor pelo `systemctl enable` (ou `pm2 startup`).
 
 ## Problemas comuns
 

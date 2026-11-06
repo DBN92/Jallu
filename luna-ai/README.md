@@ -1,10 +1,10 @@
-# 🌙 Luna AI
+# 🌙 DIA
 
 Assistente pessoal com **voz**, **IA híbrida** (Ollama local + OpenAI), **memória**, **clima por GPS** e
 **controle dos dispositivos Tuya/Smart Life** via Home Assistant — como PWA instalável no iPhone,
 rodando **nativamente** no seu servidor Linux/ZimaOS (sem Docker).
 
-![Telas da Luna](docs/screenshots.png)
+![Telas da DIA](docs/screenshots.png)
 
 ## O que ela faz
 
@@ -101,7 +101,7 @@ luna-ai/
 
 ## Limitações honestas
 
-- **“Ei, Luna”**: no **Android/computador (Chrome)** a palavra de ativação é detectada de graça pelo navegador e a
+- **“Oi, Dia”**: no **Android/computador (Chrome)** a palavra de ativação é detectada de graça pelo navegador e a
   conversa em tempo real só abre quando chamada — ideal para um aparelho dedicado ([docs/ANDROID.md](docs/ANDROID.md)).
   No **iPhone** funciona apenas durante uma sessão de voz em tempo real aberta (o iOS não permite escuta contínua em apps web).
   Em todos os casos, só com o app aberto e em primeiro plano.

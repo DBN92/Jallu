@@ -36,7 +36,7 @@ export const brightnessSchema = z.object({
 });
 
 export const deviceUpdateSchema = z.object({
-  /** Novo nome na Luna; null volta ao nome do Home Assistant */
+  /** Novo nome na DIA; null volta ao nome do Home Assistant */
   name: z.string().trim().min(1).max(60).nullable().optional(),
   aiAllowed: z.boolean().optional(),
   aliases: z.array(z.string().trim().min(1).max(60)).max(10).optional(),

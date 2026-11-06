@@ -30,7 +30,7 @@ export class AuthService {
   }
 
   async setup(input: { username: string; password: string; displayName: string; setupCode: string }) {
-    if (!(await this.needsSetup())) throw new AppError(409, 'A Luna já foi configurada.', 'already_setup');
+    if (!(await this.needsSetup())) throw new AppError(409, 'A DIA já foi configurada.', 'already_setup');
     if (!this.opts.setupCode || this.opts.setupCode === 'troque-este-codigo') {
       throw new AppError(503, 'Defina LUNA_SETUP_CODE no arquivo .env do servidor antes de criar o administrador.', 'setup_code_missing');
     }

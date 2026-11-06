@@ -1,12 +1,12 @@
 # Modo TV (Fire TV / Android TV)
 
-Tela da Luna feita para a TV e o controle remoto, com o mesmo visual 3D da tela inicial:
+Tela da DIA feita para a TV e o controle remoto, com o mesmo visual 3D da tela inicial:
 painéis inclinados, globo com radar, cidade ao fundo e piso em perspectiva.
 
 ## Como abrir na Fire TV
 
 1. Na Fire TV, instale o navegador **Silk** (Amazon Silk) ou outro navegador da loja.
-2. Abra o endereço público da Luna (o mesmo do celular, ex.: `https://luna.seudominio.com`).
+2. Abra o endereço público da DIA (o mesmo do celular, ex.: `https://luna.seudominio.com`).
 3. Entre com seu usuário. O teclado da tela funciona com o controle.
 4. Salve a página nos favoritos para abrir rápido.
 
@@ -32,10 +32,10 @@ Se o navegador mostrar um cursor (setinha), ele também funciona: passe sobre um
 - **Câmeras**: todas as câmeras; OK abre ao vivo em tela cheia.
 - **Clima**: condições atuais e os próximos dias.
 
-## Falar com a Luna
+## Falar com a DIA
 
 A Fire TV não oferece microfone para páginas da web. Fale pelo celular (ou pelo aparelho
-com “Ei, Luna”), usando o **mesmo usuário**: a TV mostra o pedido e a resposta por 15 segundos
+com “Oi, Dia”), usando o **mesmo usuário**: a TV mostra o pedido e a resposta por 15 segundos
 e o globo acompanha o estado (pensando, executando…). Pedidos como *“mostre a câmera da garagem”*
 também abrem a câmera na TV.
 
@@ -45,5 +45,5 @@ Depois de **3 minutos** sem usar o controle, a TV mostra relógio, clima, resumo
 por vez (troca a cada 12 s). O conteúdo muda levemente de lugar a cada minuto para não marcar a tela.
 Qualquer tecla volta. O protetor não entra com uma câmera aberta.
 
-A Luna pede para a tela ficar acesa (Wake Lock). Se a Fire TV ainda assim entrar no protetor dela,
+A DIA pede para a tela ficar acesa (Wake Lock). Se a Fire TV ainda assim entrar no protetor dela,
 aumente o tempo em *Configurações → Tela e sons → Protetor de tela*.

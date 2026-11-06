@@ -33,9 +33,9 @@ export class OpenAIVoiceClient {
           instructions: session.instructions,
           audio: {
             input: {
-              // O prompt ajuda a transcrição a reconhecer o nome "Luna"
-              transcription: { model: this.transcribeModel, language: 'pt', prompt: 'Ei, Luna. Luna, acenda a luz da sala.' },
-              // Detecção por silêncio (mais rápida que semantic_vad). No modo "Ei, Luna" o navegador
+              // O prompt ajuda a transcrição a reconhecer o nome "DIA"
+              transcription: { model: this.transcribeModel, language: 'pt', prompt: 'Oi, Dia. Oi, Dia, acenda a luz da sala.' },
+              // Detecção por silêncio (mais rápida que semantic_vad). No modo "Oi, Dia" o navegador
               // decide quando responder (create_response: false).
               turn_detection: {
                 type: 'server_vad',

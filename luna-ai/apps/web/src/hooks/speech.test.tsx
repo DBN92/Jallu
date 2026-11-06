@@ -40,7 +40,7 @@ function Harness() {
   return null;
 }
 
-describe('fala da Luna', () => {
+describe('fala da DIA', () => {
   let root: ReturnType<typeof createRoot>;
   beforeEach(() => {
     vi.useFakeTimers();
@@ -60,7 +60,7 @@ describe('fala da Luna', () => {
     mode = m;
     const onEnd = vi.fn();
     const onError = vi.fn();
-    act(() => api.speak('Olá, eu sou a Luna.', { onEnd, onError }));
+    act(() => api.speak('Olá, eu sou a Dia.', { onEnd, onError }));
     act(() => void vi.advanceTimersByTime(4000));
     expect(onError).toHaveBeenCalledWith(code);
     expect(onEnd).toHaveBeenCalledOnce();

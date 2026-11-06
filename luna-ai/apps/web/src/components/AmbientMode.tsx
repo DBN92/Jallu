@@ -95,8 +95,8 @@ function HomeSlide() {
 }
 
 /**
- * Modo ambiente: tela cheia exibida quando a Luna fica sem uso. Alterna automaticamente
- * entre previsão do tempo e controle da casa. Qualquer toque (ou “Ei, Luna”) volta ao normal.
+ * Modo ambiente: tela cheia exibida quando a DIA fica sem uso. Alterna automaticamente
+ * entre previsão do tempo e controle da casa. Qualquer toque (ou “Oi, Dia”) volta ao normal.
  */
 export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
   const slides = useMemo(() => [...(weather ? (['weather'] as const) : []), 'home' as const], [weather]);

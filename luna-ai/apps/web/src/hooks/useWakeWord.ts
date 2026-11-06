@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { normalize } from '../lib/text';
+import { normalize, splitWake } from '../lib/text';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { getRecognitionCtor, isIOS, type SpeechRecognitionLike } from './speech';
 
 /**
- * Estrutura para a palavra de ativação “Ei, Luna”.
+ * Estrutura para a palavra de ativação “Oi, Dia”.
  * Funciona SOMENTE com o app aberto, em primeiro plano, e em navegadores com reconhecimento
  * contínuo (ex.: Chrome no computador/Android). No iPhone não há escuta contínua em PWA,
  * então o recurso é reportado como não suportado — não simulamos escuta em segundo plano.
@@ -61,13 +61,13 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
           const r = e.results[i]!;
           if (!r.isFinal) continue;
           const text = normalize(r[0].transcript);
-          const m = text.match(/\b(?:ei|oi|hey)?\s*(?:luna|luana)\b\s*(.*)$/);
-          if (m) {
+          const rest = splitWake(text);
+          if (rest !== null) {
             // Libera o microfone ANTES de ouvir o pedido/falar. A pausa curta evita
-            // reabrir o microfone; se o pedido não ocupar a Luna, a escuta volta sozinha.
+            // reabrir o microfone; se o pedido não ocupar a DIA, a escuta volta sozinha.
             suspendedUntil = Date.now() + 6000;
             rec.abort();
-            cb.current(m[1]?.trim() ?? '');
+            cb.current(rest);
             return;
           }
         }
@@ -76,7 +76,7 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
         lastActivity = Date.now();
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
           failures = 99;
-          setError('Sem permissão de microfone para o “Ei, Luna”. Toque na tela e permita o microfone.');
+          setError('Sem permissão de microfone para o “Oi, Dia”. Toque na tela e permita o microfone.');
         } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
           failures++;
         }

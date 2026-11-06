@@ -133,7 +133,7 @@ export class DevicesService extends EventEmitter {
     const current = await this.get(entityId);
     if (patch.name) {
       const clash = (await this.list({ includeHidden: true })).find((d) => d.entityId !== entityId && normalize(d.name) === normalize(patch.name!));
-      if (clash) throw badRequest(`Já existe um dispositivo chamado “${clash.name}”. Use um nome diferente para a Luna não confundir.`);
+      if (clash) throw badRequest(`Já existe um dispositivo chamado “${clash.name}”. Use um nome diferente para a DIA não confundir.`);
     }
     if (patch.aiAllowed && !CONTROLLABLE_DOMAINS.has(domainOf(entityId))) {
       throw badRequest('Somente dispositivos controláveis podem ser autorizados para a IA. Sensores já podem ser consultados.');
@@ -157,7 +157,7 @@ export class DevicesService extends EventEmitter {
     const device = await this.get(entityId);
     if (!device.controllable) throw forbidden(`${device.name} é somente leitura.`);
     if (this.isActor(actor.source) && !device.aiAllowed) {
-      throw forbidden(`${device.name} não está autorizado para comandos da Luna. Autorize em "Minha casa".`);
+      throw forbidden(`${device.name} não está autorizado para comandos da DIA. Autorize em "Minha casa".`);
     }
     if (!device.available) throw new AppError(409, `${device.name} está indisponível no momento.`, 'device_unavailable');
     return device;
@@ -238,7 +238,7 @@ export class DevicesService extends EventEmitter {
         matches.push({ device: d, score: 100 });
         continue;
       }
-      // Pesos: nome dado na Luna > apelidos/nome no HA > identificador técnico (entity_id)
+      // Pesos: nome dado na DIA > apelidos/nome no HA > identificador técnico (entity_id)
       const names: [string, number][] = [
         [d.name, d.renamed ? 3 : 0],
         [d.originalName, 0],

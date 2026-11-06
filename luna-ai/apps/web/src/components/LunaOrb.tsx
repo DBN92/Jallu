@@ -24,7 +24,7 @@ const WAVES = [
 ];
 
 /**
- * Núcleo da Luna em estilo osciloscópio: ondas de linha que dançam com a voz.
+ * Núcleo da DIA em estilo osciloscópio: ondas de linha que dançam com a voz.
  * Desenhado num único canvas a 60 fps (sem re-renderizar o React); o brilho é “falso”
  * (traço largo e transparente por baixo) para continuar leve no celular e na TV.
  * Cor, velocidade e altura mudam suavemente conforme o estado.
@@ -197,7 +197,7 @@ export function LunaOrb({
     <button
       type="button"
       onClick={onClick}
-      aria-label="Falar com a Luna"
+      aria-label="Falar com a DIA"
       className="hud-core relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
       data-state={state}
       style={{ width: size, height: height ?? size }}

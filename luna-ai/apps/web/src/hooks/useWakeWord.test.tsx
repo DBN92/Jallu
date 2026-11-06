@@ -52,7 +52,7 @@ function Harness({ paused, onCmd }: { paused: boolean; onCmd: (t: string) => voi
   return null;
 }
 
-describe('“Ei, Luna” contínuo', () => {
+describe('“Oi, Dia” contínuo', () => {
   let root: ReturnType<typeof createRoot>;
   let container: HTMLDivElement;
   beforeEach(() => {
@@ -79,10 +79,10 @@ describe('“Ei, Luna” contínuo', () => {
     advance(300);
     for (let i = 1; i <= 3; i++) {
       expect(active()).toHaveLength(1);
-      act(() => active()[0]!.say(`ei luna pedido ${i}`));
+      act(() => active()[0]!.say(`oi dia pedido ${i}`));
       expect(cmds).toHaveLength(i);
       expect(active()).toHaveLength(0); // microfone liberado para a resposta
-      render(true, onCmd); // Luna processando/falando
+      render(true, onCmd); // DIA processando/falando
       advance(2000);
       expect(active()).toHaveLength(0);
       render(false, onCmd); // voltou a ficar disponível
@@ -91,14 +91,14 @@ describe('“Ei, Luna” contínuo', () => {
     expect(cmds).toEqual(['pedido 1', 'pedido 2', 'pedido 3']);
   });
 
-  it('volta a escutar sozinho mesmo se o pedido não ocupar a Luna', () => {
+  it('volta a escutar sozinho mesmo se o pedido não ocupar a DIA', () => {
     const cmds: string[] = [];
     render(false, (t) => cmds.push(t));
     advance(300);
-    act(() => active()[0]!.say('ei luna'));
+    act(() => active()[0]!.say('oi dia'));
     advance(7000);
     expect(active()).toHaveLength(1);
-    act(() => active()[0]!.say('luna de novo'));
+    act(() => active()[0]!.say('oi dia de novo'));
     expect(cmds).toEqual(['', 'de novo']);
   });
 

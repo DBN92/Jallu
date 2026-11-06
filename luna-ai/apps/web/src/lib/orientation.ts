@@ -14,7 +14,7 @@ export async function applyOrientation(pref: ScreenOrientationPref): Promise<str
     await so.lock(pref === 'auto' ? 'any' : pref);
     return null;
   } catch {
-    return 'A orientação só pode ser controlada com a Luna instalada (aberta pelo ícone, não pelo navegador).';
+    return 'A orientação só pode ser controlada com a DIA instalada (aberta pelo ícone, não pelo navegador).';
   }
 }
 

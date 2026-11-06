@@ -269,7 +269,7 @@ export class ToolExecutor {
           }
           trigger = { type: triggerType, personEntityId: persons[0]!.entityId };
         } else return { output: { ok: false, erro: 'Gatilho não suportado.' } };
-        const rule = await this.automations.createDraft({ name: str(args.name) || 'Automação da Luna', trigger, action: { service: str(args.action), target } }, ctx.userId);
+        const rule = await this.automations.createDraft({ name: str(args.name) || 'Automação da DIA', trigger, action: { service: str(args.action), target } }, ctx.userId);
         return {
           output: { ok: true, rascunho: rule.description, status: 'rascunho — aguardando confirmação do usuário na tela Automações' },
           action: { tool: name, ok: true, summary: `Rascunho criado: ${rule.description} Confirme em Automações.` },

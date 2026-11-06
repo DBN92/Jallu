@@ -3,7 +3,7 @@ import type { Db } from '../../lib/db';
 import { AppError, notFound } from '../../lib/errors';
 import { normalize } from '../../lib/text';
 
-/** Padrões de dados sensíveis que a Luna se recusa a memorizar sem confirmação explícita. */
+/** Padrões de dados sensíveis que a DIA se recusa a memorizar sem confirmação explícita. */
 const SENSITIVE: { re: RegExp; label: string }[] = [
   { re: /\b(senha|password|pin|token|api[ _-]?key|chave secreta)\b/i, label: 'senha ou credencial' },
   { re: /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/, label: 'CPF' },

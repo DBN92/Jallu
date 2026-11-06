@@ -28,7 +28,7 @@ describe('endereço RTSP', () => {
   });
 });
 
-describe.skipIf(!hasFfmpeg)('câmeras diretas (Luna lê o RTSP com ffmpeg)', () => {
+describe.skipIf(!hasFfmpeg)('câmeras diretas (DIA lê o RTSP com ffmpeg)', () => {
   it('cadastra sem expor a senha, substitui a câmera do HA de mesmo nome e entrega foto e vídeo HLS', async () => {
     ctx = await makeApp({}, { login: true, cameraInput: synthetic });
     ctx.ha.states.set('camera.entrada', { entity_id: 'camera.entrada', state: 'idle', attributes: { friendly_name: 'Entrada', supported_features: 2 } });
@@ -121,7 +121,7 @@ async function fakeOnvif(password: string) {
   return { port: (server.address() as { port: number }).port, moves, close: () => server.close() };
 }
 
-describe('movimento das câmeras diretas (ONVIF pela Luna)', () => {
+describe('movimento das câmeras diretas (ONVIF pela DIA)', () => {
   it('detecta a porta, autentica com digest e gira/para a câmera', async () => {
     const cam = await fakeOnvif('segredo*1');
     try {

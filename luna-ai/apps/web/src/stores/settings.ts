@@ -33,7 +33,7 @@ interface SettingsState {
   useGps: boolean;
   /** Aparelho dedicado: tela sempre acesa e volta sozinho para a tela inicial. */
   kioskMode: boolean;
-  /** Tela ambiente (clima/casa alternando) quando a Luna fica sem uso. */
+  /** Tela ambiente (clima/casa alternando) quando a DIA fica sem uso. */
   ambientMode: boolean;
   /** Orientação forçada neste aparelho (app instalado). */
   orientation: ScreenOrientationPref;

@@ -22,7 +22,7 @@ export function MessageList({ messages, interim, compact }: { messages: UiMessag
             }`}
           >
             <p className={`hud-label mb-1 text-[9px] ${m.role === 'user' ? 'text-right text-cyan-200/50' : ''}`}>
-              {m.role === 'user' ? 'Você' : 'Luna'} · {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              {m.role === 'user' ? 'Você' : 'DIA'} · {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </p>
             {m.content}
             {!!m.actions?.length && (

@@ -24,14 +24,23 @@ export const STATE_LABEL: Record<string, string> = {
 export const PROVIDER_LABEL: Record<string, string> = {
   ollama: 'IA local',
   openai: 'OpenAI',
-  'luna-nlu': 'Luna (local)',
+  'luna-nlu': 'DIA (local)',
   'openai-realtime': 'Voz em tempo real',
 };
 
-/** A fala é um chamado à Luna? Tolera erros comuns de transcrição ("Luana"). */
-export const isWakeCall = (text: string) => /\b(luna|luana|lunah|lunna)\b/.test(normalize(text));
+/**
+ * “Oi, Dia” (também “Olá/Ei/Hey, Dia” e “oidia”, como alguns celulares transcrevem).
+ * Exige a saudação antes do nome: “dia” sozinho é comum demais (“bom dia”, “que dia é hoje”).
+ */
+const WAKE_RE = /\b(?:oi|ola|ei|hey)\s+dia\b\s*(.*)$|\boidia\b\s*(.*)$/;
+export const isWakeCall = (text: string) => WAKE_RE.test(normalize(text));
+/** Se a fala chama a DIA, devolve o pedido que veio junto (pode ser vazio); senão, null. */
+export function splitWake(text: string): string | null {
+  const m = normalize(text).match(WAKE_RE);
+  return m ? (m[1] ?? m[2] ?? '').trim() : null;
+}
 
-/** Sinal sonoro curto ao ouvir “Ei, Luna” (como o anel de uma assistente). */
+/** Sinal sonoro curto ao ouvir “Oi, Dia” (como o anel de uma assistente). */
 export function playChime() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

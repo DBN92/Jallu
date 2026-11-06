@@ -36,8 +36,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Luna AI',
-        short_name: 'Luna',
+        name: 'DIA',
+        short_name: 'DIA',
         description: 'Sua assistente pessoal inteligente com voz e automação residencial',
         lang: 'pt-BR',
         start_url: '/',

@@ -46,7 +46,7 @@ export async function cameraRoutes(app: FastifyInstance) {
     return pipe(reply, await cameras.hls(token, path));
   });
 
-  /* ---------- câmeras diretas (RTSP lido pela Luna) — só administradores ---------- */
+  /* ---------- câmeras diretas (RTSP lido pela DIA) — só administradores ---------- */
   const { directCameras } = app.services;
   const directBody = z.object({
     name: z.string().trim().min(1).max(60),

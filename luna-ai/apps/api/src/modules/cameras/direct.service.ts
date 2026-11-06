@@ -107,7 +107,7 @@ const rtspInput: InputArgs = (url, transport) => [
 ];
 
 /**
- * Câmeras lidas pela própria Luna, sem o Home Assistant (ex.: Yoosee H.265 por UDP, que o HA não processa).
+ * Câmeras lidas pela própria DIA, sem o Home Assistant (ex.: Yoosee H.265 por UDP, que o HA não processa).
  * Um único ffmpeg por câmera, ligado só enquanto alguém assiste: converte para H.264 (HLS, toca em
  * iPhone/Android/Fire TV) e grava uma foto por segundo. Desliga sozinho após 45 s sem uso.
  */
@@ -125,7 +125,7 @@ export class DirectCamerasService {
     this.sweeper.unref();
   }
 
-  /** Caminho do ffmpeg: FFMPEG_PATH, runtime/ffmpeg/ffmpeg (instalado pela Luna) ou o do sistema. */
+  /** Caminho do ffmpeg: FFMPEG_PATH, runtime/ffmpeg/ffmpeg (instalado pela DIA) ou o do sistema. */
   ffmpegPath(): string | null {
     if (this.ffmpegSetting) return existsSync(this.ffmpegSetting) ? this.ffmpegSetting : null;
     const local = resolve(PROJECT_ROOT, 'runtime', 'ffmpeg', 'ffmpeg');
@@ -349,7 +349,7 @@ export class DirectCamerasService {
     const file = join(s.dir, name);
     const until = Date.now() + ms;
     while (Date.now() < until) {
-      if (s.exited) throw new AppError(502, `A Luna não conseguiu ler a câmera: ${explain(s.stderr.join('\n'), 1)}`, 'camera_error');
+      if (s.exited) throw new AppError(502, `A DIA não conseguiu ler a câmera: ${explain(s.stderr.join('\n'), 1)}`, 'camera_error');
       if (existsSync(file)) {
         const st = await stat(file).catch(() => null);
         if (st && st.size > 0) return file;

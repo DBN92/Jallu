@@ -51,14 +51,14 @@ describe('câmeras (via Home Assistant)', () => {
     expect((await ctx.inject('GET', '/api/cameras/camera.garagem/snapshot')).status).toBe(401);
   });
 
-  it('vídeo ao vivo: sessão HLS emitida pela Luna e repassada; tokens desconhecidos são recusados', async () => {
+  it('vídeo ao vivo: sessão HLS emitida pela DIA e repassada; tokens desconhecidos são recusados', async () => {
     await withCameras();
     const s = await ctx.inject('POST', '/api/cameras/camera.garagem/stream');
     expect(s.json.url).toBe('/api/cameras/hls/tok123/master_playlist.m3u8');
     const pl = await ctx.app.inject({ method: 'GET', url: s.json.url });
     expect(pl.statusCode).toBe(200);
     expect(pl.body).toContain('#EXTM3U');
-    // endereço absoluto do HA reescrito para passar pela Luna
+    // endereço absoluto do HA reescrito para passar pela DIA
     expect(pl.body).toContain('/api/cameras/hls/tok123/playlist.m3u8');
     expect(pl.body).not.toMatch(/^\/api\/hls\//m);
     expect((await ctx.app.inject({ method: 'GET', url: '/api/cameras/hls/naoexiste/master_playlist.m3u8' })).statusCode).toBe(404);
@@ -78,7 +78,7 @@ describe('câmeras (via Home Assistant)', () => {
 
   it('por voz: “mostre a câmera da garagem” abre a câmera', async () => {
     await withCameras();
-    const r = await chat(ctx, 'Luna, mostre a câmera da garagem');
+    const r = await chat(ctx, 'DIA, mostre a câmera da garagem');
     expect(r.reply).toBe('Abrindo a câmera Garagem.');
     expect(r.actions[0]).toMatchObject({ tool: 'show_camera', entityIds: ['camera.garagem'] });
     const all = await chat(ctx, 'quero ver as câmeras');

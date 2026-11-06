@@ -33,7 +33,7 @@ export default function LoginPage({ mode }: { mode: 'login' | 'setup' }) {
         <div className="mb-8 flex flex-col items-center text-center">
           <LunaOrb state={busy ? 'processing' : 'idle'} size={120} />
           <h1 className="mt-6 text-3xl font-semibold">
-            Luna <span className="text-gradient">AI</span>
+            DIA <span className="text-gradient">AI</span>
           </h1>
           <p className="mt-1 text-sm text-white/50">{mode === 'setup' ? 'Vamos configurar sua assistente.' : 'Entre para continuar.'}</p>
         </div>

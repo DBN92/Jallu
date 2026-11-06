@@ -175,7 +175,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     if (e.statusCode === 429) return reply.status(429).send({ error: 'rate_limited', message: 'Muitas requisições. Aguarde um pouco e tente novamente.' });
     if (e.statusCode && e.statusCode < 500) return reply.status(e.statusCode).send({ error: 'request', message: e.message });
     req.log.error(err);
-    return reply.status(500).send({ error: 'internal', message: 'Erro interno no servidor da Luna.' });
+    return reply.status(500).send({ error: 'internal', message: 'Erro interno no servidor da DIA.' });
   });
 
   await app.register(healthRoutes);

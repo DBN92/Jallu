@@ -139,7 +139,7 @@ export function lenientPost(url: string, body: string, timeoutMs: number): Promi
   const payload = Buffer.from(body, 'utf8');
   const head =
     `POST ${u.pathname}${u.search} HTTP/1.1\r\nHost: ${u.host}\r\nContent-Type: application/soap+xml; charset=utf-8\r\n` +
-    `Content-Length: ${payload.length}\r\nConnection: close\r\nUser-Agent: Luna\r\n\r\n`;
+    `Content-Length: ${payload.length}\r\nConnection: close\r\nUser-Agent: DIA\r\n\r\n`;
   return new Promise((resolvePost, reject) => {
     const sock = connect({ host: u.hostname.replace(/^\[|\]$/g, ''), port: Number(u.port) || 80 });
     const chunks: Buffer[] = [];
