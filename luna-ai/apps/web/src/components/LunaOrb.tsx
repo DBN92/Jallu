@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { AssistantState } from '@luna/shared';
+import { waveColors } from '../lib/theme';
 
 const STATE_RGB: Record<AssistantState, [number, number, number]> = {
   idle: [0, 229, 255],
@@ -32,6 +33,7 @@ export function LunaOrb({
   state,
   levelRef,
   size = 260,
+  height,
   onClick,
   label,
 }: {
@@ -39,6 +41,8 @@ export function LunaOrb({
   /** Nível de áudio em tempo real (0–1), lido a cada quadro sem re-render. */
   levelRef?: { current: number };
   size?: number;
+  /** Altura (padrão = size, quadrado). Mais baixa = onda larga, para cartões. */
+  height?: number;
   onClick?: () => void;
   label?: string;
 }) {
@@ -50,19 +54,24 @@ export function LunaOrb({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d', { alpha: true });
     if (!canvas || !ctx) return;
+    const H = height ?? size;
     const dpr = Math.min(window.devicePixelRatio || 1, 2, 1100 / size);
     canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
+    canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const s = size / 300;
     const left = 14 * s;
     const right = size - 14 * s;
-    const mid = size / 2;
+    const mid = H / 2;
     const span = right - left;
     const step = Math.max(2, Math.round(3 * s)); // px entre pontos (≈ 100 pontos por onda)
-    const maxAmp = size * 0.36;
+    const maxAmp = Math.min(size * 0.36, H * 0.44);
+    // Cores do tema (temas modernos: degradê entre os dois destaques)
+    let theme = waveColors();
+    const onTheme = () => (theme = waveColors());
+    window.addEventListener('luna-theme', onTheme);
 
     let speed = STATE_SPEED[live.current.state];
     let level = 0;
@@ -75,7 +84,7 @@ export function LunaOrb({
     const wave = (w: (typeof WAVES)[number], amp: number, time: number) => {
       ctx.beginPath();
       for (let x = left; x <= right + 0.5; x += step) {
-        const u = (x - mid) / (span / 2); // -1..1
+        const u = (x - size / 2) / (span / 2); // -1..1 (centro horizontal)
         const env = (1 - u * u) * (1 - u * u); // some nas pontas
         const y = mid + Math.sin(x * (0.025 / s) * w.freq + phase * w.dir * (1 + w.freq * 0.4) + w.phase) * env * amp * (0.55 + 0.45 * Math.sin(time * 1.7 + w.phase));
         if (x === left) ctx.moveTo(x, y);
@@ -89,7 +98,8 @@ export function LunaOrb({
       const time = t / 1000;
       const st = live.current.state;
       const k = 1 - Math.pow(0.001, dt);
-      const target = STATE_RGB[st];
+      const calm = st === 'idle' || st === 'listening' || st === 'speaking';
+      const target = theme.modern && calm ? theme.a : STATE_RGB[st];
       for (let i = 0; i < 3; i++) rgb[i] = rgb[i]! + (target[i]! - rgb[i]!) * k * 0.6;
       speed += (STATE_SPEED[st] - speed) * k * 0.5;
       const real = live.current.levelRef?.current ?? 0;
@@ -99,11 +109,20 @@ export function LunaOrb({
       level += (want - level) * Math.min(1, k * 3);
       phase += speed * dt;
 
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, size, H);
+      // Nos temas modernos, a onda vai da cor 1 à cor 2 do tema
+      let stroke: string | CanvasGradient | null = null;
+      if (theme.modern && calm) {
+        const g = ctx.createLinearGradient(left, 0, right, 0);
+        g.addColorStop(0, `rgb(${rgb[0] | 0}, ${rgb[1] | 0}, ${rgb[2] | 0})`);
+        g.addColorStop(1, `rgb(${theme.b[0]}, ${theme.b[1]}, ${theme.b[2]})`);
+        stroke = g;
+      }
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      // Linha de base e marcas nas pontas (régua de osciloscópio)
+      // Linha de base e marcas (régua de osciloscópio) — só no tema HUD
+      if (!theme.modern) {
       ctx.lineWidth = 1;
       ctx.strokeStyle = col(0.22);
       ctx.beginPath();
@@ -116,12 +135,27 @@ export function LunaOrb({
         ctx.lineTo(x, mid + h);
       }
       ctx.stroke();
+      }
 
       const amp = maxAmp * (0.06 + level * 0.94);
       // Camadas de trás para frente; a principal ganha brilho
       for (let i = WAVES.length - 1; i >= 0; i--) {
         const w = WAVES[i]!;
         wave(w, amp * (i === 0 ? 1 : 0.85), time);
+        if (stroke) {
+          if (i === 0) {
+            ctx.globalAlpha = 0.14 + level * 0.12;
+            ctx.lineWidth = w.width * s * 4.5;
+            ctx.strokeStyle = stroke;
+            ctx.stroke();
+          }
+          ctx.globalAlpha = w.alpha;
+          ctx.lineWidth = w.width * s;
+          ctx.strokeStyle = stroke;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          continue;
+        }
         if (i === 0) {
           ctx.lineWidth = w.width * s * 4.5;
           ctx.strokeStyle = col(0.12 + level * 0.12);
@@ -134,11 +168,13 @@ export function LunaOrb({
 
       // Pontos nas extremidades (pulsam levemente)
       const dotR = (2.2 + level * 1.6) * s;
-      ctx.fillStyle = col(0.9);
-      ctx.beginPath();
-      ctx.arc(left, mid, dotR, 0, Math.PI * 2);
-      ctx.arc(right, mid, dotR, 0, Math.PI * 2);
-      ctx.fill();
+      if (!theme.modern) {
+        ctx.fillStyle = col(0.9);
+        ctx.beginPath();
+        ctx.arc(left, mid, dotR, 0, Math.PI * 2);
+        ctx.arc(right, mid, dotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       if (!reduce) raf = requestAnimationFrame(frame);
     };
@@ -153,8 +189,9 @@ export function LunaOrb({
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('luna-theme', onTheme);
     };
-  }, [size]);
+  }, [size, height]);
 
   return (
     <button
@@ -163,9 +200,9 @@ export function LunaOrb({
       aria-label="Falar com a Luna"
       className="hud-core relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
       data-state={state}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: height ?? size }}
     >
-      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: size, height: size }} />
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: size, height: height ?? size }} />
       {label && (
         <span className="hud-label pointer-events-none absolute inset-x-0 text-center" style={{ bottom: size * 0.16, color: 'currentColor', fontSize: Math.max(9, size * 0.034) }}>
           {label}

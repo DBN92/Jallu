@@ -10,7 +10,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
     <header className="mb-5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="hud-label">Luna // sistema</p>
+          <p className="hud-label page-kicker">Luna // sistema</p>
           <h1 className="hud-title hud-glow mt-1 text-xl font-bold text-cyan-50 uppercase md:text-2xl">{title}</h1>
           {subtitle && <p className="font-hud mt-0.5 text-sm tracking-wide text-cyan-100/55">{subtitle}</p>}
         </div>

@@ -1,0 +1,155 @@
+/*
+ * Temas modernos (Aurora, Neon, Grafite): cantos arredondados, vidro escuro e fontes novas.
+ * Funcionam sobrescrevendo variáveis (cores da paleta, fontes, raios) e as peças base do visual HUD,
+ * então todas as telas mudam juntas. O tema “hud” (original) não é afetado por nada aqui.
+ */
+@import '@fontsource/unbounded/latin-300.css';
+@import '@fontsource/unbounded/latin-500.css';
+@import '@fontsource/sora/latin-300.css';
+@import '@fontsource/sora/latin-400.css';
+@import '@fontsource/sora/latin-600.css';
+@import '@fontsource/michroma/latin-400.css';
+@import '@fontsource/space-grotesk/latin-400.css';
+@import '@fontsource/space-grotesk/latin-600.css';
+@import '@fontsource/exo-2/latin-300.css';
+@import '@fontsource/exo-2/latin-600.css';
+
+:root { --accent-1: #00e5ff; --accent-2: #3aa8ff; }
+
+/* A Michroma desenha o “°” como um “o” grande: só esse símbolo vem da Space Grotesk */
+@font-face {
+  font-family: 'Luna Degree';
+  src: url('../../../../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+00B0;
+}
+
+/* ---------------- Paletas ---------------- */
+html[data-theme='aurora'] {
+  --bg: #06070d; --tx: #eef2ff; --muted: rgba(226, 232, 255, 0.58); --card: rgba(255, 255, 255, 0.055); --card-solid: #11131d;
+  --line: rgba(255, 255, 255, 0.09); --accent-1: #22d3ee; --accent-2: #8b5cf6; --warm: #fbbf24; --glow-3: #ec4899;
+  --font-sans: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-display: 'Unbounded', 'Sora', sans-serif;
+  --card-r: 26px; --blob-o: 0.5;
+}
+html[data-theme='neon'] {
+  --bg: #05060a; --tx: #f4f7fb; --muted: rgba(220, 228, 240, 0.55); --card: #0c0f16; --card-solid: #0c0f16;
+  --line: #1b2130; --accent-1: #00f0ff; --accent-2: #b6ff3b; --warm: #b6ff3b; --glow-3: #00f0ff;
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; --font-display: 'Luna Degree', 'Michroma', 'Space Grotesk', sans-serif;
+  --card-r: 20px; --blob-o: 0.16;
+  /* lima no lugar do âmbar (aparelho ligado) */
+  --color-amber-200: #e4ffad; --color-amber-300: #c8ff6a; --color-amber-400: #b6ff3b;
+}
+html[data-theme='grafite'] {
+  --bg: #0d1016; --tx: #f3f1ec; --muted: rgba(240, 236, 228, 0.55); --card: linear-gradient(160deg, #1a1f28, #12161d); --card-solid: #151a22;
+  --line: rgba(255, 255, 255, 0.07); --accent-1: #2dd4bf; --accent-2: #f59e0b; --warm: #f59e0b; --glow-3: #f59e0b;
+  --font-sans: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-display: 'Exo 2', 'Sora', sans-serif;
+  --card-r: 30px; --blob-o: 0.14;
+  /* ciano da interface vira verde-água */
+  --color-cyan-50: #effdfa; --color-cyan-100: #ccfbf1; --color-cyan-200: #99f6e4; --color-cyan-300: #5eead4; --color-cyan-400: #2dd4bf; --color-cyan-500: #14b8a6; --color-cyan-600: #0d9488; --color-cyan-950: #042f2e;
+}
+
+/* ---------------- Base comum dos temas modernos ---------------- */
+html:not([data-theme='hud']) {
+  --radius-xs: 8px; --radius-sm: 14px; --radius-md: 16px; --radius-lg: 20px;
+  --color-ink-950: var(--bg); --color-ink-900: var(--card-solid); --color-ink-800: var(--card-solid);
+  --hud-line: var(--line); --hud-line-strong: color-mix(in srgb, var(--accent-1) 45%, transparent);
+}
+html:not([data-theme='hud']) body { background: var(--bg); color: var(--tx); font-family: var(--font-sans); }
+
+/* Fundo: brilhos suaves em vez da grade/linhas de varredura */
+html:not([data-theme='hud']) .app-bg {
+  background:
+    radial-gradient(520px 520px at -6% -14%, color-mix(in srgb, var(--accent-1) calc(var(--blob-o) * 100%), transparent), transparent 70%),
+    radial-gradient(600px 600px at 108% 30%, color-mix(in srgb, var(--accent-2) calc(var(--blob-o) * 100%), transparent), transparent 70%),
+    radial-gradient(520px 420px at 40% 118%, color-mix(in srgb, var(--glow-3) calc(var(--blob-o) * 55%), transparent), transparent 70%),
+    var(--bg);
+}
+html[data-theme='neon'] .app-bg { background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), radial-gradient(600px 500px at 108% 20%, rgba(182, 255, 59, 0.08), transparent 70%), radial-gradient(520px 520px at -6% -14%, rgba(0, 240, 255, 0.1), transparent 70%); background-size: 22px 22px, auto, auto; background-color: var(--bg); }
+html:not([data-theme='hud']) .app-bg::after { display: none; }
+html:not([data-theme='hud']) :is(.scene-glow, .scene-skyline, .scene-floor, .bezel, .bezel-corner, .hud-tag, .radar-floor, .hud-beam) { display: none !important; }
+
+/* Painéis: cartões de vidro arredondados (sem chanfro e sem colchetes) */
+html:not([data-theme='hud']) :is(.hud-panel, .glass) {
+  clip-path: none;
+  border-radius: var(--card-r);
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+html[data-theme='grafite'] :is(.hud-panel, .glass) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.45); }
+html:not([data-theme='hud']) .hud-panel::before,
+html:not([data-theme='hud']) .hud-panel::after { display: none; }
+html:not([data-theme='hud']) [class*='clip-path'] { clip-path: none !important; border-radius: var(--radius-sm); }
+
+/* Tipografia */
+html:not([data-theme='hud']) .hud-label { font-weight: 500; letter-spacing: 0.12em; color: var(--muted); font-size: 11.5px; }
+html:not([data-theme='hud']) .hud-title { letter-spacing: -0.01em; text-transform: none; }
+html[data-theme='neon'] .hud-title { letter-spacing: 0.02em; }
+html:not([data-theme='hud']) .hud-glow { text-shadow: none; }
+html:not([data-theme='hud']) .font-hud { letter-spacing: normal; }
+html:not([data-theme='hud']) .uppercase.font-hud,
+html:not([data-theme='hud']) h1.hud-title { text-transform: none; }
+html:not([data-theme='hud']) .hud-divider { background: var(--line); }
+html:not([data-theme='hud']) .text-gradient { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; background-clip: text; }
+
+/* Interruptor (Toggle) estilo pílula */
+html:not([data-theme='hud']) [role='switch'] { border-radius: 999px; height: 28px; width: 48px; border-color: transparent; box-shadow: none; background: rgba(255, 255, 255, 0.12); }
+html:not([data-theme='hud']) [role='switch'][aria-checked='true'] { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+html[data-theme='grafite'] [role='switch'][aria-checked='true'] { background: var(--warm); }
+html:not([data-theme='hud']) [role='switch'] > span { border-radius: 999px; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+html:not([data-theme='hud']) [role='switch'][aria-checked='false'] > span { opacity: 0.75; }
+
+/* Dock: pílula flutuante */
+html:not([data-theme='hud']) .dock-bg { clip-path: none; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--card-solid) 88%, transparent);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); width: auto; left: 12px; right: 12px; transform: none; top: 6px; bottom: max(env(safe-area-inset-bottom), 8px); }
+@media (min-width: 768px) { html:not([data-theme='hud']) .dock-bg { left: 50%; right: auto; width: min(100% - 24px, 720px); transform: translateX(-50%); } }
+html:not([data-theme='hud']) .dock-btn i { border: none; background: transparent; box-shadow: none; border-radius: 14px; }
+html:not([data-theme='hud']) .dock-btn.active i { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+html:not([data-theme='hud']) .dock-btn.active i svg { color: var(--tx); }
+html:not([data-theme='hud']) .dock-btn > span { letter-spacing: 0.02em; text-transform: none; font-weight: 500; }
+html:not([data-theme='hud']) .dock-btn i svg { color: var(--muted); }
+html:not([data-theme='hud']) nav.dock-nav { padding-top: 12px; padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 6px); }
+
+/* Ondas da voz e realces */
+html:not([data-theme='hud']) .voice-wave i { background: linear-gradient(180deg, var(--accent-1), var(--accent-2)); box-shadow: none; border-radius: 4px; }
+
+/* ---------------- Peças da tela inicial moderna ---------------- */
+.m-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--card-r); padding: 18px; -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32); }
+html[data-theme='grafite'] .m-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.45); }
+.m-muted { color: var(--muted); }
+.m-label { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.m-disp { font-family: var(--font-display); letter-spacing: -0.01em; }
+html[data-theme='neon'] .m-disp { letter-spacing: 0.02em; }
+.m-num { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.m-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); font-size: 14px; white-space: nowrap; color: var(--tx); transition: transform 150ms, background 150ms; }
+.m-chip:active { transform: scale(0.96); }
+.m-chip.act { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); color: #06070d; border-color: transparent; font-weight: 600; }
+html[data-theme='grafite'] .m-chip.act { background: var(--tx); color: #111; }
+.m-iconbox { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); color: var(--tx); flex: none; }
+.m-iconbox.on { background: linear-gradient(135deg, var(--warm), color-mix(in srgb, var(--warm) 55%, #fff)); color: #111; box-shadow: 0 8px 22px color-mix(in srgb, var(--warm) 45%, transparent); }
+html[data-theme='aurora'] .m-iconbox.on { background: linear-gradient(135deg, #fbbf24, #fb923c); }
+.m-switch { width: 44px; height: 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.13); position: relative; flex: none; transition: background 200ms; }
+.m-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; opacity: 0.8; transition: transform 200ms; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.m-switch.on { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+html[data-theme='grafite'] .m-switch.on { background: var(--warm); }
+.m-switch.on::after { transform: translateX(18px); opacity: 1; }
+.m-bar { height: 6px; border-radius: 9px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.m-bar > i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, var(--warm), color-mix(in srgb, var(--warm) 50%, #fff)); }
+.m-mic { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #06070d;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-1) 14%, transparent), 0 12px 32px color-mix(in srgb, var(--accent-1) 40%, transparent); transition: transform 150ms; }
+html[data-theme='grafite'] .m-mic { background: linear-gradient(135deg, var(--accent-1), #5eead4); }
+.m-mic:active { transform: scale(0.94); }
+.m-mic.live { background: linear-gradient(135deg, #fb7185, #e11d48); box-shadow: 0 0 0 8px rgba(244, 63, 94, 0.18), 0 12px 32px rgba(244, 63, 94, 0.45); color: #fff; }
+.m-input { display: flex; align-items: center; gap: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); padding: 6px 6px 6px 18px; }
+.m-input input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--tx); font-size: 15px; padding: 8px 0; }
+.m-input input::placeholder { color: var(--muted); }
+.m-input button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); color: #06070d; flex: none; }
+.m-tile { text-align: left; display: flex; flex-direction: column; gap: 12px; padding: 15px; transition: transform 150ms; }
+.m-tile:active { transform: scale(0.97); }
+.m-scroll { scrollbar-width: none; }
+.m-scroll::-webkit-scrollbar { display: none; }
+.m-live { position: absolute; top: 10px; left: 10px; background: rgba(225, 29, 72, 0.92); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.06em; }
+/* Celular: dock só com ícones (mais limpo) */
+@media (max-width: 767px) { html:not([data-theme='hud']) .dock-btn > span { display: none; } }
+html:not([data-theme='hud']) .page-kicker { display: none; }

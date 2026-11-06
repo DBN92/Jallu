@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
+import { ModernHome } from '../components/ModernHome';
+import { isModern } from '../lib/theme';
 import { MessageList } from '../components/Messages';
 import { CamerasPanel, EnvPanel, HomeRingPanel, LocationPanel, RoutinePanel, StatusPanel, VoicePanel } from '../components/HudPanels';
 import { useCameras } from '../stores/cameras';
@@ -312,9 +314,61 @@ export default function HomePage() {
     ? Math.round(Math.min(150, vh * 0.2))
     : Math.round(wide ? Math.min(vh * 0.46, 430) : short ? Math.min(vh * 0.36, 190) : Math.min(vw * 0.72, vh * 0.36, 360));
   const err = voiceError ?? realtime.error ?? wake.error;
+  const theme = useSettings((s) => s.theme);
+  const micIcon = realtime.connecting ? (
+    <AudioLines className="h-6 w-6 animate-pulse" />
+  ) : state === 'speaking' ? (
+    <Square className="h-6 w-6" />
+  ) : micActive ? (
+    <MicOff className="h-6 w-6" />
+  ) : voiceMode === 'realtime' ? (
+    <AudioLines className="h-6 w-6" />
+  ) : (
+    <Mic className="h-6 w-6" />
+  );
 
   return (
     <div className="flex h-full flex-col">
+      {isModern(theme) ? (
+        <ModernHome
+          now={now}
+          greeting={greeting(now)}
+          userName={user?.displayName?.split(' ')[0] ?? ''}
+          state={state}
+          stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Ei, Luna”' : 'Disponível'}
+          aiTag={settings?.aiMode === 'local' ? 'IA local' : settings?.aiMode === 'cloud' ? 'IA nuvem' : 'IA híbrida'}
+          hasChat={hasChat}
+          messages={messages}
+          interim={interim}
+          levelRef={realtime.levelRef}
+          onMic={() => void onMic()}
+          micActive={micActive}
+          micIcon={micIcon}
+          text={text}
+          setText={setText}
+          onSubmit={onSubmit}
+          inputRef={inputRef}
+          muted={muted}
+          onToggleMute={() => setMuted((m) => !m)}
+          onNew={() => {
+            tts.cancel();
+            newConversation();
+          }}
+          weather={weather.data}
+          health={health}
+          cameras={cameraList}
+          banner={
+            err ? (
+              <div className="mb-3">
+                <Banner onClose={() => setVoiceError(null)}>{err}</Banner>
+              </div>
+            ) : null
+          }
+          wide={wide}
+          vw={vw}
+        />
+      ) : (
+      <>
       {/* Cabeçalho: comando de voz · LUNA + hora · ações */}
       <header className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-start gap-2 px-4 pt-safe md:px-8 md:pt-5 [@media(max-height:560px)]:pt-2">
         <div className="font-hud flex min-w-0 items-center gap-2 justify-self-start border border-cyan-300/25 bg-ink-950/75 px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.18em] text-cyan-300/85 uppercase [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)] md:px-3.5 md:text-xs" aria-live="polite">
@@ -438,6 +492,8 @@ export default function HomePage() {
           </form>
         </section>
       </div>
+      </>
+      )}
 
       <VoiceFocus
         open={voiceFocus}

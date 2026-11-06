@@ -155,6 +155,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     global: true,
     max: 300,
     timeWindow: '1 minute',
+    // Arquivos do app (JS, CSS, fontes, ícones) não contam: o limite protege a API (login incluso)
+    allowList: (req) => !req.url.startsWith('/api/') && !req.url.startsWith('/ws'),
     keyGenerator: (req) => {
       const cf = req.headers['cf-connecting-ip'];
       return typeof cf === 'string' && cf.length < 64 ? `cf:${cf}` : req.ip;

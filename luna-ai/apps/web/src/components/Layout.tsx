@@ -49,7 +49,7 @@ export function Layout() {
 /** Barra de navegação em “dock” com botões redondos iluminados. */
 function Dock() {
   return (
-    <nav className="relative z-40 shrink-0 px-1 pt-2 pb-safe md:pb-3">
+    <nav className="dock-nav relative z-40 shrink-0 px-1 pt-2 pb-safe md:pb-3">
       <div className="dock-bg" aria-hidden="true" />
       <div className="relative mx-auto flex max-w-[760px] items-start justify-around gap-1 px-2 md:justify-center md:gap-5">
         {NAV.map(({ to, label, icon: Icon, end }) => (

@@ -3,6 +3,7 @@ import type { SettingsDto, SettingsUpdate } from '@luna/shared';
 import { api } from '../services/api';
 import { isTvDevice } from '../lib/tv';
 import type { Sensitivity } from '../gestures/stabilizer';
+import { applyTheme, DEFAULT_THEME, isTheme, type ThemeId } from '../lib/theme';
 
 export type VoiceMode = 'basic' | 'realtime';
 export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
@@ -41,6 +42,8 @@ interface SettingsState {
   gestureWatch: boolean;
   /** Sensibilidade dos gestos neste aparelho */
   gestureSensitivity: Sensitivity;
+  /** Tema visual deste aparelho */
+  theme: ThemeId;
   load: () => Promise<void>;
   update: (patch: SettingsUpdate) => Promise<void>;
   setHome: (home: { name: string; latitude: number; longitude: number } | null) => Promise<void>;
@@ -52,6 +55,7 @@ interface SettingsState {
   setTvMode: (v: TvModePref) => void;
   setGestureWatch: (v: boolean) => void;
   setGestureSensitivity: (v: Sensitivity) => void;
+  setTheme: (v: ThemeId) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -64,6 +68,7 @@ export const useSettings = create<SettingsState>((set) => ({
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
   gestureSensitivity: readLocal<Sensitivity>('luna.gestureSensitivity', 'normal'),
+  theme: ((t) => (isTheme(t) ? t : DEFAULT_THEME))(readLocal<string>('luna.theme', DEFAULT_THEME)),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -75,6 +80,11 @@ export const useSettings = create<SettingsState>((set) => ({
   setAmbientMode: (ambientMode) => {
     writeLocal('luna.ambientMode', ambientMode);
     set({ ambientMode });
+  },
+  setTheme: (theme) => {
+    writeLocal('luna.theme', theme);
+    applyTheme(theme);
+    set({ theme });
   },
   setGestureSensitivity: (gestureSensitivity) => {
     writeLocal('luna.gestureSensitivity', gestureSensitivity);

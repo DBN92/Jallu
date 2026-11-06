@@ -11,8 +11,13 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/exo-2": "^5.3.0",
+    "@fontsource/michroma": "^5.3.0",
     "@fontsource/orbitron": "^5.3.0",
     "@fontsource/rajdhani": "^5.3.0",
+    "@fontsource/sora": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
     "@luna/shared": "*",
     "@mediapipe/tasks-vision": "^0.10.21",
     "hls.js": "^1.7.4",

@@ -11,6 +11,7 @@ import { useLocation } from '../stores/location';
 import { useSettings, type ScreenOrientationPref } from '../stores/settings';
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
+import { ThemePicker } from '../components/ThemePicker';
 import { GestureSettings } from '../gestures/GestureSettings';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -290,6 +291,10 @@ export default function SettingsPage() {
           Instale a Luna no iPhone: toque em <Share className="inline h-3.5 w-3.5" /> Compartilhar e depois em “Adicionar à Tela de Início”.
         </Banner>
       )}
+
+      <Section title="Tema">
+        <ThemePicker />
+      </Section>
 
       <Section title="Inteligência artificial">
         <div className="px-4 py-3">
