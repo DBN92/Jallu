@@ -42,6 +42,11 @@ export class ChatService {
     this.cameras = cameras;
   }
 
+  private watches: { statusText: (q: string) => Promise<string> } | null = null;
+  setWatches(w: { statusText: (q: string) => Promise<string> }) {
+    this.watches = w;
+  }
+
   /** Avisa as outras telas do mesmo usuário (ex.: TV) sobre a resposta, para mostrá-la lá também. */
   private replyListener: ((userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) | null = null;
   setReplyListener(fn: (userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) {
@@ -204,6 +209,10 @@ export class ChatService {
           if (!list.length) return { reply: intent.category ? 'Todas as luzes estão apagadas.' : 'Nenhum dispositivo está ligado agora.', actions: [] };
           const noun = intent.category ? (list.length === 1 ? 'Está acesa' : 'Estão acesas') : list.length === 1 ? 'Está ligado' : 'Estão ligados';
           return { reply: `${noun}: ${listJoin(list.map((d) => d.name))}.`, actions: [] };
+        }
+        case 'watch_status': {
+          if (!this.watches) return null;
+          return { reply: await this.watches.statusText(intent.query), actions: [] };
         }
         case 'show_camera': {
           if (!this.cameras) return null;

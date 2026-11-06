@@ -9,6 +9,7 @@ import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
+import { GarageCard } from './GarageCard';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -391,6 +392,7 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
         <div className="m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
           {quick}
+          <GarageCard />
           {devices}
           {weatherCard}
           {cameraCard}
@@ -410,6 +412,7 @@ export function ModernHome(p: ModernHomeProps) {
           </div>
           <div className="m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
             {weatherCard}
+            <GarageCard />
             {devices}
           </div>
         </div>
@@ -423,6 +426,7 @@ export function ModernHome(p: ModernHomeProps) {
       {!p.hasChat && (
         <>
           {quick}
+          <GarageCard />
           {devices}
           {weatherCard}
           {cameraCard}

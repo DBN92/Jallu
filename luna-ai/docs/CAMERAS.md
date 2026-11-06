@@ -102,3 +102,23 @@ A prévia mostra “mão vista — gesto não reconhecido” quando acha a mão 
 (aproxime, vire a palma para a câmera ou melhore a luz) e como a mão foi achada (zoom, partes, imagem inteira).
 
 Dicas: de frente para a câmera, a 1–3 m, com luz. À noite (infravermelho) funciona pior.
+
+## Garagem: carro, portão e movimento (vigias por foto de referência)
+
+**Ajustes › Garagem** (administrador):
+1. Escolha a câmera e adicione **🚗 Carro**, **🚪 Portão** e/ou **👀 Movimento à noite**.
+2. **Marcar área**: desenhe o retângulo onde o carro fica / onde está o portão.
+3. Com a garagem **sem carro**, toque em “Salvar foto agora” em *fora*; com o carro, em *na garagem*.
+   Faça o mesmo com o portão *fechado* e *aberto*. Salve 2–3 fotos de cada, **de dia e de noite**.
+4. **Testar agora** mostra o que a DIA está vendo e a certeza.
+
+Depois disso, a cada 15 s a DIA pega uma foto da câmera (sem ligar o vídeo), compara a área com as
+fotos de referência e, quando o estado muda (confirmado em 2 leituras seguidas):
+- registra o evento com a foto do momento (guardada 7 dias) e avisa em todas as telas abertas;
+- à noite (18h–6h), acende a luz escolhida quando o portão abre / o carro chega e apaga após X min
+  (não mexe se a luz já estava acesa);
+- portão aberto além do tempo configurado (padrão 10 min) gera aviso, repetido a cada 30 min.
+“Movimento à noite” avisa mudanças grandes na imagem das 18h às 6h (no máximo 1 aviso a cada 3 min).
+
+Por voz: “Oi, Dia, o carro está na garagem?”, “o portão está aberto?”, “como está a garagem?”.
+A DIA **não** abre/fecha o portão.

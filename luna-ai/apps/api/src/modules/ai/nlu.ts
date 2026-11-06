@@ -13,7 +13,8 @@ export type Intent =
   | { type: 'weather'; period: 'now' | 'today' | 'tomorrow' | 'week'; umbrella: boolean }
   | { type: 'remember'; content: string }
   | { type: 'forget'; content: string }
-  | { type: 'show_camera'; target: string };
+  | { type: 'show_camera'; target: string }
+  | { type: 'watch_status'; query: string };
 
 const ON = 'acenda|acende|acender|ligue|liga|ligar|ative|ativa|ativar';
 const OFF = 'apague|apaga|apagar|desligue|desliga|desligar|desative|desativa|desativar';
@@ -54,6 +55,11 @@ export function parseIntent(original: string): Intent | null {
   // Câmeras: “mostre a câmera da garagem”, “abrir câmera”, “ver as câmeras”
   const cam = text.match(/\b(?:mostr\w*|abr\w*|ver|veja|exib\w*|quero ver|me mostra)\b.*?\bcameras?\b\s*(.*)$/);
   if (cam) return { type: 'show_camera', target: cleanTarget(cam[1] ?? '') };
+
+  // Garagem: “o carro está na garagem?”, “o portão está aberto?”, “como está a garagem?”
+  if (/\b(carro|portao|garagem)\b/.test(text) && /\b(esta|ta|estao|tem|como|aberto|fechado|dentro|fora|saiu|chegou)\b/.test(text) && !/\b(acend|apag|lig|deslig|abr[ae]|fech[ae])\w*\b.*\b(luz|lampada|portao)\b/.test(text) && !/^(acend|apag|lig|deslig)/.test(text)) {
+    return { type: 'watch_status', query: text };
+  }
 
   // Data e hora
   if (/\b(que horas sao|que hora e|que horas e|me diga as horas|horario agora)\b/.test(text)) return { type: 'datetime', what: 'time' };

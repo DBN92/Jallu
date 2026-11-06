@@ -170,3 +170,51 @@ model GestureRule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// “Vigia” visual numa câmera: compara a área escolhida com fotos de referência de dois estados
+/// (ex.: carro na garagem / fora; portão fechado / aberto) ou, no tipo “motion”, avisa mudanças à noite.
+model VisualWatch {
+  id            String      @id @default(cuid())
+  name          String
+  kind          String // car | gate | motion | custom
+  cameraId      String // entity_id da câmera (camera.luna_… ou camera.…)
+  zone          String? // JSON {x,y,w,h} (0–1); vazio = imagem inteira
+  labelA        String // estado A (ex.: “na garagem”, “fechado”)
+  labelB        String // estado B (ex.: “fora”, “aberto”)
+  enabled       Boolean     @default(true)
+  state         String? // a | b | null (desconhecido)
+  stateSince    DateTime?
+  confidence    Float?
+  lightEntity   String? // luz a acender (carro chegou / portão abriu à noite)
+  lightMinutes  Int         @default(5)
+  alertMinutes  Int? // portão: avisar se ficar no estado B por X min
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  refs          VisualRef[]
+}
+
+/// Foto de referência de um estado (guardada como assinatura 32×24 em tons de cinza + miniatura).
+model VisualRef {
+  id        String      @id @default(cuid())
+  watchId   String
+  watch     VisualWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  state     String // a | b
+  vector    String // base64 de 768 bytes (32×24 cinza)
+  thumb     String // JPEG pequeno em base64 (para mostrar em Ajustes)
+  createdAt DateTime    @default(now())
+
+  @@index([watchId])
+}
+
+/// Acontecimento numa câmera (mudança de estado, aviso, movimento à noite), com foto.
+model CameraEvent {
+  id        String   @id @default(cuid())
+  cameraId  String
+  watchId   String?
+  kind      String // state | alert | motion
+  title     String
+  photo     String? // arquivo em data/events/
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

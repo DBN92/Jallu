@@ -199,7 +199,9 @@ export type ServerEvent =
   | { type: 'ha_status'; connected: boolean }
   | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
   /** Resposta da DIA (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
-  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] };
+  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] }
+  /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
+  | { type: 'camera_event'; event: CameraEventDto };
 
 export interface CameraDto {
   entityId: string;
@@ -238,4 +240,34 @@ export interface GestureRuleDto {
   /** entity_id ou "all_lights" */
   target: string;
   enabled: boolean;
+}
+
+/** Vigia visual (ex.: garagem: carro dentro/fora, portão aberto/fechado, movimento à noite). */
+export interface WatchDto {
+  id: string;
+  name: string;
+  kind: 'car' | 'gate' | 'motion' | 'custom';
+  cameraId: string;
+  zone: { x: number; y: number; w: number; h: number } | null;
+  labelA: string;
+  labelB: string;
+  enabled: boolean;
+  state: 'a' | 'b' | null;
+  stateLabel: string | null;
+  stateSince: string | null;
+  confidence: number | null;
+  lightEntity: string | null;
+  lightMinutes: number;
+  alertMinutes: number | null;
+  refs: { id: string; state: 'a' | 'b'; thumb: string; createdAt: string }[];
+}
+
+export interface CameraEventDto {
+  id: string;
+  cameraId: string;
+  watchId: string | null;
+  kind: 'state' | 'alert' | 'motion';
+  title: string;
+  photoUrl: string | null;
+  createdAt: string;
 }

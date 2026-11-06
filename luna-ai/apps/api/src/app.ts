@@ -39,6 +39,8 @@ import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
 import { GesturesService } from './modules/gestures/gestures.service';
 import { gestureRoutes } from './modules/gestures/gestures.routes';
+import { WatchesService } from './modules/watches/watches.service';
+import { watchRoutes } from './modules/watches/watches.routes';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
 
@@ -53,6 +55,11 @@ export interface AppDeps {
   disableHaWs?: boolean;
   /** Entrada do ffmpeg das câmeras diretas (testes usam uma fonte sintética no lugar do RTSP) */
   cameraInput?: InputArgs;
+  /** Testes: foto das câmeras para os vigias e caminho do ffmpeg */
+  watchFrame?: (cameraId: string) => Promise<Buffer>;
+  watchFfmpeg?: string | null;
+  /** Não iniciar as leituras periódicas (testes chamam tick() direto) */
+  disableWatchTimer?: boolean;
 }
 
 function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['log']) {
@@ -87,7 +94,13 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);
   cameras.setDirect(directCameras);
   const gestures = new GesturesService(db, devices);
+  // Vigias da garagem: foto da câmera direta (1 quadro) ou do Home Assistant
+  const frame = deps.watchFrame ??
+    (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
+  const dataDir = env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.';
+  const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
   chat.setCameras(cameras);
+  chat.setWatches(watches);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
@@ -99,7 +112,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, cameras, directCameras, gestures, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { ha, haWs, actionLogs, devices, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -190,6 +203,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(voiceRoutes);
   await app.register(cameraRoutes);
   await app.register(gestureRoutes);
+  await app.register(watchRoutes);
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel
@@ -213,6 +227,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   }
 
   app.addHook('onReady', async () => {
+    if (!deps.disableWatchTimer && env.NODE_ENV !== 'test') app.services.watches.start();
     if (!deps.disableHaWs) app.services.haWs.start();
     // Aquece o modelo local em segundo plano (tenta por até ~10 min, enquanto o Ollama sobe)
     if (env.NODE_ENV !== 'test') {
@@ -231,6 +246,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   });
   app.addHook('onClose', async () => {
     app.services.haWs.stop();
+    app.services.watches.stop();
     await app.services.directCameras.close();
     await db.$disconnect();
   });

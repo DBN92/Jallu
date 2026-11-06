@@ -12,6 +12,7 @@ import { useSettings, type ScreenOrientationPref } from '../stores/settings';
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { ThemePicker } from '../components/ThemePicker';
+import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -403,6 +404,12 @@ export default function SettingsPage() {
       {isAdmin && (
         <Section title="Câmeras diretas">
           <DirectCameras />
+        </Section>
+      )}
+
+      {isAdmin && (
+        <Section title="Garagem (carro, portão e movimento)">
+          <GarageSettings />
         </Section>
       )}
 

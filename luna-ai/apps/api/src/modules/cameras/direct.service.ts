@@ -368,6 +368,39 @@ export class DirectCamerasService {
     return new Response(body, { status: 200, headers: { 'content-type': 'image/jpeg' } });
   }
 
+  /**
+   * Uma foto atual para os vigias (garagem), sem ligar o vídeo: se alguém já está assistindo,
+   * usa a foto da sessão; senão, pega um único quadro da câmera e desconecta.
+   */
+  async frameJpeg(entityId: string): Promise<Buffer> {
+    const s = this.sessions.get(entityId);
+    if (s && !s.exited) {
+      const file = join(s.dir, 'latest.jpg');
+      const st = await stat(file).catch(() => null);
+      if (st && st.size > 0 && Date.now() - st.mtimeMs < 5000) return readFile(file);
+    }
+    const ff = this.ffmpegPath();
+    if (!ff) throw new AppError(503, 'ffmpeg não está instalado no servidor.', 'no_ffmpeg');
+    const r = await this.row(entityId);
+    const url = withCredentials(r.url, r.username, r.password);
+    return new Promise<Buffer>((done, fail) => {
+      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...this.inputArgs(url, r.transport === 'tcp' ? 'tcp' : 'udp'), '-map', '0:v:0', '-frames:v', '1', '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const chunks: Buffer[] = [];
+      let err = '';
+      proc.stdout!.on('data', (d: Buffer) => chunks.push(d));
+      proc.stderr!.on('data', (d: Buffer) => (err = (err + d.toString()).slice(-2000)));
+      const timer = setTimeout(() => proc.kill('SIGKILL'), 20_000);
+      proc.on('close', () => {
+        clearTimeout(timer);
+        const buf = Buffer.concat(chunks);
+        if (buf.length > 500) done(buf);
+        else fail(new AppError(502, `Sem imagem da câmera: ${explain(err, 1)}`, 'camera_error'));
+      });
+    });
+  }
+
   /** Quadro atual para análise de gestos (área recortada). */
   async gestureFrame(entityId: string): Promise<Response> {
     const s = await this.ensure(entityId);

@@ -21,6 +21,9 @@ export async function resetDb() {
   await db.actionLog.deleteMany();
   await db.directCamera.deleteMany();
   await db.gestureRule.deleteMany();
+  await db.visualRef.deleteMany();
+  await db.visualWatch.deleteMany();
+  await db.cameraEvent.deleteMany();
   await db.automationRule.deleteMany();
   await db.message.deleteMany();
   await db.conversation.deleteMany();

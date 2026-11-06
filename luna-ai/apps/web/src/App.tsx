@@ -13,7 +13,8 @@ import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useTv } from './stores/tv';
-import { GestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
+import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
+import { eventEmoji, useWatches } from './stores/watches';
 import { applyOrientation } from './lib/orientation';
 
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
@@ -37,6 +38,11 @@ function useRealtimeConnection(enabled: boolean) {
           useTv.getState().setRemoteState(e.state);
           if (e.state === 'acting') useAssistant.getState().setState('acting');
         } else if (e.type === 'assistant_reply') useTv.getState().pushReply(e);
+        else if (e.type === 'camera_event') {
+          // Garagem: aviso em todas as telas abertas (celular, tablet, TV)
+          useWatches.getState().push(e.event);
+          useGestureToast.getState().show(`${eventEmoji(e.event)} ${e.event.title}`, e.event.kind !== 'alert');
+        }
       },
       (c) => useAssistant.getState().setServerConnected(c),
     );
