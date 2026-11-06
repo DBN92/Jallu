@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { AudioLines, Mic, MicOff, Plus, SendHorizontal, Square, Volume2, VolumeX } from 'lucide-react';
+import { AudioLines, Mic, MicOff, SendHorizontal, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { ModernHome } from '../components/ModernHome';
 import { isModern } from '../lib/theme';
@@ -308,6 +308,21 @@ export default function HomePage() {
   const place = settings?.homeLocation?.name ?? weather.data?.location.name ?? (useSettings.getState().useGps ? 'Localização atual' : 'Defina em Ajustes');
   const coords = weather.data ? `${weather.data.location.latitude.toFixed(2)}, ${weather.data.location.longitude.toFixed(2)}` : null;
   const hasChat = messages.length > 0 || !!interim;
+  /** Fecha a janela de conversa e volta à tela inicial (o histórico fica salvo em “Conversas”). */
+  const closeChat = () => {
+    tts.cancel();
+    setText('');
+    setInterim('');
+    newConversation();
+    inputRef.current?.blur();
+  };
+  // Esc também fecha a conversa (teclado, tablet ou TV)
+  useEffect(() => {
+    if (!hasChat || voiceFocus) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeChat();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   const wide = vw >= 900 && vh > 560;
   const short = vh <= 560;
   const orbSize = hasChat
@@ -351,10 +366,7 @@ export default function HomePage() {
           inputRef={inputRef}
           muted={muted}
           onToggleMute={() => setMuted((m) => !m)}
-          onNew={() => {
-            tts.cancel();
-            newConversation();
-          }}
+          onCloseChat={closeChat}
           weather={weather.data}
           health={health}
           cameras={cameraList}
@@ -391,13 +403,11 @@ export default function HomePage() {
           </button>
           {hasChat && (
             <button
-              onClick={() => {
-                tts.cancel();
-                newConversation();
-              }}
+              onClick={closeChat}
+              aria-label="Fechar conversa"
               className="font-hud flex items-center gap-1 rounded-sm border border-cyan-300/25 bg-ink-950/75 px-2.5 py-1.5 text-xs font-semibold tracking-[0.14em] text-cyan-100/80 uppercase hover:border-cyan-300/50"
             >
-              <Plus className="h-3.5 w-3.5" /> Nova
+              <X className="h-3.5 w-3.5" /> Fechar
             </button>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Plus, Power, SendHorizontal, Sparkles, Sun, Thermometer, Volume2, VolumeX } from 'lucide-react';
+import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Power, SendHorizontal, Sparkles, Sun, Thermometer, Volume2, VolumeX, X } from 'lucide-react';
 import type { AssistantState, CameraDto, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import { useCameras } from '../stores/cameras';
@@ -42,7 +42,8 @@ export interface ModernHomeProps {
   inputRef: RefObject<HTMLInputElement | null>;
   muted: boolean;
   onToggleMute: () => void;
-  onNew: () => void;
+  /** Fecha a janela de conversa (volta à tela inicial) */
+  onCloseChat: () => void;
   weather: WeatherDto | null;
   health: HealthDto | null;
   cameras: CameraDto[] | null;
@@ -128,8 +129,8 @@ export function ModernHome(p: ModernHomeProps) {
             {p.muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
           </button>
           {p.hasChat && (
-            <button onClick={p.onNew} className="m-iconbox" style={{ width: 36, height: 36, borderRadius: 12 }} aria-label="Nova conversa">
-              <Plus className="h-4 w-4" />
+            <button onClick={p.onCloseChat} className="m-iconbox" style={{ width: 36, height: 36, borderRadius: 12 }} aria-label="Fechar conversa" title="Fechar conversa">
+              <X className="h-4 w-4" />
             </button>
           )}
         </div>

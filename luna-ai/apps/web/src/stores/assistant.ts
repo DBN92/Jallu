@@ -41,6 +41,9 @@ async function currentCoords() {
   return (await useLocation.getState().request()) ?? undefined;
 }
 
+/** Muda a cada conversa nova/fechada: respostas de uma conversa já fechada não reabrem a janela */
+let epoch = 0;
+
 export const useAssistant = create<AssistantStore>((set, get) => ({
   state: 'idle',
   conversationId: null,
@@ -55,6 +58,8 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
     const message = text.trim();
     if (!message) return null;
     const draftId = `draft-${uid()}`;
+    const mine = epoch;
+    const live = () => mine === epoch;
     set((s) => ({ state: 'processing', interim: '', messages: [...s.messages, { id: uid(), role: 'user', content: message, channel, createdAt: new Date().toISOString() }] }));
     try {
       // Localização só é enviada se o usuário habilitou o GPS e a pergunta pode precisar dela
@@ -65,6 +70,7 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       await apiStream('/api/chat/stream', { message, channel, conversationId: get().conversationId ?? undefined, location }, (event, data) => {
         if (event === 'delta') {
           const piece = (data as { text: string }).text;
+          if (!live()) return;
           onDelta?.(piece);
           // Mostra a resposta crescendo na tela
           set((s) => {
@@ -80,6 +86,7 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       });
       if (!res) throw new ApiError(500, streamError ?? 'A resposta foi interrompida.');
       const final: ChatResponse = res;
+      if (!live()) return final; // conversa fechada enquanto respondia: a ação vale, mas a janela fica fechada
       const camAction = final.actions.find((a) => a.tool === 'show_camera' && a.entityIds?.length);
       if (camAction) useCameras.getState().open(camAction.entityIds!);
       set((s) => ({
@@ -92,6 +99,7 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       }));
       return final;
     } catch (err) {
+      if (!live()) return null;
       set((s) => ({
         state: 'error',
         messages: [...s.messages.filter((m) => m.id !== draftId), { id: uid(), role: 'assistant', content: errorMessage(err), error: true, createdAt: new Date().toISOString() }],
@@ -100,10 +108,14 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       return null;
     }
   },
-  newConversation: () => set({ conversationId: null, messages: [], state: 'idle' }),
+  newConversation: () => {
+    epoch++;
+    set({ conversationId: null, messages: [], interim: '', state: 'idle' });
+  },
   setConversationId: (conversationId) => set({ conversationId }),
   openConversation: async (id) => {
     const c = await api<{ id: string; messages: (UiMessage & { actions: ActionResult[] })[] }>(`/api/conversations/${id}`);
+    epoch++;
     set({ conversationId: c.id, messages: c.messages, state: 'idle' });
   },
 }));
