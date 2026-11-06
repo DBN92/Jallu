@@ -152,7 +152,11 @@ export interface HealthDto {
   version: string;
   uptimeSeconds: number;
   /** Uso do servidor (porcentagens 0–100) */
-  system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number };
+  system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number; temperatureC?: number | null };
+  /** Acesso de fora de casa (endereço público, ex.: Cloudflare Tunnel) */
+  publicAccess?: { configured: boolean; ok: boolean };
+  /** Último pedido feito à Luna por este usuário */
+  lastCommand?: { text: string; at: string; channel: string } | null;
   services: {
     database: ServiceHealth;
     homeAssistant: ServiceHealth & { websocket: boolean };

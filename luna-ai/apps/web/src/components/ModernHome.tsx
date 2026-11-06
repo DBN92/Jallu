@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Plus, Power, SendHorizontal, Sparkles, Sun, Thermometer, Volume2, VolumeX } from 'lucide-react';
 import type { AssistantState, CameraDto, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
@@ -48,6 +48,8 @@ export interface ModernHomeProps {
   banner: ReactNode;
   wide: boolean;
   vw: number;
+  /** Análise de gestos ligada neste aparelho */
+  gesturesOn: boolean;
 }
 
 /** Tela inicial dos temas modernos: cartões arredondados, onda colorida e controles diretos. */
@@ -57,6 +59,24 @@ export function ModernHome(p: ModernHomeProps) {
   const busy = useDevices((s) => s.busy);
   const openCameras = useCameras((s) => s.open);
   const [filter, setFilter] = useState<Filter>('all');
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [slide, setSlide] = useState(0);
+  const scrollRaf = useRef(0);
+  const onTrackScroll = () => {
+    cancelAnimationFrame(scrollRaf.current);
+    scrollRaf.current = requestAnimationFrame(() => {
+      const el = trackRef.current;
+      if (el && el.clientWidth) setSlide(Math.round(el.scrollLeft / el.clientWidth));
+    });
+  };
+  const goTo = (i: number) => {
+    const el = trackRef.current;
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
+  // Ao falar com a Luna (ou chegar resposta), volta para a onda
+  useEffect(() => {
+    if (p.state !== 'idle' || p.hasChat) goTo(0);
+  }, [p.state, p.hasChat]);
 
   const toggles = useMemo(
     () =>
@@ -76,8 +96,20 @@ export function ModernHome(p: ModernHomeProps) {
 
   const waveW = p.wide ? Math.min(460, p.vw * 0.34) : Math.min(p.vw - 76, 460);
 
-  const hero = (
-    <div className="m-card" style={{ padding: p.wide ? 24 : 20 }}>
+  // ---------- Carrossel do cartão: Luna · Sistema · Casa agora ----------
+  const sys = p.health?.system;
+  const services = p.health?.services;
+  const allOk = !!services && services.database.ok && services.homeAssistant.ok && (services.ollama.ok || services.openai.ok);
+  const problems = services
+    ? [!services.homeAssistant.ok && 'Home Assistant', !services.ollama.ok && 'IA local', !services.database.ok && 'banco de dados'].filter(Boolean)
+    : [];
+  const uptime = sys ? (sys.serverUptimeHours >= 24 ? `${Math.floor(sys.serverUptimeHours / 24)} ${Math.floor(sys.serverUptimeHours / 24) === 1 ? 'dia' : 'dias'}` : sys.serverUptimeHours < 1 ? 'menos de 1 h' : `${Math.round(sys.serverUptimeHours)} h`) : null;
+  const outlets = toggles.filter((d) => d.category === 'outlets' || d.category === 'switches');
+  const camsOnline = (p.cameras ?? []).filter((c) => c.available).length;
+  const last = p.health?.lastCommand;
+
+  const slideLuna = (
+    <>
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="m-label">Luna</p>
@@ -128,6 +160,95 @@ export function ModernHome(p: ModernHomeProps) {
           )}
         </form>
       </div>
+    </>
+  );
+
+  const slideSystem = (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="m-label">Sistema</p>
+          <p className="mt-1 text-lg font-semibold">{!services ? 'Verificando…' : allOk ? 'Tudo funcionando' : `Atenção: ${problems.join(', ')}`}</p>
+        </div>
+        <span className="m-chip" style={{ padding: '6px 12px', fontSize: 12, color: allOk ? '#6ee7b7' : '#fda4af' }}>● {allOk ? 'online' : 'verificar'}</span>
+      </div>
+      <div className="my-4 flex justify-around">
+        <Ring label="CPU" value={sys?.cpuPercent ?? null} text={sys ? `${sys.cpuPercent}%` : '—'} />
+        <Ring label="Memória" value={sys?.memoryPercent ?? null} text={sys ? `${sys.memoryPercent}%` : '—'} />
+        {sys?.temperatureC != null && <Ring label="Temperatura" value={Math.min(100, (sys.temperatureC / 95) * 100)} text={`${sys.temperatureC}°`} warm />}
+      </div>
+      <div className="text-sm">
+        {[
+          ['Home Assistant', services?.homeAssistant.ok, services?.homeAssistant.ok ? 'conectado' : 'offline'],
+          [`IA local${services?.ollama.model ? ` · ${services.ollama.model}` : ''}`, services?.ollama.ok, services?.ollama.ok ? 'pronta' : 'offline'],
+          ['IA na nuvem (OpenAI)', services?.openai.configured ? services.openai.ok : null, services?.openai.configured ? (services.openai.ok ? 'pronta' : 'erro') : 'desligada'],
+        ].map(([n, ok, t]) => (
+          <div key={String(n)} className="flex items-center justify-between gap-3 border-b border-white/5 py-2 last:border-0">
+            <span className="min-w-0 truncate">{n}</span>
+            <span className={`flex shrink-0 items-center gap-2 ${ok ? 'text-emerald-300' : ok === false ? 'text-rose-300' : 'm-muted'}`}>
+              <i className={`h-2 w-2 rounded-full ${ok ? 'bg-emerald-400' : ok === false ? 'bg-rose-400' : 'bg-white/30'}`} />
+              {String(t)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="m-muted mt-2 text-[12.5px]">
+        Servidor{uptime ? ` ligado há ${uptime}` : ''}
+        {p.health?.publicAccess?.configured ? ` · acesso de fora ${p.health.publicAccess.ok ? '● ok' : '● sem resposta'}` : ''}
+      </p>
+    </>
+  );
+
+  const stat = (label: string, value: ReactNode, sub?: string) => (
+    <div className="rounded-[18px] bg-white/5 px-3.5 py-3">
+      <p className="m-muted text-[12.5px]">{label}</p>
+      <p className="m-num mt-0.5 text-2xl font-medium">
+        {value}
+        {sub && <span className="m-muted text-[15px]"> {sub}</span>}
+      </p>
+    </div>
+  );
+  const slideHome = (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="m-label">Casa agora</p>
+          <p className="mt-1 text-lg font-semibold">{lights.filter((d) => d.isOn).length === 1 ? '1 luz acesa' : `${lights.filter((d) => d.isOn).length} luzes acesas`}</p>
+        </div>
+        <span className="m-chip" style={{ padding: '6px 12px', fontSize: 12 }}>{toggles.length} aparelhos</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        {stat('Luzes acesas', lights.filter((d) => d.isOn).length, `/ ${lights.length}`)}
+        {stat('Tomadas ligadas', outlets.filter((d) => d.isOn).length, `/ ${outlets.length}`)}
+        {stat('Câmeras online', camsOnline, `/ ${p.cameras?.length ?? 0}`)}
+        {stat('Gestos', <span className="text-lg">{p.gesturesOn ? '✋ ativo' : 'desligado'}</span>)}
+      </div>
+      {last && (
+        <p className="m-muted mt-3 truncate text-[12.5px]">
+          Último pedido: “{last.text}” · {new Date(last.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          {last.channel === 'voice' ? ' por voz' : ''}
+        </p>
+      )}
+    </>
+  );
+
+  const slides = [slideLuna, slideSystem, slideHome];
+  const hero = (
+    <div className="m-card" style={{ padding: p.wide ? 24 : 20 }}>
+      <div ref={trackRef} className="m-carousel" onScroll={onTrackScroll}>
+        {slides.map((sl, i) => (
+          <section key={i} className="m-slide" aria-hidden={i !== slide} aria-label={['Luna', 'Sistema', 'Casa agora'][i]}>
+            {sl}
+          </section>
+        ))}
+      </div>
+      <div className="m-dots" role="tablist">
+        {slides.map((_, i) => (
+          <button key={i} role="tab" aria-selected={i === slide} aria-label={['Luna', 'Sistema', 'Casa agora'][i]} className={i === slide ? 'on' : ''} onClick={() => goTo(i)}>
+            <i />
+          </button>
+        ))}
+      </div>
     </div>
   );
 
@@ -172,39 +293,6 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
       )}
     </button>
-  );
-
-  const sys = p.health?.system;
-  const statusCard = (
-    <div className="m-card">
-      <p className="m-label">Sistema</p>
-      <div className="mt-3 space-y-2.5 text-sm">
-        {[
-          ['Home Assistant', p.health?.services.homeAssistant.ok],
-          ['IA local', p.health?.services.ollama.ok],
-        ].map(([n, ok]) => (
-          <div key={String(n)} className="flex items-center justify-between">
-            <span>{n}</span>
-            <span className={`flex items-center gap-2 ${ok ? 'text-emerald-300' : ok === false ? 'text-rose-300' : 'm-muted'}`}>
-              <i className={`h-2 w-2 rounded-full ${ok ? 'bg-emerald-400' : ok === false ? 'bg-rose-400' : 'bg-white/30'}`} />
-              {ok ? 'online' : ok === false ? 'offline' : '…'}
-            </span>
-          </div>
-        ))}
-        {sys && (
-          <>
-            <div>
-              <div className="m-muted mb-1 flex justify-between text-xs"><span>CPU</span><span>{sys.cpuPercent}%</span></div>
-              <div className="m-bar"><i style={{ width: `${Math.max(3, sys.cpuPercent)}%`, background: 'linear-gradient(90deg,var(--accent-1),var(--accent-2))' }} /></div>
-            </div>
-            <div>
-              <div className="m-muted mb-1 flex justify-between text-xs"><span>Memória</span><span>{sys.memoryPercent}%</span></div>
-              <div className="m-bar"><i style={{ width: `${Math.max(3, sys.memoryPercent)}%`, background: 'linear-gradient(90deg,var(--accent-1),var(--accent-2))' }} /></div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
   );
 
   const cam = p.cameras?.[0];
@@ -292,10 +380,7 @@ export function ModernHome(p: ModernHomeProps) {
             {cameraCard}
           </div>
           <div className="m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
-            <div className="grid grid-cols-2 gap-4">
-              {weatherCard}
-              {statusCard}
-            </div>
+            {weatherCard}
             {devices}
           </div>
         </div>
@@ -314,6 +399,33 @@ export function ModernHome(p: ModernHomeProps) {
           {cameraCard}
         </>
       )}
+    </div>
+  );
+}
+
+/** Medidor redondo (CPU, memória, temperatura). */
+function Ring({ label, value, text, warm }: { label: string; value: number | null; text: string; warm?: boolean }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const id = `ring-${label}`;
+  return (
+    <div className="text-center">
+      <svg width="80" height="80" viewBox="0 0 80 80" aria-label={`${label}: ${text}`}>
+        <defs>
+          <linearGradient id={id} x1="0" x2="1">
+            <stop offset="0" stopColor={warm ? '#fbbf24' : 'var(--accent-1)'} />
+            <stop offset="1" stopColor={warm ? '#fb7185' : 'var(--accent-2)'} />
+          </linearGradient>
+        </defs>
+        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+        {value != null && (
+          <circle cx="40" cy="40" r={r} fill="none" stroke={`url(#${id})`} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${(c * Math.max(2, value)) / 100} ${c}`} transform="rotate(-90 40 40)" style={{ transition: 'stroke-dasharray 600ms ease' }} />
+        )}
+        <text x="40" y="46" textAnchor="middle" className="m-num" fontSize="16" fill="currentColor">
+          {text}
+        </text>
+      </svg>
+      <p className="m-muted mt-0.5 text-[12.5px]">{label}</p>
     </div>
   );
 }

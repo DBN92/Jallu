@@ -159,3 +159,12 @@ html:not([data-theme='hud']) .m-tile { contain: layout paint; }
 html:not([data-theme='hud']) :is(.m-card, .hud-panel) button:active, html:not([data-theme='hud']) .m-iconbox:active { transform: scale(0.95); }
 html:not([data-theme='hud']) .m-tile:active { transform: scale(0.97); filter: brightness(1.15); }
 html:not([data-theme='hud']) :is(.m-chip, .m-tile, .m-mic, .m-iconbox, .m-switch) { transition: transform 90ms ease-out, filter 90ms ease-out, background 150ms; }
+
+/* Carrossel do cartão da Luna (deslizar nativo com encaixe) */
+.m-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.m-carousel::-webkit-scrollbar { display: none; }
+.m-slide { flex: 0 0 100%; min-width: 0; padding: 0 4px; scroll-snap-align: start; scroll-snap-stop: always; }
+.m-dots { display: flex; justify-content: center; gap: 2px; margin-top: 10px; }
+.m-dots button { padding: 8px 4px; }
+.m-dots i { display: block; width: 7px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25); transition: width 200ms, background 200ms; }
+.m-dots button.on i { width: 22px; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }

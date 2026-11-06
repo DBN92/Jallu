@@ -315,6 +315,7 @@ export default function HomePage() {
     : Math.round(wide ? Math.min(vh * 0.46, 430) : short ? Math.min(vh * 0.36, 190) : Math.min(vw * 0.72, vh * 0.36, 360));
   const err = voiceError ?? realtime.error ?? wake.error;
   const theme = useSettings((s) => s.theme);
+  const gestureWatch = useSettings((s) => s.gestureWatch);
   const micIcon = realtime.connecting ? (
     <AudioLines className="h-6 w-6 animate-pulse" />
   ) : state === 'speaking' ? (
@@ -366,6 +367,7 @@ export default function HomePage() {
           }
           wide={wide}
           vw={vw}
+          gesturesOn={gestureWatch}
         />
       ) : (
       <>
