@@ -168,3 +168,20 @@ html:not([data-theme='hud']) :is(.m-chip, .m-tile, .m-mic, .m-iconbox, .m-switch
 .m-dots button { padding: 8px 4px; }
 .m-dots i { display: block; width: 7px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25); transition: width 200ms, background 200ms; }
 .m-dots button.on i { width: 22px; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+
+/* ---------- Celular deitado (pouca altura): menu vira coluna à esquerda ---------- */
+@media (orientation: landscape) and (max-height: 520px) {
+  html:not([data-theme='hud']) .layout-root { flex-direction: row; }
+  html:not([data-theme='hud']) nav.dock-nav { order: -1; padding: 8px 0 8px max(env(safe-area-inset-left), 8px); display: flex; align-items: center; }
+  html:not([data-theme='hud']) .dock-bg { left: max(env(safe-area-inset-left), 8px); right: 0; top: 8px; bottom: 8px; width: auto; transform: none; border-radius: 26px; }
+  html:not([data-theme='hud']) .dock-row { flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 8px 6px; max-width: none; margin: 0; height: 100%; overflow-y: auto; scrollbar-width: none; }
+  html:not([data-theme='hud']) .dock-row::-webkit-scrollbar { display: none; }
+  html:not([data-theme='hud']) .dock-btn > span { display: none; }
+  html:not([data-theme='hud']) .dock-btn i { width: 40px !important; height: 34px !important; }
+  html:not([data-theme='hud']) main { min-width: 0; }
+  /* Páginas secundárias: cabeçalho mais baixo */
+  html:not([data-theme='hud']) main h1.hud-title { font-size: 1.15rem; }
+  html:not([data-theme='hud']) main header.mb-5 { margin-bottom: 0.6rem; }
+  html:not([data-theme='hud']) .m-card .my-3 { margin-top: 0.35rem; margin-bottom: 0.35rem; }
+}
+.m-input { min-width: 0; }

@@ -367,6 +367,7 @@ export default function HomePage() {
           }
           wide={wide}
           vw={vw}
+          vh={vh}
           gesturesOn={gestureWatch}
         />
       ) : (

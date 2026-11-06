@@ -48,6 +48,7 @@ export interface ModernHomeProps {
   banner: ReactNode;
   wide: boolean;
   vw: number;
+  vh: number;
   /** Análise de gestos ligada neste aparelho */
   gesturesOn: boolean;
 }
@@ -94,7 +95,9 @@ export function ModernHome(p: ModernHomeProps) {
     for (const d of lights.filter((l) => l.isOn === !on)) await useDevices.getState().toggle(d);
   };
 
-  const waveW = p.wide ? Math.min(460, p.vw * 0.34) : Math.min(p.vw - 76, 460);
+  // Celular deitado: pouca altura → duas colunas, cartão da Luna mais baixo
+  const land = !p.wide && p.vw > p.vh && p.vh <= 520;
+  const waveW = p.wide ? Math.min(460, p.vw * 0.34) : land ? Math.min(p.vw * 0.42 - 70, 420) : Math.min(p.vw - 76, 460);
 
   // ---------- Carrossel do cartão: Luna · Sistema · Casa agora ----------
   const sys = p.health?.system;
@@ -131,7 +134,7 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
       </div>
       <div className="my-3 flex justify-center">
-        <LunaOrb state={p.state} levelRef={p.levelRef} size={waveW} height={p.hasChat ? 70 : p.wide ? 150 : 110} onClick={p.onMic} />
+        <LunaOrb state={p.state} levelRef={p.levelRef} size={waveW} height={p.hasChat ? (land ? 44 : 70) : p.wide ? 150 : land ? 62 : 110} onClick={p.onMic} />
       </div>
       {p.hasChat && (
         <div className="mb-3 max-h-[38vh] min-h-0 overflow-y-auto">
@@ -234,7 +237,7 @@ export function ModernHome(p: ModernHomeProps) {
 
   const slides = [slideLuna, slideSystem, slideHome];
   const hero = (
-    <div className="m-card" style={{ padding: p.wide ? 24 : 20 }}>
+    <div className="m-card" style={{ padding: p.wide ? 24 : land ? 14 : 20 }}>
       <div ref={trackRef} className="m-carousel" onScroll={onTrackScroll}>
         {slides.map((sl, i) => (
           <section key={i} className="m-slide" aria-hidden={i !== slide} aria-label={['Luna', 'Sistema', 'Casa agora'][i]}>
@@ -369,6 +372,32 @@ export function ModernHome(p: ModernHomeProps) {
     </div>
   );
 
+  if (land) {
+    // Hora e saudação numa linha (economiza altura)
+    const compactHeader = (
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="m-muted min-w-0 truncate text-sm">
+          {p.greeting}
+          {p.userName ? `, ${p.userName}` : ''}
+        </p>
+        <p className="m-num shrink-0 text-2xl leading-none font-medium">{p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+      </div>
+    );
+    return (
+      <div className="grid h-full min-h-0 gap-3 px-3 pt-2 pb-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.15fr)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
+        <div className="m-scroll flex min-h-0 flex-col gap-2.5 overflow-y-auto pb-1 [&>*]:shrink-0">
+          {compactHeader}
+          {hero}
+        </div>
+        <div className="m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
+          {quick}
+          {devices}
+          {weatherCard}
+          {cameraCard}
+        </div>
+      </div>
+    );
+  }
   if (p.wide) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-5 px-8 pt-6 pb-3">
