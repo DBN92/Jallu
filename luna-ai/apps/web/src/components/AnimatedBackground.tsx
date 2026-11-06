@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useSettings } from '../stores/settings';
 
 interface Particle {
   x: number;
@@ -14,6 +15,12 @@ interface Particle {
  * e respeita “reduzir movimento”.
  */
 export function AnimatedBackground() {
+  // Temas modernos têm fundo estático (mais leve e sem redesenhar a tela inteira a cada quadro)
+  const hud = useSettings((s) => s.theme) === 'hud';
+  return hud ? <ParticlesCanvas /> : null;
+}
+
+function ParticlesCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

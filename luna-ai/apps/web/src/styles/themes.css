@@ -25,7 +25,7 @@
 
 /* ---------------- Paletas ---------------- */
 html[data-theme='aurora'] {
-  --bg: #06070d; --tx: #eef2ff; --muted: rgba(226, 232, 255, 0.58); --card: rgba(255, 255, 255, 0.055); --card-solid: #11131d;
+  --bg: #06070d; --tx: #eef2ff; --muted: rgba(226, 232, 255, 0.58); --card: rgba(22, 25, 38, 0.82); --card-solid: #11131d;
   --line: rgba(255, 255, 255, 0.09); --accent-1: #22d3ee; --accent-2: #8b5cf6; --warm: #fbbf24; --glow-3: #ec4899;
   --font-sans: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-display: 'Unbounded', 'Sora', sans-serif;
   --card-r: 26px; --blob-o: 0.5;
@@ -73,11 +73,9 @@ html:not([data-theme='hud']) :is(.hud-panel, .glass) {
   border-radius: var(--card-r);
   background: var(--card);
   border: 1px solid var(--line);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
-html[data-theme='grafite'] :is(.hud-panel, .glass) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.45); }
+html[data-theme='grafite'] :is(.hud-panel, .glass) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 22px rgba(0, 0, 0, 0.4); }
 html:not([data-theme='hud']) .hud-panel::before,
 html:not([data-theme='hud']) .hud-panel::after { display: none; }
 html:not([data-theme='hud']) [class*='clip-path'] { clip-path: none !important; border-radius: var(--radius-sm); }
@@ -101,8 +99,8 @@ html:not([data-theme='hud']) [role='switch'] > span { border-radius: 999px; back
 html:not([data-theme='hud']) [role='switch'][aria-checked='false'] > span { opacity: 0.75; }
 
 /* Dock: pílula flutuante */
-html:not([data-theme='hud']) .dock-bg { clip-path: none; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--card-solid) 88%, transparent);
-  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5); width: auto; left: 12px; right: 12px; transform: none; top: 6px; bottom: max(env(safe-area-inset-bottom), 8px); }
+html:not([data-theme='hud']) .dock-bg { clip-path: none; border: 1px solid var(--line); border-radius: 999px; background: var(--card-solid);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); width: auto; left: 12px; right: 12px; transform: none; top: 6px; bottom: max(env(safe-area-inset-bottom), 8px); }
 @media (min-width: 768px) { html:not([data-theme='hud']) .dock-bg { left: 50%; right: auto; width: min(100% - 24px, 720px); transform: translateX(-50%); } }
 html:not([data-theme='hud']) .dock-btn i { border: none; background: transparent; box-shadow: none; border-radius: 14px; }
 html:not([data-theme='hud']) .dock-btn.active i { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
@@ -115,8 +113,8 @@ html:not([data-theme='hud']) nav.dock-nav { padding-top: 12px; padding-bottom: c
 html:not([data-theme='hud']) .voice-wave i { background: linear-gradient(180deg, var(--accent-1), var(--accent-2)); box-shadow: none; border-radius: 4px; }
 
 /* ---------------- Peças da tela inicial moderna ---------------- */
-.m-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--card-r); padding: 18px; -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32); }
-html[data-theme='grafite'] .m-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 40px rgba(0, 0, 0, 0.45); }
+.m-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--card-r); padding: 18px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26); }
+html[data-theme='grafite'] .m-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 22px rgba(0, 0, 0, 0.4); }
 .m-muted { color: var(--muted); }
 .m-label { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .m-disp { font-family: var(--font-display); letter-spacing: -0.01em; }
@@ -153,3 +151,7 @@ html[data-theme='grafite'] .m-mic { background: linear-gradient(135deg, var(--ac
 /* Celular: dock só com ícones (mais limpo) */
 @media (max-width: 767px) { html:not([data-theme='hud']) .dock-btn > span { display: none; } }
 html:not([data-theme='hud']) .page-kicker { display: none; }
+
+/* Desempenho: o fundo com brilhos fica fixo (não repinta ao rolar) e nada usa desfoque ao vivo */
+html:not([data-theme='hud']) :is(.hud-panel, .glass, .m-card, .dock-bg) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html:not([data-theme='hud']) .m-tile { contain: layout paint; }
