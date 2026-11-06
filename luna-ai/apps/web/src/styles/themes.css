@@ -155,3 +155,7 @@ html:not([data-theme='hud']) .page-kicker { display: none; }
 /* Desempenho: o fundo com brilhos fica fixo (não repinta ao rolar) e nada usa desfoque ao vivo */
 html:not([data-theme='hud']) :is(.hud-panel, .glass, .m-card, .dock-bg) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 html:not([data-theme='hud']) .m-tile { contain: layout paint; }
+/* Resposta visual imediata ao toque nos temas modernos */
+html:not([data-theme='hud']) :is(.m-card, .hud-panel) button:active, html:not([data-theme='hud']) .m-iconbox:active { transform: scale(0.95); }
+html:not([data-theme='hud']) .m-tile:active { transform: scale(0.97); filter: brightness(1.15); }
+html:not([data-theme='hud']) :is(.m-chip, .m-tile, .m-mic, .m-iconbox, .m-switch) { transition: transform 90ms ease-out, filter 90ms ease-out, background 150ms; }

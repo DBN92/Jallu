@@ -147,7 +147,7 @@ export default function TvApp() {
 
   const devices = useMemo(() => Object.values(devicesMap).filter((d) => !d.hidden), [devicesMap]);
   const toggles = useMemo(
-    () => devices.filter(isToggle).sort((a, b) => Number(b.isOn) - Number(a.isOn) || Number(b.category === 'lighting') - Number(a.category === 'lighting') || a.name.localeCompare(b.name, 'pt-BR')),
+    () => devices.filter(isToggle).sort((a, b) => Number(b.category === 'lighting') - Number(a.category === 'lighting') || a.name.localeCompare(b.name, 'pt-BR')), // ordem fixa (o foco não muda de aparelho ao ligar)
     [devices],
   );
   const sensors = useMemo(() => devices.filter((d) => d.category === 'sensors' && d.available).slice(0, 12), [devices]);

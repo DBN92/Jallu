@@ -37,13 +37,20 @@ export const useDevices = create<DevicesState>((set, get) => ({
   upsert: (d) => set((s) => ({ devices: { ...s.devices, [d.entityId]: { ...s.devices[d.entityId], ...d } } })),
   setHa: (c) => set({ haConnected: c }),
   toggle: async (d) => {
-    set((s) => ({ busy: { ...s.busy, [d.entityId]: true } }));
+    // Resposta imediata na tela (otimista); o estado real do servidor confirma em seguida
+    const before = get().devices[d.entityId] ?? d;
+    const wantOn = !before.isOn;
+    set((s) => ({
+      busy: { ...s.busy, [d.entityId]: true },
+      devices: { ...s.devices, [d.entityId]: { ...before, isOn: wantOn, state: wantOn ? 'on' : 'off' } },
+    }));
     try {
-      const after = await api<DeviceDto>(`/api/devices/${d.entityId}/${d.isOn ? 'turn-off' : 'turn-on'}`, { method: 'POST' });
+      const after = await api<DeviceDto>(`/api/devices/${d.entityId}/${wantOn ? 'turn-on' : 'turn-off'}`, { method: 'POST' });
       get().upsert(after);
       set({ error: null });
     } catch (err) {
-      set({ error: errorMessage(err) });
+      // Não deu certo: volta ao estado anterior e mostra o motivo
+      set((s) => ({ devices: { ...s.devices, [d.entityId]: before }, error: errorMessage(err) }));
     } finally {
       set((s) => ({ busy: { ...s.busy, [d.entityId]: false } }));
     }

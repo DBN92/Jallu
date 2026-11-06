@@ -62,7 +62,7 @@ export function ModernHome(p: ModernHomeProps) {
     () =>
       Object.values(devicesMap)
         .filter(isToggle)
-        .sort((a, b) => Number(b.isOn) - Number(a.isOn) || a.name.localeCompare(b.name, 'pt-BR')),
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), // ordem fixa: o cartão não “pula” ao ligar
     [devicesMap],
   );
   const shown = toggles.filter((d) => filter === 'all' || (filter === 'outlets' ? d.category === 'outlets' || d.category === 'switches' : filter === 'other' ? !['lighting', 'outlets', 'switches'].includes(d.category) : d.category === filter));
