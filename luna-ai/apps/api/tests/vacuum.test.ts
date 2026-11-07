@@ -96,4 +96,38 @@ describe('Aspiradores robôs', () => {
     expect(r.actions[0]).toMatchObject({ tool: 'vacuum_start', ok: true });
     expect(ctx.ha.calls.at(-1)).toMatchObject({ domain: 'vacuum', service: 'start', data: { entity_id: 'vacuum.neatsvor' } });
   });
+
+  it('Xiaomi Home: liga a bateria pelo aparelho e esconde as entidades acessórias do robô', async () => {
+    ctx = await makeApp();
+    const now = new Date().toISOString();
+    const add = (entity_id: string, state: string, attributes: Record<string, unknown>) => ctx.ha.states.set(entity_id, { entity_id, state, attributes, last_changed: now });
+    // Nomes no estilo da Xiaomi Home: o id da bateria NÃO começa com o id do aspirador
+    add('vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', 'docked', { friendly_name: 'Robô Aspirador', supported_features: 4 | 8 | 16 | 32 | 8192, fan_speed: 'Padrão', fan_speed_list: ['Silencioso', 'Padrão', 'Forte', 'Máximo'] });
+    add('sensor.xiaomi_cn_8812_c102gl_battery_level', '64', { friendly_name: 'Bateria Nível da bateria', device_class: 'battery', unit_of_measurement: '%' });
+    add('switch.xiaomi_cn_8812_c102gl_do_not_disturb', 'off', { friendly_name: 'Não perturbe' });
+    add('sensor.xiaomi_cn_8812_c102gl_main_brush_life', '91', { friendly_name: 'Vida útil da escova', unit_of_measurement: '%' });
+    const reg = new Map(
+      ['vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', 'sensor.xiaomi_cn_8812_c102gl_battery_level', 'switch.xiaomi_cn_8812_c102gl_do_not_disturb', 'sensor.xiaomi_cn_8812_c102gl_main_brush_life'].map((id) => [id, { deviceId: 'dev-robo' }]),
+    );
+    reg.set('light.luz_da_sala', { deviceId: 'dev-luz' });
+    ctx.app.services.devices.setRegistryProvider(async () => reg);
+    const list = (await ctx.inject('GET', '/api/devices?all=1')).json as any[];
+    const ids = list.map((d) => d.entityId);
+    expect(ids).toContain('vacuum.xiaomi_cn_8812_c102gl_robot_cleaner');
+    expect(ids).toContain('light.luz_da_sala');
+    expect(ids).not.toContain('switch.xiaomi_cn_8812_c102gl_do_not_disturb');
+    expect(ids).not.toContain('sensor.xiaomi_cn_8812_c102gl_main_brush_life');
+    const robot = list.find((d) => d.entityId === 'vacuum.xiaomi_cn_8812_c102gl_robot_cleaner');
+    expect(robot.vacuum).toMatchObject({ battery: 64, status: 'Carregando na base', fanSpeed: 'Padrão' });
+    // Bateria mudou no HA → o cartão do robô é atualizado em tempo real
+    const seen: any[] = [];
+    ctx.app.services.devices.on('state', (d) => seen.push(d));
+    const battery = { ...ctx.ha.states.get('sensor.xiaomi_cn_8812_c102gl_battery_level')!, state: '70' };
+    ctx.app.services.devices.handleStateChanged({ entity_id: battery.entity_id, new_state: battery, old_state: null } as any);
+    expect(seen.at(-1)).toMatchObject({ entityId: 'vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', vacuum: { battery: 70 } });
+    // Comando por voz com o nome dado na Xiaomi Home
+    await ctx.inject('PATCH', '/api/devices/vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', { aiAllowed: true });
+    const r = await chat(ctx, 'Oi, Dia, aspira a casa');
+    expect(r.reply).toMatch(/Robô Aspirador começou a aspirar/);
+  });
 });

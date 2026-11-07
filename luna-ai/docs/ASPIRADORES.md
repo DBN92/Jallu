@@ -6,18 +6,57 @@ robô → integração no Home Assistant → DIA.
 
 ## 1. Colocar os robôs no Home Assistant
 
-Tudo é feito pela interface do Home Assistant, sem reinstalar nada:
-**Configurações → Dispositivos e serviços → Adicionar integração**.
+Nada precisa ser reinstalado. As integrações são adicionadas em **Configurações → Dispositivos e serviços → Adicionar integração**.
 
-### Xiaomi
+### Xiaomi: integração oficial **Xiaomi Home** (recomendada)
 
-1. Tente primeiro a integração **Xiaomi Miio**, que já vem no Home Assistant.
-   - Escolha entrar com a conta Xiaomi.
-   - Ela busca o token do robô sozinha e depois controla o robô pela rede local.
-2. Se o seu modelo não aparecer ou não funcionar, use a integração oficial da Xiaomi, **Xiaomi Home**.
-   - Ela é instalada pelo HACS e funciona com a conta do app Mi Home.
-   - Ela cobre os modelos mais novos.
-3. Robôs da marca Roborock têm a integração própria **Roborock**.
+A Xiaomi Home é a integração oficial da Xiaomi para o Home Assistant. Ela traz os aparelhos do app Mi Home pela conta Xiaomi.
+O Home Assistant precisa estar na versão **2024.4.4 ou mais nova**.
+
+**1. Instalar.** A instalação só coloca uma pasta nova na configuração do Home Assistant. Não muda o que já existe.
+Para desfazer, basta apagar a pasta `custom_components/xiaomi_home` e reiniciar.
+
+Se você usa o HACS, procure **Xiaomi Home** em HACS → Baixar e reinicie o Home Assistant.
+
+Sem HACS, rode no terminal do ZimaOS. O contêiner do Home Assistant se chama `homeassistant`:
+
+```bash
+# confere a versão do Home Assistant (precisa ser 2024.4.4 ou mais nova)
+sudo docker exec homeassistant python3 -c "from homeassistant.const import __version__; print(__version__)"
+
+# baixa a versão v0.5.0 da Xiaomi Home e copia para custom_components
+sudo docker exec homeassistant sh -c 'cd /tmp && wget -qO xh.zip https://github.com/XiaoMi/ha_xiaomi_home/archive/refs/tags/v0.5.0.zip && unzip -oq xh.zip && mkdir -p /config/custom_components && rm -rf /config/custom_components/xiaomi_home && cp -r ha_xiaomi_home-0.5.0/custom_components/xiaomi_home /config/custom_components/ && rm -rf xh.zip ha_xiaomi_home-0.5.0 && echo "Xiaomi Home instalada"'
+
+# reinicia o Home Assistant (cerca de 1 minuto fora do ar)
+sudo docker restart homeassistant
+```
+
+**2. Entrar com a conta Xiaomi.**
+1. No Home Assistant, abra **Configurações → Dispositivos e serviços → Adicionar integração → Xiaomi Home**.
+2. Escolha o idioma **Português (Brasil)**. Assim os nomes das entidades vêm em português.
+3. Em **Região de Login**, escolha a região da sua conta Xiaomi.
+   - No app Xiaomi Home ela aparece em Perfil → Configurações adicionais → Sobre o Xiaomi Home.
+   - As opções são China continental, Europe, India, Russia, Singapore e United States.
+4. Marque **Configuração de Rede Integrada** (a própria integração recomenda na primeira vez).
+5. O campo **URL de Redirecionamento OAuth2** é fixo em `http://homeassistant.local:8123`.
+   - No ZimaOS com Docker, esse nome normalmente não abre.
+   - Faça o login pelo celular ou computador **na mesma rede de casa**: toque em **"Clique aqui para entrar"** e entre com a conta Xiaomi.
+   - Depois de entrar com a conta Xiaomi, o navegador vai para `http://homeassistant.local:8123/api/webhook/…` e mostra erro.
+   - Na barra de endereço, troque só `homeassistant.local` pelo IP do ZimaOS. Mantenha a porta `:8123` e todo o resto, e abra de novo.
+6. Escolha a casa e marque o robô aspirador. Os outros aparelhos Xiaomi também podem entrar.
+
+Sem um gateway central da Xiaomi (vendido só na China), os comandos passam pela nuvem da Xiaomi. É normal levar 1 a 3 segundos.
+
+**3. Na DIA não precisa configurar nada** (para comandos de voz, só autorize o robô, como na seção 2).
+A Xiaomi Home cria dezenas de entidades para o robô: bateria, escovas, "não perturbe" e outras.
+A DIA usa o registro de dispositivos do Home Assistant para:
+- ligar a bateria ao robô certo;
+- esconder as outras entidades do robô da lista de aparelhos.
+
+Assim, o robô aparece como um único cartão.
+
+**Alternativas:** a integração **Xiaomi Miio**, que já vem no Home Assistant, funciona com robôs mais antigos e controla pela rede local.
+Robôs da marca Roborock têm a integração **Roborock**.
 
 ### Neatsvor
 

@@ -35,6 +35,22 @@ export class DevicesService extends EventEmitter {
   private readonly autoAuthorize: Set<string>;
   /** Fornece as entidades ocultas pelo Home Assistant (registro de entidades). */
   private hiddenProvider: () => Promise<Set<string>> = async () => new Set();
+  /** Registro de entidades do HA: a qual aparelho físico cada entidade pertence. */
+  private registryProvider: () => Promise<Map<string, { deviceId: string | null }>> = async () => new Map();
+  /**
+   * Entidades “acessórias” de um aspirador (bateria, escovas, interruptores de config…).
+   * Integrações como a Xiaomi Home criam dezenas delas; ficam fora da lista de aparelhos.
+   * entity_id da acessória → entity_id do aspirador
+   */
+  private companions = new Map<string, string>();
+  private companionStates = new Map<string, HaState>();
+  /** aspirador → sensor de bateria do mesmo aparelho */
+  private batteryOf = new Map<string, string>();
+
+  setRegistryProvider(fn: () => Promise<Map<string, { deviceId: string | null }>>) {
+    this.registryProvider = fn;
+    this.lastFullRefresh = 0;
+  }
 
   setHiddenProvider(fn: () => Promise<Set<string>>) {
     this.hiddenProvider = fn;
@@ -59,9 +75,14 @@ export class DevicesService extends EventEmitter {
   /** Busca estados reais no HA e sincroniza a tabela de dispositivos (sem inventar entity_id). */
   async refresh(force = false): Promise<void> {
     if (!force && Date.now() - this.lastFullRefresh < this.cacheMs && this.states.size > 0) return;
-    const [all, haHidden] = await Promise.all([this.ha.getStates(), this.hiddenProvider().catch(() => new Set<string>())]);
+    const [all, haHidden, registry] = await Promise.all([
+      this.ha.getStates(),
+      this.hiddenProvider().catch(() => new Set<string>()),
+      this.registryProvider().catch(() => new Map<string, { deviceId: string | null }>()),
+    ]);
+    this.linkVacuumCompanions(all, registry);
     // Ignora entidades ocultas/desativadas no próprio HA (evita duplicatas do mesmo aparelho)
-    const relevant = all.filter((s) => (SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(s.entity_id)) && !haHidden.has(s.entity_id));
+    const relevant = all.filter((s) => (SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(s.entity_id)) && !haHidden.has(s.entity_id) && !this.companions.has(s.entity_id));
     const next = new Map(relevant.map((s) => [s.entity_id, s]));
 
     const rows = await this.db.device.findMany();
@@ -90,6 +111,26 @@ export class DevicesService extends EventEmitter {
     this.lastFullRefresh = Date.now();
   }
 
+  /** Liga ao aspirador as outras entidades do mesmo aparelho físico (registro de dispositivos do HA). */
+  private linkVacuumCompanions(all: HaState[], registry: Map<string, { deviceId: string | null }>) {
+    const vacuumByDevice = new Map<string, string>();
+    for (const s of all) {
+      const dev = registry.get(s.entity_id)?.deviceId;
+      if (domainOf(s.entity_id) === 'vacuum' && dev) vacuumByDevice.set(dev, s.entity_id);
+    }
+    this.companions = new Map();
+    this.companionStates = new Map();
+    this.batteryOf = new Map();
+    for (const s of all) {
+      const dev = registry.get(s.entity_id)?.deviceId;
+      const vacuum = dev ? vacuumByDevice.get(dev) : undefined;
+      if (!vacuum || s.entity_id === vacuum) continue;
+      this.companions.set(s.entity_id, vacuum);
+      this.companionStates.set(s.entity_id, s);
+      if (domainOf(s.entity_id) === 'sensor' && s.attributes.device_class === 'battery' && !this.batteryOf.has(vacuum)) this.batteryOf.set(vacuum, s.entity_id);
+    }
+  }
+
   private dto(state: HaState): DeviceDto {
     const meta = this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false, customName: null };
     return toDeviceDto(state, domainOf(state.entity_id) === 'vacuum' ? { ...meta, battery: this.vacuumBattery(state) } : meta);
@@ -100,6 +141,13 @@ export class DevicesService extends EventEmitter {
    * (ex.: vacuum.robo_xiaomi → sensor.robo_xiaomi_battery). Procura pelo prefixo do id ou do nome.
    */
   private vacuumBattery(vacuum: HaState): number | null {
+    // 1) Sensor de bateria do mesmo aparelho (registro do HA — ex.: Xiaomi Home)
+    const linked = this.batteryOf.get(vacuum.entity_id);
+    if (linked) {
+      const v = Number(this.companionStates.get(linked)?.state);
+      if (Number.isFinite(v)) return v;
+    }
+    // 2) Sem registro: procura pelo prefixo do id ou do nome
     const objectId = vacuum.entity_id.split('.')[1]!;
     const name = normalize((vacuum.attributes.friendly_name as string | undefined) ?? '');
     for (const s of this.states.values()) {
@@ -133,6 +181,14 @@ export class DevicesService extends EventEmitter {
 
   /** Aplica alterações vindas do WebSocket do HA e notifica os clientes. */
   handleStateChanged(evt: HaStateChangedEvent) {
+    // Acessória de aspirador (ex.: bateria mudou): atualiza o cartão do robô
+    const owner = this.companions.get(evt.entity_id);
+    if (owner) {
+      if (evt.new_state) this.companionStates.set(evt.entity_id, evt.new_state);
+      const vacuum = this.states.get(owner);
+      if (vacuum && this.batteryOf.get(owner) === evt.entity_id) this.emit('state', this.dto(vacuum));
+      return;
+    }
     if (!(SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(evt.entity_id))) return;
     if (!evt.new_state) {
       this.states.delete(evt.entity_id);

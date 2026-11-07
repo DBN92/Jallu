@@ -12,11 +12,21 @@ interface Logger {
  * e reconecta automaticamente com backoff exponencial.
  * Eventos: 'state_changed' (HaStateChangedEvent), 'connected', 'disconnected'.
  */
+/** Entrada do registro de entidades do HA (o que a DIA usa dele). */
+export interface RegistryEntry {
+  platform: string;
+  hidden: boolean;
+  /** Aparelho físico ao qual a entidade pertence (liga a bateria ao robô, por exemplo) */
+  deviceId: string | null;
+  /** config | diagnostic | null */
+  category: string | null;
+}
+
 export class HomeAssistantWsClient extends EventEmitter {
   private ws: WebSocket | null = null;
   private msgId = 1;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }>();
-  private registryCache: { at: number; map: Map<string, { platform: string; hidden: boolean }> } | null = null;
+  private registryCache: { at: number; map: Map<string, RegistryEntry> } | null = null;
   private attempts = 0;
   private stopped = false;
   private timer: NodeJS.Timeout | null = null;
@@ -116,11 +126,15 @@ export class HomeAssistantWsClient extends EventEmitter {
   }
 
   /** Registro de entidades do HA (integração de origem, ocultas/desativadas). Cache de 5 min. */
-  async registry(): Promise<Map<string, { platform: string; hidden: boolean }>> {
+  async registry(): Promise<Map<string, RegistryEntry>> {
     if (this.registryCache && Date.now() - this.registryCache.at < 5 * 60_000) return this.registryCache.map;
     try {
-      const list = await this.command<{ entity_id: string; platform: string; hidden_by?: string | null; disabled_by?: string | null }[]>({ type: 'config/entity_registry/list' });
-      const map = new Map(list.map((e) => [e.entity_id, { platform: e.platform, hidden: Boolean(e.hidden_by || e.disabled_by) }]));
+      const list = await this.command<{ entity_id: string; platform: string; hidden_by?: string | null; disabled_by?: string | null; device_id?: string | null; entity_category?: string | null }[]>({
+        type: 'config/entity_registry/list',
+      });
+      const map = new Map(
+        list.map((e) => [e.entity_id, { platform: e.platform, hidden: Boolean(e.hidden_by || e.disabled_by), deviceId: e.device_id ?? null, category: e.entity_category ?? null }]),
+      );
       this.registryCache = { at: Date.now(), map };
       return map;
     } catch {

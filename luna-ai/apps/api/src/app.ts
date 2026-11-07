@@ -103,6 +103,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   chat.setWatches(watches);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
+  devices.setRegistryProvider(() => (haWs.connected ? haWs.registry() : Promise.resolve(new Map())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
   devices.on('reload', () => hub.broadcast({ type: 'devices_reload' }));
   haWs.on('state_changed', (evt) => devices.handleStateChanged(evt));
