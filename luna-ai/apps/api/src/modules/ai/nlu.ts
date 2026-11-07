@@ -14,7 +14,31 @@ export type Intent =
   | { type: 'remember'; content: string }
   | { type: 'forget'; content: string }
   | { type: 'show_camera'; target: string }
-  | { type: 'watch_status'; query: string };
+  | { type: 'watch_status'; query: string }
+  | { type: 'vacuum'; command: VacuumIntentCommand; target: string };
+
+export type VacuumIntentCommand = 'start' | 'pause' | 'stop' | 'return_to_base' | 'locate' | 'status';
+
+/** Fala sobre o aspirador robô? (substantivo ou verbo de limpeza) */
+const VACUUM_CONTEXT = /\b(aspirador(es)?|robo(s|zinhos?)?|aspir\w*|limpeza)\b|\blimp(a|e|ar)\s+(a\s+)?casa\b|\bmand\w*\b.*\blimp(ar|e)\b/;
+
+/** “aspira a casa”, “manda o robô pra base”, “pausa o aspirador”, “onde está o robô?”, “bateria do aspirador” */
+function parseVacuum(text: string, raw: string): Intent | null {
+  if (!VACUUM_CONTEXT.test(text) || DEFERRED.test(text)) return null;
+  let command: VacuumIntentCommand;
+  if (/\b(onde|cade|encontr\w*|localiz\w*|apit\w*|ache|acha)\b/.test(text)) command = 'locate';
+  else if (/\b(status|bateria|situacao|terminou|acabou)\b/.test(text) || /\b(como)\s+(esta|ta|estao)\b/.test(text) || /\b(esta|ta|estao)\s+(ligad|deslig|limpando|aspirando|carregando|na base|funcionando|parad)/.test(text) || (/\?\s*$/.test(raw) && !/\b(pode|poderia|consegue)\b/.test(text))) command = 'status';
+  else if (/\b(volt\w*|retorn\w*|recolh\w*|base|carregar|desliga|desligue|desligar)\b/.test(text)) command = 'return_to_base';
+  else if (/\bpaus\w*\b/.test(text)) command = 'pause';
+  else if (/\b(pare|parar|interromp\w*|cancel\w*)\b|^para\b|\bpara (de|o|a|os)\b/.test(text) && !/\bpara (a )?base\b/.test(text)) command = 'stop';
+  else if (/\b(lig\w*|ativ\w*|inici\w*|comec\w*|aspir\w*|limp\w*|mand\w*|pode|bota|coloca)\b/.test(text)) command = 'start';
+  else return null;
+  const target = cleanTarget(
+    text
+      .replace(/\b(aspirador(es)?|robo(s|zinhos?)?|aspir\w*|limp\w*|limpeza|casa|toda|inteira|onde|cade|encontr\w*|localiz\w*|apit\w*|ache|acha|status|bateria|situacao|terminou|acabou|como|esta|ta|estao|ligad\w*|deslig\w*|carregando|funcionando|parad\w*|volt\w*|retorn\w*|recolh\w*|base|carregar|paus\w*|pare|parar|para|interromp\w*|cancel\w*|lig\w*|ativ\w*|inici\w*|comec\w*|mand\w*|pode|bota|coloca|faz|faca|de|do|da|o|a|os|as|pra|pro|na|no|ele|e|que|um|uma|sua|seu|qual|quais|com|meu|minha|nivel|vai|ir|agora|tudo)\b/g, ' '),
+  );
+  return { type: 'vacuum', command, target };
+}
 
 const ON = 'acenda|acende|acender|ligue|liga|ligar|ative|ativa|ativar';
 const OFF = 'apague|apaga|apagar|desligue|desliga|desligar|desative|desativa|desativar';
@@ -51,6 +75,9 @@ export function parseIntent(original: string): Intent | null {
   }
   const forget = raw.match(/^(?:por favor,?\s*)?(?:esque[çc]a|esquece|apague da mem[óo]ria|remova da mem[óo]ria)\s+(?:que\s+|de que\s+|sobre\s+|o que eu disse sobre\s+)?(.{2,})$/i);
   if (forget) return { type: 'forget', content: forget[1]!.trim().replace(/[.!?]+$/, '') };
+
+  const vacuum = parseVacuum(text, raw);
+  if (vacuum) return vacuum;
 
   // Câmeras: “mostre a câmera da garagem”, “abrir câmera”, “ver as câmeras”
   const cam = text.match(/\b(?:mostr\w*|abr\w*|ver|veja|exib\w*|quero ver|me mostra)\b.*?\bcameras?\b\s*(.*)$/);
@@ -110,7 +137,7 @@ export function parseIntent(original: string): Intent | null {
 /** Tenta interpretar a resposta do usuário a uma pergunta de desambiguação. */
 export function pickOption(answer: string, options: { name: string }[]): number[] | null {
   const text = normalize(stripWake(answer));
-  if (/\b(todas?|todos?|ambas?|ambos)\b/.test(text)) return options.map((_, i) => i);
+  if (/\b(todas?|todos?|ambas?|ambos|os dois|as duas)\b/.test(text)) return options.map((_, i) => i);
   const ordinals = ['primeir', 'segund', 'terceir', 'quart', 'quint'];
   for (let i = 0; i < Math.min(options.length, ordinals.length); i++) {
     if (new RegExp(`\\b${ordinals[i]}[oa]?\\b`).test(text) || text === String(i + 1)) return [i];

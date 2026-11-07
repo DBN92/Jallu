@@ -1,4 +1,4 @@
-import type { ActionResult, AiProviderName, AssistantState, ChatRequest, ChatResponse, DeviceDto, PublicUser } from '@luna/shared';
+import type { ActionResult, AiProviderName, AssistantState, ChatRequest, ChatResponse, DeviceDto, PublicUser, VacuumCommand } from '@luna/shared';
 import type { Db } from '../../lib/db';
 import { AppError, notFound } from '../../lib/errors';
 import { normalize, significantTokens, truncate } from '../../lib/text';
@@ -8,14 +8,15 @@ import type { SettingsService } from '../settings/settings.service';
 import type { WeatherService } from '../weather/weather.service';
 import { parseIntent, pickOption, type Intent } from './nlu';
 import { buildSystemPrompt, nowMessage } from './prompt';
-import { askWhich, listJoin, powerReply, stateReply, weatherReply } from './replies';
+import { askWhich, listJoin, powerReply, stateReply, vacuumReply, vacuumStatus, weatherReply } from './replies';
 import { classify, routeProviders } from './router';
 import { TOOL_DEFINITIONS, type ToolContext, type ToolExecutor } from './tools';
 import { ProviderError, type AIProvider, type ChatMessage } from './types';
 
 interface Pending {
-  kind: 'power' | 'brightness' | 'query';
+  kind: 'power' | 'brightness' | 'query' | 'vacuum';
   action?: 'turn_on' | 'turn_off';
+  vacuum?: VacuumCommand;
   value?: number;
   options: DeviceDto[];
   expires: number;
@@ -148,6 +149,13 @@ export class ChatService {
           continue;
         }
         this.onState(userId, 'acting', conversationId);
+        if (p.kind === 'vacuum') {
+          const command = p.vacuum ?? 'start';
+          const after = await this.devices.vacuumCommand(d.entityId, command, this.actor(userId));
+          actions.push({ tool: `vacuum_${command}`, ok: true, summary: `${after.name}: ${after.vacuum?.status ?? after.state}`, entityIds: [after.entityId] });
+          replies.push(vacuumReply(command, after, d));
+          continue;
+        }
         const after =
           p.kind === 'brightness'
             ? await this.devices.setBrightness(d.entityId, p.value ?? 100, this.actor(userId))
@@ -225,6 +233,42 @@ export class ChatService {
             // A tela abre o vídeo ao receber esta ação
             actions: [{ tool: 'show_camera', ok: true, summary: `Câmera: ${cam.name}`, entityIds: found.length > 1 ? found.map((c) => c.entityId) : [cam.entityId] }],
           };
+        }
+        case 'vacuum': {
+          const vacuums = (await this.devices.list()).filter((d) => d.domain === 'vacuum');
+          if (!vacuums.length) {
+            return { reply: 'Ainda não encontrei nenhum aspirador robô no Home Assistant. Adicione a integração do robô no Home Assistant e ele aparece aqui.', actions: [] };
+          }
+          // Qual robô? Pelo nome dito; senão, deduz pelo comando
+          let chosen = vacuums;
+          if (significantTokens(intent.target).length) {
+            const named = (await this.devices.findByName(intent.target, { domain: 'vacuum' })).map((m) => m.device);
+            if (!named.length) {
+              if (/\b(sala|quarto|cozinha|banheiro|escritorio|corredor|varanda|area|lavanderia|suite|closet|garagem|comodo)\b/.test(normalize(intent.target))) {
+                return { reply: `Por enquanto eu ainda não consigo mandar o robô limpar só ${intent.target}. Diga “aspira a casa” para ele limpar tudo.`, actions: [] };
+              }
+              return { reply: `Não encontrei um aspirador chamado “${intent.target}”. Tenho: ${listJoin(vacuums.map((v) => v.name))}.`, actions: [] };
+            }
+            chosen = named;
+          }
+          if (intent.command === 'status') return { reply: chosen.map(vacuumStatus).join(' '), actions: [] };
+          const command = intent.command;
+          if (chosen.length > 1) {
+            const active = chosen.filter((v) => ['cleaning', 'returning', 'paused'].includes(v.vacuum?.phase ?? ''));
+            if (command === 'pause' || command === 'stop') {
+              if (!active.length) return { reply: 'Nenhum robô está limpando agora.', actions: [] };
+              chosen = active.filter((v) => v.vacuum?.phase !== 'paused');
+              if (!chosen.length) return { reply: 'Os robôs já estão pausados.', actions: [] };
+            } else if (command === 'return_to_base') {
+              chosen = chosen.filter((v) => v.vacuum?.phase !== 'docked');
+              if (!chosen.length) return { reply: 'Os robôs já estão na base.', actions: [] };
+            }
+            if (chosen.length > 1 && (command === 'start' || command === 'locate')) {
+              this.pending.set(conversationId, { kind: 'vacuum', vacuum: command, options: chosen, expires: Date.now() + 120_000 });
+              return { reply: `${command === 'start' ? 'Qual robô deve limpar' : 'Qual robô você procura'}: ${chosen.slice(0, -1).map((v) => v.name).join(', ')} ou ${chosen[chosen.length - 1]!.name}?${command === 'start' ? ' Ou os dois?' : ''}`, actions: [] };
+            }
+          }
+          return this.applyPending({ kind: 'vacuum', vacuum: command, options: chosen, expires: 0 }, chosen, userId, conversationId);
         }
         case 'device_query': {
           const matches = await this.devices.findByName(intent.target);

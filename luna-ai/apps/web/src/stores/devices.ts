@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DeviceDto } from '@luna/shared';
+import type { DeviceDto, VacuumCommand } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
 
 interface DevicesState {
@@ -13,6 +13,8 @@ interface DevicesState {
   setHa: (c: boolean) => void;
   toggle: (d: DeviceDto) => Promise<void>;
   brightness: (entityId: string, value: number) => Promise<void>;
+  /** Comando para aspirador robô. Retorna a mensagem de erro (ou null se deu certo). */
+  vacuum: (entityId: string, command: VacuumCommand, fanSpeed?: string) => Promise<string | null>;
   /** Retorna a mensagem de erro (ou null se deu certo). */
   update: (entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean; name?: string | null }) => Promise<string | null>;
 }
@@ -61,6 +63,17 @@ export const useDevices = create<DevicesState>((set, get) => ({
       get().upsert(await api<DeviceDto>(`/api/devices/${entityId}/brightness`, { body: { brightness: value } }));
     } catch (err) {
       set({ error: errorMessage(err) });
+    } finally {
+      set((s) => ({ busy: { ...s.busy, [entityId]: false } }));
+    }
+  },
+  vacuum: async (entityId, command, fanSpeed) => {
+    set((s) => ({ busy: { ...s.busy, [entityId]: true } }));
+    try {
+      get().upsert(await api<DeviceDto>(`/api/devices/${entityId}/vacuum`, { body: { command, fanSpeed } }));
+      return null;
+    } catch (err) {
+      return errorMessage(err);
     } finally {
       set((s) => ({ busy: { ...s.busy, [entityId]: false } }));
     }

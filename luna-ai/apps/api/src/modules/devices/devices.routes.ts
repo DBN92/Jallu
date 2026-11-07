@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { brightnessSchema, deviceUpdateSchema } from '@luna/shared';
+import { brightnessSchema, deviceUpdateSchema, vacuumCommandSchema } from '@luna/shared';
 import { requireAdmin, requireAuth } from '../../middleware/auth';
 
 const params = z.object({ entityId: z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/, 'entity_id inválido') });
@@ -26,6 +26,11 @@ export async function deviceRoutes(app: FastifyInstance) {
   app.post('/api/devices/:entityId/brightness', { preHandler: requireAuth }, async (req) => {
     const { brightness } = brightnessSchema.parse(req.body);
     return devices.setBrightness(params.parse(req.params).entityId, brightness, { source: 'ui', userId: req.user!.id });
+  });
+
+  app.post('/api/devices/:entityId/vacuum', { preHandler: requireAuth }, async (req) => {
+    const { command, fanSpeed } = vacuumCommandSchema.parse(req.body);
+    return devices.vacuumCommand(params.parse(req.params).entityId, command, { source: 'ui', userId: req.user!.id }, fanSpeed);
   });
 
   // Autorização por dispositivo (somente administradores)

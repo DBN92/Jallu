@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, Check, Lightbulb, Pencil, Plug, Power, RefreshCw, RotateCcw, Settings2, Thermometer, ToggleLeft, Wind, Box, X } from 'lucide-react';
+import { Bot, Check, Disc3, Lightbulb, Pencil, Plug, Power, RefreshCw, RotateCcw, Settings2, Thermometer, ToggleLeft, Wind, Box, X } from 'lucide-react';
 import { DEVICE_CATEGORY_LABELS, type DeviceCategory, type DeviceDto } from '@luna/shared/types';
 import { Page } from '../components/Layout';
 import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '../components/ui';
 import { useAuth } from '../stores/auth';
 import { useDevices } from '../stores/devices';
+import { VacuumControls } from '../components/VacuumCard';
 
 const ICONS: Record<DeviceCategory, typeof Lightbulb> = {
   lighting: Lightbulb,
@@ -12,9 +13,10 @@ const ICONS: Record<DeviceCategory, typeof Lightbulb> = {
   outlets: Plug,
   sensors: Thermometer,
   climate: Wind,
+  vacuum: Disc3,
   other: Box,
 };
-const ORDER: DeviceCategory[] = ['lighting', 'switches', 'outlets', 'climate', 'sensors', 'other'];
+const ORDER: DeviceCategory[] = ['lighting', 'switches', 'outlets', 'climate', 'vacuum', 'sensors', 'other'];
 
 function BrightnessSlider({ device }: { device: DeviceDto }) {
   const brightness = useDevices((s) => s.brightness);
@@ -131,7 +133,9 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
           <p className="text-xs text-white/45">
             {!device.available
               ? 'Indisponível'
-              : device.controllable
+              : device.vacuum
+                ? 'Aspirador robô'
+                : device.controllable
                 ? on
                   ? device.supportsBrightness && device.brightness !== null
                     ? `Ligado · ${device.brightness}%`
@@ -141,7 +145,7 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
             {device.controllable && device.aiAllowed && <Bot className="ml-1.5 inline h-3 w-3 text-cyan-300" aria-label="Autorizado para a DIA" />}
           </p>
         </div>
-        {device.controllable && (
+        {device.controllable && !device.vacuum && (
           <button
             onClick={() => void toggle(device)}
             disabled={!device.available || busy[device.entityId]}
@@ -153,6 +157,11 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
         )}
       </div>
       {device.supportsBrightness && on && device.available && <BrightnessSlider device={device} />}
+      {device.vacuum && device.available && (
+        <div className="mt-3">
+          <VacuumControls device={device} />
+        </div>
+      )}
       {manage && isAdmin && (
         <div className="mt-3 space-y-2 border-t border-white/10 pt-3 text-sm">
           <p className="font-mono text-[11px] text-white/35">{device.entityId}</p>
@@ -188,7 +197,10 @@ export default function HousePage() {
   const { devices, load, loading, error, haConnected } = useDevices();
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const [manage, setManage] = useState(false);
-  const [filter, setFilter] = useState<DeviceCategory | 'all'>('all');
+  const [filter, setFilter] = useState<DeviceCategory | 'all'>(() => {
+    const f = new URLSearchParams(window.location.search).get('f');
+    return f && ORDER.includes(f as DeviceCategory) ? (f as DeviceCategory) : 'all';
+  });
 
   useEffect(() => {
     void load(true);

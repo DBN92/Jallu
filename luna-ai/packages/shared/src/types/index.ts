@@ -4,7 +4,7 @@ export type UserRole = 'admin' | 'member';
 
 export type AssistantState = 'idle' | 'listening' | 'processing' | 'acting' | 'speaking' | 'error';
 
-export type DeviceCategory = 'lighting' | 'switches' | 'outlets' | 'sensors' | 'climate' | 'other';
+export type DeviceCategory = 'lighting' | 'switches' | 'outlets' | 'sensors' | 'climate' | 'vacuum' | 'other';
 
 export const DEVICE_CATEGORY_LABELS: Record<DeviceCategory, string> = {
   lighting: 'Iluminação',
@@ -12,6 +12,7 @@ export const DEVICE_CATEGORY_LABELS: Record<DeviceCategory, string> = {
   outlets: 'Tomadas',
   sensors: 'Sensores',
   climate: 'Climatização',
+  vacuum: 'Aspiradores',
   other: 'Outros',
 };
 
@@ -45,6 +46,27 @@ export interface DeviceDto {
   aliases: string[];
   hidden: boolean;
   lastChanged: string | null;
+  /** Só para aspiradores robôs (domínio vacuum) */
+  vacuum?: VacuumInfo | null;
+}
+
+/** Comandos aceitos pelos aspiradores (lista fechada). */
+export type VacuumCommand = 'start' | 'pause' | 'stop' | 'return_to_base' | 'locate' | 'set_fan_speed';
+
+export interface VacuumInfo {
+  /** Situação em português (ex.: “Aspirando”, “Na base”) */
+  status: string;
+  /** cleaning | docked | returning | paused | idle | error (estado do Home Assistant) */
+  phase: 'cleaning' | 'docked' | 'returning' | 'paused' | 'idle' | 'error' | 'unknown';
+  /** Bateria 0–100, quando o robô informa */
+  battery: number | null;
+  /** Potência de sucção atual e opções */
+  fanSpeed: string | null;
+  fanSpeeds: string[];
+  /** O que este robô sabe fazer (depende da marca/integração) */
+  can: { pause: boolean; stop: boolean; locate: boolean; fanSpeed: boolean; returnHome: boolean };
+  /** Mensagem de erro do robô, se houver */
+  error: string | null;
 }
 
 export interface ActionResult {

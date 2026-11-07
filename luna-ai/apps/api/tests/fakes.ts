@@ -69,6 +69,12 @@ export class FakeHomeAssistant {
           s.state = 'off';
           delete s.attributes.brightness;
         }
+        // Aspirador robô
+        if (domain === 'vacuum') {
+          const next: Record<string, string> = { start: 'cleaning', pause: 'paused', stop: 'idle', return_to_base: 'returning' };
+          if (next[service]) s.state = next[service]!;
+          if (service === 'set_fan_speed') s.attributes.fan_speed = data.fan_speed;
+        }
         changed.push(s);
       }
       return json(changed);

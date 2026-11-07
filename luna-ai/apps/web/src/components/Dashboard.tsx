@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Box, Droplets, Lightbulb, Plug, Power, Thermometer, ToggleLeft, Umbrella, Wind } from 'lucide-react';
+import { Box, Droplets, Lightbulb, Plug, Power, Thermometer, ToggleLeft, Umbrella, Wind, Disc3 } from 'lucide-react';
 import type { DeviceCategory, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { api } from '../services/api';
 import { useAssistant } from '../stores/assistant';
@@ -80,7 +80,7 @@ export function WeatherPanel({ data, loading, error }: { data: WeatherDto | null
   );
 }
 
-const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, other: Box };
+const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, vacuum: Disc3, other: Box };
 
 export function DevicesPanel({ className = '' }: { className?: string }) {
   const { devices, toggle, busy } = useDevices();

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box } from 'lucide-react';
+import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box, Disc3 } from 'lucide-react';
 import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import { AnimatedBackground } from './AnimatedBackground';
@@ -8,7 +8,7 @@ import { LunaOrb } from './LunaOrb';
 import { WeatherIcon } from './WeatherIcon';
 
 const SLIDE_MS = 10_000;
-const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, other: Box };
+const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, vacuum: Disc3, other: Box };
 
 function WeatherSlide({ w }: { w: WeatherDto }) {
   const today = w.daily[0];

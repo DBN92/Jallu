@@ -1,4 +1,4 @@
-import type { DeviceDto, WeatherDto } from '@luna/shared';
+import type { DeviceDto, VacuumCommand, WeatherDto } from '@luna/shared';
 import { normalize } from '../../lib/text';
 import { isRainCode } from '../weather/wmo';
 
@@ -29,6 +29,35 @@ export function stateReply(d: DeviceDto): string {
   }
   if (d.domain === 'binary_sensor') return `${d.name}: ${d.isOn === null ? (d.state === 'on' ? 'ativo' : 'inativo') : d.state}.`;
   return `${d.name}: ${d.state}${d.unit ? ` ${d.unit}` : ''}.`;
+}
+
+/** Situação de um aspirador em uma frase: “Robô Xiaomi: aspirando, bateria em 64%.” */
+export function vacuumStatus(d: DeviceDto): string {
+  if (!d.available || !d.vacuum) return `${d.name} está indisponível no momento.`;
+  const v = d.vacuum;
+  const battery = v.battery !== null ? `, bateria em ${v.battery}%` : '';
+  const error = v.error ? ` Aviso do robô: ${v.error}.` : '';
+  return `${d.name}: ${lowerFirst(v.status)}${battery}.${error}`;
+}
+
+/** Confirmação depois de um comando ao aspirador (com o estado real lido depois). */
+export function vacuumReply(command: VacuumCommand, d: DeviceDto, before?: DeviceDto): string {
+  const phase = d.vacuum?.phase;
+  switch (command) {
+    case 'start':
+      return phase === 'cleaning' ? `Pronto! ${d.name} começou a aspirar.` : `Mandei ${d.name} começar a limpeza; ele deve sair da base em instantes.`;
+    case 'return_to_base':
+      if (before?.vacuum?.phase === 'docked') return `${d.name} já está na base.`;
+      return phase === 'docked' ? `${d.name} está na base.` : `${d.name} está voltando para a base.`;
+    case 'pause':
+      return `${d.name} pausou a limpeza. Diga “aspira a casa” para continuar.`;
+    case 'stop':
+      return `${d.name} parou.`;
+    case 'locate':
+      return `${d.name} vai apitar para você encontrá-lo.`;
+    case 'set_fan_speed':
+      return `${d.name} agora está na potência ${d.vacuum?.fanSpeed ?? ''}.`.replace(' .', '.');
+  }
 }
 
 export function listJoin(items: string[]): string {

@@ -30,6 +30,12 @@ export const chatRequestSchema = z.object({
   location: coordinatesSchema.optional(),
 });
 
+export const vacuumCommandSchema = z.object({
+  command: z.enum(['start', 'pause', 'stop', 'return_to_base', 'locate', 'set_fan_speed']),
+  /** Obrigatório para set_fan_speed: uma das opções informadas pelo robô */
+  fanSpeed: z.string().min(1).max(60).optional(),
+});
+
 export const brightnessSchema = z.object({
   /** Brilho em porcentagem (0–100). */
   brightness: z.number().int().min(0).max(100),

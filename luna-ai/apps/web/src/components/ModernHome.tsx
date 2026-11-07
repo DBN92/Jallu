@@ -10,6 +10,7 @@ import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
+import { VacuumCard } from './VacuumCard';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -18,7 +19,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'outlets', label: 'Tomadas' },
   { id: 'other', label: 'Outros' },
 ];
-const isToggle = (d: DeviceDto) => d.controllable && d.isOn !== null && !d.hidden && d.category !== 'sensors';
+const isToggle = (d: DeviceDto) => d.controllable && d.isOn !== null && !d.hidden && d.category !== 'sensors' && d.domain !== 'vacuum';
 const iconFor = (d: DeviceDto) => (d.category === 'lighting' ? Lightbulb : d.category === 'outlets' ? Plug : d.category === 'climate' ? (d.entityId.startsWith('fan.') ? Fan : Thermometer) : Power);
 const round = Math.round;
 
@@ -394,6 +395,7 @@ export function ModernHome(p: ModernHomeProps) {
         <div className="m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
           {quick}
           <GarageCard />
+          <VacuumCard />
           {devices}
           {weatherCard}
           {cameraCard}
@@ -414,6 +416,7 @@ export function ModernHome(p: ModernHomeProps) {
           <div className="m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
             {weatherCard}
             <GarageCard />
+          <VacuumCard />
             {devices}
           </div>
         </div>
@@ -428,6 +431,7 @@ export function ModernHome(p: ModernHomeProps) {
         <>
           {quick}
           <GarageCard />
+          <VacuumCard />
           {devices}
           {weatherCard}
           {cameraCard}

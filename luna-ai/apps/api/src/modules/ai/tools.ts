@@ -22,7 +22,8 @@ export interface ToolOutcome {
   action?: ActionResult;
 }
 
-const CATEGORY_ENUM = ['lighting', 'switches', 'outlets', 'sensors', 'climate', 'other'];
+const CATEGORY_ENUM = ['lighting', 'switches', 'outlets', 'sensors', 'climate', 'vacuum', 'other'];
+const VACUUM_COMMANDS = ['start', 'pause', 'stop', 'return_to_base', 'locate', 'set_fan_speed'] as const;
 
 /** Lista FECHADA de funções que a IA pode chamar. Não existe ferramenta genérica de serviço/shell. */
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -61,6 +62,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       type: 'object',
       properties: { device: { type: 'string' }, brightness: { type: 'integer', minimum: 0, maximum: 100 } },
       required: ['device', 'brightness'],
+    },
+  },
+  {
+    name: 'control_vacuum',
+    description:
+      'Controla um aspirador robô: start = começar a limpar a casa, pause, stop, return_to_base = voltar para a base, locate = apitar para ser encontrado, set_fan_speed = mudar a potência. Não limpa cômodos específicos.',
+    parameters: {
+      type: 'object',
+      properties: {
+        device: { type: 'string', description: 'Nome do aspirador (vazio se a casa só tem um)' },
+        command: { type: 'string', enum: [...VACUUM_COMMANDS] },
+        fan_speed: { type: 'string', description: 'Só para set_fan_speed: uma das potências listadas pelo robô' },
+      },
+      required: ['command'],
     },
   },
   {
@@ -127,6 +142,7 @@ export function deviceSummary(d: DeviceDto) {
     brilho_pct: d.supportsBrightness ? d.brightness : undefined,
     unidade: d.unit ?? undefined,
     autorizado_para_luna: d.controllable ? d.aiAllowed : undefined,
+    aspirador: d.vacuum ? { situacao: d.vacuum.status, bateria_pct: d.vacuum.battery, potencia: d.vacuum.fanSpeed, potencias: d.vacuum.fanSpeeds, erro: d.vacuum.error } : undefined,
   };
 }
 
@@ -198,6 +214,27 @@ export class ToolExecutor {
         if (r.status === 'ambiguous') return { output: { ok: false, ambiguo: true, opcoes: r.options.map((d) => d.name) } };
         const after = await this.devices.setBrightness(r.device.entityId, pct, this.actor(ctx));
         return { output: { ok: true, dispositivo: deviceSummary(after) }, action: { tool: name, ok: true, summary: `${after.name}: brilho ${after.brightness ?? 0}%`, entityIds: [after.entityId] } };
+      }
+      case 'control_vacuum': {
+        const command = str(args.command) as (typeof VACUUM_COMMANDS)[number];
+        if (!VACUUM_COMMANDS.includes(command)) return { output: { ok: false, erro: 'Comando inválido.' } };
+        let target: DeviceDto;
+        if (str(args.device)) {
+          const r = await this.resolve(str(args.device), { controllableOnly: true, domain: 'vacuum' });
+          if (r.status === 'not_found') return { output: { ok: false, erro: `Não encontrei o aspirador "${str(args.device)}".` } };
+          if (r.status === 'ambiguous') return { output: { ok: false, ambiguo: true, opcoes: r.options.map((d) => d.name) } };
+          target = r.device;
+        } else {
+          const all = (await this.devices.list()).filter((d) => d.domain === 'vacuum');
+          if (!all.length) return { output: { ok: false, erro: 'Não há aspirador robô no Home Assistant.' } };
+          if (all.length > 1) return { output: { ok: false, ambiguo: true, mensagem: 'Pergunte qual aspirador.', opcoes: all.map((d) => d.name) } };
+          target = all[0]!;
+        }
+        const after = await this.devices.vacuumCommand(target.entityId, command, this.actor(ctx), str(args.fan_speed) || undefined);
+        return {
+          output: { ok: true, dispositivo: deviceSummary(after) },
+          action: { tool: `vacuum_${command}`, ok: true, summary: `${after.name}: ${after.vacuum?.status ?? after.state}`, entityIds: [after.entityId] },
+        };
       }
       case 'control_all_lights': {
         const action = str(args.action) === 'turn_on' ? 'turn_on' : 'turn_off';

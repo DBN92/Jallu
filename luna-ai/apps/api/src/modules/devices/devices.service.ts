@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { DeviceDto } from '@luna/shared';
+import type { DeviceDto, VacuumCommand } from '@luna/shared';
 import type { Db } from '../../lib/db';
 import { AppError, badRequest, forbidden, notFound } from '../../lib/errors';
 import { normalize, safeJson, significantTokens } from '../../lib/text';
@@ -91,7 +91,27 @@ export class DevicesService extends EventEmitter {
   }
 
   private dto(state: HaState): DeviceDto {
-    return toDeviceDto(state, this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false, customName: null });
+    const meta = this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false, customName: null };
+    return toDeviceDto(state, domainOf(state.entity_id) === 'vacuum' ? { ...meta, battery: this.vacuumBattery(state) } : meta);
+  }
+
+  /**
+   * Bateria do aspirador: integrações novas do HA publicam num sensor separado
+   * (ex.: vacuum.robo_xiaomi → sensor.robo_xiaomi_battery). Procura pelo prefixo do id ou do nome.
+   */
+  private vacuumBattery(vacuum: HaState): number | null {
+    const objectId = vacuum.entity_id.split('.')[1]!;
+    const name = normalize((vacuum.attributes.friendly_name as string | undefined) ?? '');
+    for (const s of this.states.values()) {
+      if (domainOf(s.entity_id) !== 'sensor' || s.attributes.device_class !== 'battery') continue;
+      const sid = s.entity_id.split('.')[1]!;
+      const sname = normalize((s.attributes.friendly_name as string | undefined) ?? '');
+      if (sid.startsWith(`${objectId}_`) || (name && sname.startsWith(`${name} `))) {
+        const v = Number(s.state);
+        if (Number.isFinite(v)) return v;
+      }
+    }
+    return null;
   }
 
   async list(opts: { includeHidden?: boolean } = {}): Promise<DeviceDto[]> {
@@ -165,6 +185,8 @@ export class DevicesService extends EventEmitter {
 
   private async execute(entityId: string, service: 'turn_on' | 'turn_off', data: Record<string, unknown>, actor: Actor, tool: string) {
     const domain = domainOf(entityId);
+    // Aspirador: “ligar” = começar a limpar; “desligar” = voltar para a base
+    if (domain === 'vacuum') return this.vacuumCommand(entityId, service === 'turn_on' ? 'start' : 'return_to_base', actor, undefined, tool);
     try {
       const before = await this.authorize(entityId, actor);
       await this.ha.callService(domain, service, { entity_id: entityId, ...data });
@@ -186,6 +208,45 @@ export class DevicesService extends EventEmitter {
       dto = await this.get(entityId);
     }
     return dto;
+  }
+
+  /**
+   * Comandos do aspirador robô. Lista fechada de serviços do domínio vacuum do HA —
+   * nada de send_command genérico (a IA não pode mandar comandos arbitrários).
+   */
+  async vacuumCommand(entityId: string, command: VacuumCommand, actor: Actor, fanSpeed?: string, tool = `vacuum_${command}`): Promise<DeviceDto> {
+    if (domainOf(entityId) !== 'vacuum') throw badRequest('Este comando é só para aspiradores robôs.');
+    const data: Record<string, unknown> = {};
+    try {
+      const before = await this.authorize(entityId, actor);
+      const info = before.vacuum!;
+      if (command === 'set_fan_speed') {
+        if (!info.can.fanSpeed) throw badRequest(`${before.name} não permite ajustar a potência pela DIA.`);
+        const wanted = info.fanSpeeds.find((f) => normalize(f) === normalize(fanSpeed ?? ''));
+        if (!wanted) throw badRequest(`Potência inválida. Opções: ${info.fanSpeeds.join(', ')}.`);
+        data.fan_speed = wanted;
+      }
+      if (command === 'locate' && !info.can.locate) throw badRequest(`${before.name} não tem a função de apitar para ser encontrado.`);
+      if (command === 'pause' && !info.can.pause) command = 'stop';
+      if (command === 'return_to_base' && info.phase === 'docked') {
+        await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: entityId, args: {}, success: true, detail: 'já estava na base' });
+        return before;
+      }
+      await this.ha.callService('vacuum', command, { entity_id: entityId, ...data });
+      // Robôs (principalmente na nuvem) demoram alguns segundos para mudar de estado
+      const expect: Partial<Record<VacuumCommand, string[]>> = { start: ['cleaning'], pause: ['paused', 'idle'], stop: ['idle', 'paused'], return_to_base: ['returning', 'docked'] };
+      let after = await this.get(entityId);
+      for (let i = 0; i < 12 && expect[command] && !expect[command]!.includes(after.vacuum?.phase ?? ''); i++) {
+        await new Promise((r) => setTimeout(r, 350));
+        after = await this.get(entityId);
+      }
+      await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: entityId, args: data, success: true, detail: `${before.state} → ${after.state}` });
+      this.emit('state', after);
+      return after;
+    } catch (err) {
+      await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: entityId, args: data, success: false, detail: (err as Error).message });
+      throw err;
+    }
   }
 
   turnOn(entityId: string, actor: Actor) {

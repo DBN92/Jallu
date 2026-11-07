@@ -14,6 +14,9 @@ add('sensor.temperatura_sala', '24.6', { friendly_name: 'Temperatura da Sala', u
 add('binary_sensor.porta_entrada', 'off', { friendly_name: 'Porta de Entrada', device_class: 'door' });
 add('person.dono', 'home', { friendly_name: 'Dono' });
 add('camera.garagem', 'idle', { friendly_name: 'Garagem', supported_features: 2 });
+add('vacuum.robo_xiaomi', 'docked', { friendly_name: 'Robô Xiaomi', supported_features: 4 | 8 | 16 | 32 | 512 | 8192, fan_speed: 'Standard', fan_speed_list: ['Silent', 'Standard', 'Medium', 'Turbo'] });
+add('sensor.robo_xiaomi_battery', '82', { friendly_name: 'Robô Xiaomi Bateria', device_class: 'battery', unit_of_measurement: '%' });
+add('vacuum.neatsvor', 'docked', { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] });
 add('camera.portao', 'idle', { friendly_name: 'Portão', supported_features: 0 });
 const fsMod = await import('node:fs');
 const pathMod = await import('node:path');
@@ -57,7 +60,13 @@ const ha = http.createServer(async (req, res) => {
     const s = states.get(data.entity_id);
     if (s) {
       const old = structuredClone(s);
-      s.state = m[2] === 'turn_on' ? 'on' : 'off';
+      if (m[1] === 'vacuum') {
+        const next = { start: 'cleaning', pause: 'paused', stop: 'idle', return_to_base: 'returning' };
+        if (next[m[2]]) s.state = next[m[2]];
+        if (m[2] === 'set_fan_speed') s.attributes.fan_speed = data.fan_speed;
+        // depois de voltar, o robô chega à base
+        if (m[2] === 'return_to_base') setTimeout(() => { const o = structuredClone(s); s.state = 'docked'; broadcast(o, s); }, 4000);
+      } else s.state = m[2] === 'turn_on' ? 'on' : 'off';
       if (data.brightness_pct) s.attributes.brightness = Math.round(data.brightness_pct * 2.55);
       if (m[2] === 'turn_off') delete s.attributes.brightness;
       else if (s.attributes.supported_color_modes?.includes('brightness') && !s.attributes.brightness) s.attributes.brightness = 255;
