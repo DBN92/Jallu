@@ -14,6 +14,7 @@ import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
+import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
 import { eventEmoji, useWatches } from './stores/watches';
 import { applyOrientation } from './lib/orientation';
 
@@ -26,13 +27,18 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
 const TvApp = lazy(() => import('./tv/TvApp'));
 
+/** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
+const loadDevices = () => useDevices.getState().load(true).then(() => useVacuumShow.getState().seed(Object.values(useDevices.getState().devices)));
+
 function useRealtimeConnection(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const socket = new LunaSocket(
       (e) => {
-        if (e.type === 'device_state') useDevices.getState().upsert(e.device);
-        else if (e.type === 'devices_reload') void useDevices.getState().load(true);
+        if (e.type === 'device_state') {
+          useVacuumShow.getState().observe(e.device); // animação quando o robô começa ou termina
+          useDevices.getState().upsert(e.device);
+        } else if (e.type === 'devices_reload') void loadDevices();
         else if (e.type === 'ha_status') useDevices.getState().setHa(e.connected);
         else if (e.type === 'assistant_state') {
           useTv.getState().setRemoteState(e.state);
@@ -71,7 +77,7 @@ export default function App() {
   useEffect(() => {
     if (status === 'ready') {
       void loadSettings().catch(() => undefined);
-      void useDevices.getState().load(true);
+      void loadDevices();
     }
   }, [status, loadSettings]);
 
@@ -105,12 +111,14 @@ export default function App() {
       <Suspense fallback={<Splash />}>
         <TvApp />
         <GestureToast />
+        <VacuumCelebration tv />
       </Suspense>
     );
 
   return (
     <BrowserRouter>
       <GestureToast />
+      <VacuumCelebration />
       <Suspense
         fallback={
           <div className="flex flex-1 items-center justify-center">
