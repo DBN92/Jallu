@@ -14,8 +14,25 @@ add('sensor.temperatura_sala', '24.6', { friendly_name: 'Temperatura da Sala', u
 add('binary_sensor.porta_entrada', 'off', { friendly_name: 'Porta de Entrada', device_class: 'door' });
 add('person.dono', 'home', { friendly_name: 'Dono' });
 add('camera.garagem', 'idle', { friendly_name: 'Garagem', supported_features: 2 });
-add('vacuum.robo_xiaomi', 'docked', { friendly_name: 'Robô Xiaomi', supported_features: 4 | 8 | 16 | 32 | 512 | 8192, fan_speed: 'Standard', fan_speed_list: ['Silent', 'Standard', 'Medium', 'Turbo'] });
-add('sensor.robo_xiaomi_battery', '82', { friendly_name: 'Robô Xiaomi Bateria', device_class: 'battery', unit_of_measurement: '%' });
+// “Rita”: Xiaomi Home (modelo c102gl), entidades como no diagnóstico real
+const RITA = 'xiaomi_us_1140903813_c102gl';
+const ritaIds = [];
+const ra = (id, st, attrs = {}) => { add(id, st, attrs); ritaIds.push(id); };
+ra(`vacuum.${RITA}`, 'docked', { friendly_name: 'Rita Rita', supported_features: 12312 });
+ra(`sensor.${RITA}_battery_level_p_3_1`, '100', { friendly_name: 'Rita  Battery Battery Level', device_class: 'battery', unit_of_measurement: '%' });
+ra(`sensor.${RITA}_charging_state_p_3_2`, 'Charging', {});
+ra(`select.${RITA}_mode_p_2_3`, 'Full Speed', { options: ['Silent', 'Basic', 'Strong', 'Full Speed'] });
+ra(`select.${RITA}_mop_mode_p_4_5`, 'Medium', { options: ['Low', 'Medium', 'High'] });
+ra(`select.${RITA}_carpet_press_p_4_12`, 'Open', { options: ['Close', 'Open'] });
+ra(`select.${RITA}_break_point_restart_p_4_11`, 'Open', { options: ['Close', 'Open'] });
+ra(`select.${RITA}_child_lock_p_4_27`, 'Close', { options: ['Close', 'Open'] });
+ra(`switch.${RITA}_enable_p_5_1`, 'on', { friendly_name: 'Rita * do-not-disturb enable' });
+ra(`text.${RITA}_start_time_p_5_2`, '22:00', {});
+ra(`text.${RITA}_end_time_p_5_3`, '08:00', {});
+ra(`text.${RITA}_timer_clean_p_8_2`, '2-1-07:00-1111111-1-1-1-32-0;1-1-17:00-1111111-1-1-1-32-0', {});
+for (const b of ['start_mop_wash_a_2_6', 'start_dry_a_2_8', 'stop_dry_a_2_9', 'start_dust_arrest_a_2_4', 'start_eject_a_2_10', 'position_a_7_1', 'play_sound_a_7_2', 'reset_brush_life_a_9_1', 'reset_brush_life_a_10_1', 'reset_filter_life_a_11_1', 'reset_mop_life_a_18_1']) ra(`button.${RITA}_${b}`, 'unknown', {});
+for (const [n, v, u] of [['brush_life_level_p_9_2', '99'], ['brush_left_time_p_9_1', '298', 'h'], ['brush_life_level_p_10_2', '66'], ['brush_left_time_p_10_1', '132', 'h'], ['filter_life_level_p_11_1', '99'], ['filter_left_time_p_11_2', '148', 'h'], ['mop_life_level_p_18_1', '60'], ['mop_left_time_p_18_2', '48', 'h'], ['dry_left_time_p_2_5', '219', 'min'], ['cleaning_area_p_4_3', '3'], ['cleaning_time_p_4_2', '2'], ['total_clean_area_p_12_4', '61'], ['total_clean_time_p_12_2', '87'], ['total_clean_times_p_12_3', '4']])
+  ra(`sensor.${RITA}_${n}`, v, u ? { unit_of_measurement: u } : {});
 add('vacuum.neatsvor', 'docked', { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] });
 add('camera.portao', 'idle', { friendly_name: 'Portão', supported_features: 0 });
 const fsMod = await import('node:fs');
@@ -60,7 +77,9 @@ const ha = http.createServer(async (req, res) => {
     const s = states.get(data.entity_id);
     if (s) {
       const old = structuredClone(s);
-      if (m[1] === 'vacuum') {
+      if (m[1] === 'select' && m[2] === 'select_option') s.state = data.option;
+      else if (m[1] === 'button') s.state = new Date().toISOString();
+      else if (m[1] === 'vacuum') {
         const next = { start: 'cleaning', pause: 'paused', stop: 'idle', return_to_base: 'returning' };
         if (next[m[2]]) s.state = next[m[2]];
         if (m[2] === 'set_fan_speed') s.attributes.fan_speed = data.fan_speed;
@@ -87,7 +106,7 @@ wss.on('connection', (ws) => {
     if (msg.type === 'ping') ws.send(JSON.stringify({ id: msg.id, type: 'pong' }));
     if (msg.type === 'camera/stream') ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true, result: { url: '/api/hls/tok123/master_playlist.m3u8' } }));
     if (msg.type === 'config/entity_registry/list') {
-      const result = [...states.keys()].map((entity_id) => ({ entity_id, platform: entity_id === 'camera.garagem' ? 'onvif' : 'demo', hidden_by: entity_id === 'switch.tomada_cafeteira' ? 'integration' : null, disabled_by: null }));
+      const result = [...states.keys()].map((entity_id) => ({ entity_id, platform: entity_id === 'camera.garagem' ? 'onvif' : ritaIds.includes(entity_id) ? 'xiaomi_home' : 'demo', hidden_by: entity_id === 'switch.tomada_cafeteira' ? 'integration' : null, disabled_by: null, device_id: ritaIds.includes(entity_id) ? 'dev-rita' : null }));
       ws.send(JSON.stringify({ id: msg.id, type: 'result', success: true, result }));
     }
   });

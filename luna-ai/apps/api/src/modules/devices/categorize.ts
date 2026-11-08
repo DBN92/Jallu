@@ -1,4 +1,4 @@
-import type { DeviceCategory, DeviceDto, VacuumInfo } from '@luna/shared';
+import type { DeviceCategory, DeviceDto, VacuumExtras, VacuumInfo } from '@luna/shared';
 import type { HaState } from '../../integrations/home-assistant/types';
 
 /** Domínios exibidos no painel. */
@@ -24,27 +24,33 @@ const PHASE_LABEL: Record<VacuumInfo['phase'], string> = {
 };
 
 /** Situação do aspirador a partir do estado do HA (bateria pode vir de um sensor separado). */
-export function vacuumInfo(state: HaState, batterySensor?: number | null): VacuumInfo {
+export function vacuumInfo(state: HaState, batterySensor?: number | null, extras: VacuumExtras | null = null, photo: number | null = null): VacuumInfo {
   const a = state.attributes;
   const phase = VACUUM_PHASE[state.state] ?? 'unknown';
   const feat = typeof a.supported_features === 'number' ? a.supported_features : 0;
   const rawBattery = typeof a.battery_level === 'number' ? a.battery_level : batterySensor ?? null;
-  const fanSpeeds = Array.isArray(a.fan_speed_list) ? (a.fan_speed_list as unknown[]).filter((v): v is string => typeof v === 'string') : [];
+  // Potência: do próprio aspirador ou, na Xiaomi Home, do seletor “modo” do aparelho
+  const suction = extras?.controls.find((c) => c.key === 'suction');
+  const nativeFans = Array.isArray(a.fan_speed_list) ? (a.fan_speed_list as unknown[]).filter((v): v is string => typeof v === 'string') : [];
+  const fanSpeeds = nativeFans.length ? nativeFans : (suction?.options ?? []).map((o) => o.value);
+  const locateExtra = extras?.controls.some((c) => c.key === 'locate') ?? false;
   const error = typeof a.error === 'string' && a.error ? a.error : null;
   return {
     status: phase === 'docked' && rawBattery !== null && rawBattery < 100 ? 'Carregando na base' : PHASE_LABEL[phase],
     phase,
     battery: rawBattery === null ? null : Math.max(0, Math.min(100, Math.round(rawBattery))),
-    fanSpeed: typeof a.fan_speed === 'string' ? a.fan_speed : null,
+    fanSpeed: typeof a.fan_speed === 'string' ? a.fan_speed : typeof suction?.value === 'string' ? suction.value : null,
     fanSpeeds,
     can: {
       pause: !feat || (feat & VF.PAUSE) > 0,
       stop: !feat || (feat & VF.STOP) > 0,
-      locate: (feat & VF.LOCATE) > 0,
-      fanSpeed: (feat & VF.FAN_SPEED) > 0 && fanSpeeds.length > 0,
+      locate: (feat & VF.LOCATE) > 0 || locateExtra,
+      fanSpeed: ((feat & VF.FAN_SPEED) > 0 && nativeFans.length > 0) || !!suction,
       returnHome: !feat || (feat & VF.RETURN_HOME) > 0,
     },
     error,
+    photo,
+    extras,
   };
 }
 
@@ -71,18 +77,21 @@ export function supportsBrightness(state: HaState): boolean {
 
 export function toDeviceDto(
   state: HaState,
-  meta: { aiAllowed: boolean; aliases: string[]; hidden: boolean; customName?: string | null; battery?: number | null },
+  meta: { aiAllowed: boolean; aliases: string[]; hidden: boolean; customName?: string | null; battery?: number | null; extras?: VacuumExtras | null; photo?: number | null },
 ): DeviceDto {
   const domain = domainOf(state.entity_id);
   const available = !['unavailable', 'unknown'].includes(state.state);
   const controllable = CONTROLLABLE_DOMAINS.has(domain);
   const isOn = controllable ? (domain === 'climate' ? state.state !== 'off' : domain === 'vacuum' ? VACUUM_ON.has(state.state) : state.state === 'on') : null;
   const raw = state.attributes.brightness;
+  const haName = (state.attributes.friendly_name as string | undefined) ?? state.entity_id;
+  // A Xiaomi Home às vezes repete o nome do aparelho (“Rita Rita”)
+  const cleanName = haName.replace(/^(.+?)\s+\1$/i, '$1');
   return {
     entityId: state.entity_id,
     domain,
-    name: meta.customName || ((state.attributes.friendly_name as string | undefined) ?? state.entity_id),
-    originalName: (state.attributes.friendly_name as string | undefined) ?? state.entity_id,
+    name: meta.customName || cleanName,
+    originalName: cleanName,
     renamed: Boolean(meta.customName),
     category: categorize(state),
     state: state.state,
@@ -97,6 +106,6 @@ export function toDeviceDto(
     aliases: meta.aliases,
     hidden: meta.hidden,
     lastChanged: state.last_changed ?? null,
-    vacuum: domain === 'vacuum' ? vacuumInfo(state, meta.battery) : null,
+    vacuum: domain === 'vacuum' ? vacuumInfo(state, meta.battery, meta.extras ?? null, meta.photo ?? null) : null,
   };
 }

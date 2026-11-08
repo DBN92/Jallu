@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { create } from 'zustand';
 import type { DeviceDto, VacuumInfo } from '@luna/shared';
 import { fanLabel } from './VacuumCard';
+import { robotPhotoUrl } from './RobotImage';
 
 type Mode = 'start' | 'end';
 interface Show {
@@ -10,6 +11,8 @@ interface Show {
   name: string;
   battery: number | null;
   fan: string | null;
+  /** Foto do próprio robô, se o usuário enviou */
+  photo: string | null;
 }
 
 /** Fases que contam como “estava parado” (sair delas para limpando = começou). Pausado → limpando é só continuar. */
@@ -44,7 +47,7 @@ export const useVacuumShow = create<ShowState>((set, get) => ({
     if (now === 'cleaning' && IDLE_PHASES.has(prev)) mode = 'start';
     else if (now === 'docked' && WORKING_PHASES.has(prev)) mode = 'end';
     if (!mode) return;
-    const show: Show = { id: ++seq, mode, name: d.name, battery: d.vacuum.battery, fan: d.vacuum.fanSpeed };
+    const show: Show = { id: ++seq, mode, name: d.name, battery: d.vacuum.battery, fan: d.vacuum.fanSpeed, photo: robotPhotoUrl(d) };
     set((s) => ({ queue: [...s.queue.filter((q) => !(q.name === show.name && q.mode === show.mode)), show].slice(-3) }));
   },
   done: () => set((s) => ({ queue: s.queue.slice(1) })),
@@ -54,7 +57,7 @@ const DURATION: Record<Mode, number> = { start: 4.6, end: 5.0 };
 const NS = 'http://www.w3.org/2000/svg';
 
 /** Monta a cena (piso, base, trilha, sujeira, robô) e devolve a função que desenha o instante t. */
-function buildScene(svg: SVGSVGElement, a1: string, a2: string) {
+function buildScene(svg: SVGSVGElement, a1: string, a2: string, photo: string | null) {
   const el = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>, parent: Element) => {
     const e = document.createElementNS(NS, tag);
     for (const k in attrs) e.setAttribute(k, String(attrs[k]));
@@ -68,7 +71,7 @@ function buildScene(svg: SVGSVGElement, a1: string, a2: string) {
    <radialGradient id="va-glow"><stop offset="0" stop-color="${a1}" stop-opacity=".55"/><stop offset="1" stop-color="${a1}" stop-opacity="0"/></radialGradient>
    <radialGradient id="va-green"><stop offset="0" stop-color="#34d399" stop-opacity=".6"/><stop offset="1" stop-color="#34d399" stop-opacity="0"/></radialGradient>
    <pattern id="va-floor" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#151827"/><path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,.045)"/></pattern>
-   <clipPath id="va-room"><rect x="14" y="14" width="332" height="222" rx="22"/></clipPath></defs>`;
+   <clipPath id="va-room"><rect x="14" y="14" width="332" height="222" rx="22"/></clipPath><clipPath id="va-photo"><circle r="30"/></clipPath></defs>`;
   el('rect', { x: 14, y: 14, width: 332, height: 222, rx: 22, fill: 'url(#va-floor)', stroke: 'rgba(255,255,255,.06)' }, svg);
   const room = el('g', { 'clip-path': 'url(#va-room)' }, svg);
   const shine = el('rect', { x: 14, y: 14, width: 332, height: 222, fill: 'url(#va-acc)', opacity: 0 }, room);
@@ -121,6 +124,12 @@ function buildScene(svg: SVGSVGElement, a1: string, a2: string) {
   el('rect', { x: -7.5, y: 10, width: 6, height: 3.4, rx: 1.7, fill: '#c7ccd6' }, robot);
   el('rect', { x: 1.5, y: 10, width: 6, height: 3.4, rx: 1.7, fill: '#c7ccd6' }, robot);
   const led = el('circle', { cx: 0, cy: 18, r: 1.6, fill: '#34d399' }, robot);
+  // Foto do próprio robô por cima do desenho (gira junto, como o robô de verdade)
+  if (photo) {
+    const img = el('image', { href: photo, x: -30, y: -30, width: 60, height: 60, 'clip-path': 'url(#va-photo)', preserveAspectRatio: 'xMidYMid slice' }, robot);
+    robot.appendChild(img);
+    el('circle', { r: 30, fill: 'none', stroke: 'rgba(255,255,255,.35)', 'stroke-width': 1 }, robot);
+  }
 
   const cl = (x: number) => Math.max(0, Math.min(1, x));
   const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -205,7 +214,7 @@ export function VacuumCelebration({ tv = false }: { tv?: boolean }) {
   useEffect(() => {
     if (!show || !svgRef.current) return;
     const css = getComputedStyle(document.documentElement);
-    const draw = buildScene(svgRef.current, css.getPropertyValue('--accent-1').trim() || '#22d3ee', css.getPropertyValue('--accent-2').trim() || '#8b5cf6');
+    const draw = buildScene(svgRef.current, css.getPropertyValue('--accent-1').trim() || '#22d3ee', css.getPropertyValue('--accent-2').trim() || '#8b5cf6', show.photo);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const D = DURATION[show.mode];
     const t0 = performance.now();

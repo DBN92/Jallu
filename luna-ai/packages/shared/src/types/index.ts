@@ -67,6 +67,47 @@ export interface VacuumInfo {
   can: { pause: boolean; stop: boolean; locate: boolean; fanSpeed: boolean; returnHome: boolean };
   /** Mensagem de erro do robô, se houver */
   error: string | null;
+  /** Foto enviada pelo usuário (versão para evitar cache), ou null para usar o desenho */
+  photo: number | null;
+  /** Opções extras que a integração do robô oferece (ex.: Xiaomi Home) */
+  extras: VacuumExtras | null;
+}
+
+export interface VacuumOption {
+  value: string;
+  label: string;
+}
+
+/** Controle extra do robô. id = entity_id da entidade acessória (validado no servidor). */
+export interface VacuumControl {
+  id: string;
+  /** suction | water | carpet | resume | child_lock | dnd | mop_wash | dry_start | dry_stop | dust | locate | reset_main_brush | reset_side_brush | reset_filter | reset_mop */
+  key: string;
+  label: string;
+  kind: 'choice' | 'toggle' | 'action';
+  value?: string | boolean | null;
+  options?: VacuumOption[];
+  hint?: string;
+}
+
+export interface VacuumConsumable {
+  key: 'main_brush' | 'side_brush' | 'filter' | 'mop';
+  label: string;
+  percent: number;
+  hoursLeft: number | null;
+  /** id do controle de zerar a contagem, se houver */
+  resetId: string | null;
+}
+
+export interface VacuumExtras {
+  controls: VacuumControl[];
+  consumables: VacuumConsumable[];
+  stats: { lastArea: number | null; lastMinutes: number | null; totalArea: number | null; totalCount: number | null; totalMinutes: number | null };
+  /** Pano secando: minutos restantes */
+  dryingMinutes: number | null;
+  charging: string | null;
+  /** Agendamentos feitos no app do fabricante, em texto (ex.: “07:00 todos os dias”) */
+  schedules: string[];
 }
 
 export interface ActionResult {

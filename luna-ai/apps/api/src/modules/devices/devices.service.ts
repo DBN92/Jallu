@@ -7,6 +7,10 @@ import type { HomeAssistantRestClient } from '../../integrations/home-assistant/
 import type { HaState, HaStateChangedEvent } from '../../integrations/home-assistant/types';
 import type { ActionLogService } from './action-log.service';
 import { CONTROLLABLE_DOMAINS, SUPPORTED_DOMAINS, domainOf, toDeviceDto } from './categorize';
+import { buildExtras, parseCompanion } from './vacuum-extras';
+
+/** Entidades do robô que mudam o tempo todo e não aparecem na DIA (mapa, logs…): não geram atualização. */
+const NOISY_COMPANIONS = new Set(['map_data', 'object_name', 'robot_time', 'result_code', 'clean_log_filename', 'voice_change_state', 'clean_extend_data', 'remote_state', 'clean_start_time', 'relocation_status']);
 
 /** Quem está pedindo a ação. Ações vindas da IA exigem dispositivo autorizado para IA. */
 export interface Actor {
@@ -46,6 +50,15 @@ export class DevicesService extends EventEmitter {
   private companionStates = new Map<string, HaState>();
   /** aspirador → sensor de bateria do mesmo aparelho */
   private batteryOf = new Map<string, string>();
+
+  /** Versão da foto de cada aspirador (enviada pelo usuário). */
+  private photos = new Map<string, number>();
+  setPhoto(entityId: string, version: number | null) {
+    if (version === null) this.photos.delete(entityId);
+    else this.photos.set(entityId, version);
+    const s = this.states.get(entityId);
+    if (s) this.emit('state', this.dto(s));
+  }
 
   setRegistryProvider(fn: () => Promise<Map<string, { deviceId: string | null }>>) {
     this.registryProvider = fn;
@@ -133,7 +146,14 @@ export class DevicesService extends EventEmitter {
 
   private dto(state: HaState): DeviceDto {
     const meta = this.meta.get(state.entity_id) ?? { aiAllowed: false, aliases: [], hidden: false, customName: null };
-    return toDeviceDto(state, domainOf(state.entity_id) === 'vacuum' ? { ...meta, battery: this.vacuumBattery(state) } : meta);
+    if (domainOf(state.entity_id) !== 'vacuum') return toDeviceDto(state, meta);
+    return toDeviceDto(state, { ...meta, battery: this.vacuumBattery(state), extras: buildExtras(state.entity_id, this.companionsOf(state.entity_id)), photo: this.photos.get(state.entity_id) ?? null });
+  }
+
+  private companionsOf(vacuumId: string): HaState[] {
+    const out: HaState[] = [];
+    for (const [id, owner] of this.companions) if (owner === vacuumId) { const st = this.companionStates.get(id); if (st) out.push(st); }
+    return out;
   }
 
   /**
@@ -186,7 +206,9 @@ export class DevicesService extends EventEmitter {
     if (owner) {
       if (evt.new_state) this.companionStates.set(evt.entity_id, evt.new_state);
       const vacuum = this.states.get(owner);
-      if (vacuum && this.batteryOf.get(owner) === evt.entity_id) this.emit('state', this.dto(vacuum));
+      const parsed = evt.new_state ? parseCompanion(evt.new_state, owner.split('.')[1]!) : null;
+      const noisy = domainOf(evt.entity_id) === 'event' || (parsed !== null && NOISY_COMPANIONS.has(parsed.name));
+      if (vacuum && !noisy && evt.old_state?.state !== evt.new_state?.state) this.emit('state', this.dto(vacuum));
       return;
     }
     if (!(SUPPORTED_DOMAINS as readonly string[]).includes(domainOf(evt.entity_id))) return;
@@ -283,6 +305,11 @@ export class DevicesService extends EventEmitter {
         data.fan_speed = wanted;
       }
       if (command === 'locate' && !info.can.locate) throw badRequest(`${before.name} não tem a função de apitar para ser encontrado.`);
+      // Xiaomi Home: localizar e potência vêm de entidades acessórias quando o aspirador não tem o recurso
+      const feat = Number(this.states.get(entityId)?.attributes.supported_features ?? 0);
+      const extra = (key: string) => info.extras?.controls.find((c) => c.key === key);
+      if (command === 'locate' && !(feat & 512) && extra('locate')) return this.pressExtra(before, extra('locate')!.id, undefined, actor, tool);
+      if (command === 'set_fan_speed' && !(feat & 32) && extra('suction')) return this.pressExtra(before, extra('suction')!.id, data.fan_speed as string, actor, tool);
       if (command === 'pause' && !info.can.pause) command = 'stop';
       if (command === 'return_to_base' && info.phase === 'docked') {
         await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: entityId, args: {}, success: true, detail: 'já estava na base' });
@@ -303,6 +330,54 @@ export class DevicesService extends EventEmitter {
       await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: entityId, args: data, success: false, detail: (err as Error).message });
       throw err;
     }
+  }
+
+  /**
+   * Controles extras do robô (lavar pano, sucção, não perturbe…). Só aceita os controles que a
+   * própria DIA listou para este aspirador — nada de chamar serviço arbitrário do Home Assistant.
+   */
+  async vacuumExtra(entityId: string, controlId: string, value: string | boolean | undefined, actor: Actor): Promise<DeviceDto> {
+    if (domainOf(entityId) !== 'vacuum') throw badRequest('Este comando é só para aspiradores robôs.');
+    try {
+      const before = await this.authorize(entityId, actor);
+      return await this.pressExtra(before, controlId, value, actor, 'vacuum_extra');
+    } catch (err) {
+      await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'vacuum_extra', target: entityId, args: { controlId, value }, success: false, detail: (err as Error).message });
+      throw err;
+    }
+  }
+
+  private async pressExtra(vacuum: DeviceDto, controlId: string, value: string | boolean | undefined, actor: Actor, tool: string): Promise<DeviceDto> {
+    const control = vacuum.vacuum?.extras?.controls.find((c) => c.id === controlId);
+    if (!control) throw badRequest('Opção não disponível para este robô.');
+    const domain = domainOf(control.id);
+    const raw = this.companionStates.get(control.id);
+    if (control.kind === 'action') {
+      await this.ha.callService('button', 'press', { entity_id: control.id });
+    } else if (control.kind === 'choice') {
+      const option = control.options?.find((o) => normalize(o.value) === normalize(String(value ?? '')) || normalize(o.label) === normalize(String(value ?? '')));
+      if (!option) throw badRequest(`Opção inválida. Opções: ${(control.options ?? []).map((o) => o.label).join(', ')}.`);
+      await this.ha.callService('select', 'select_option', { entity_id: control.id, option: option.value });
+    } else {
+      if (typeof value !== 'boolean') throw badRequest('Informe ligado ou desligado.');
+      if (domain === 'select') {
+        const opts = (raw?.attributes.options as string[] | undefined) ?? ['Open', 'Close'];
+        const option = opts.find((o) => (value ? /^open$/i : /^close$/i).test(o))!;
+        await this.ha.callService('select', 'select_option', { entity_id: control.id, option });
+      } else {
+        await this.ha.callService('switch', value ? 'turn_on' : 'turn_off', { entity_id: control.id });
+      }
+    }
+    // Lê de volta a entidade acessória para devolver o estado novo
+    try {
+      this.companionStates.set(control.id, await this.ha.getState(control.id));
+    } catch {
+      /* o tempo real atualiza depois */
+    }
+    await this.logs.log({ userId: actor.userId, source: actor.source, tool, target: vacuum.entityId, args: { control: control.key, value }, success: true, detail: control.label });
+    const after = this.dto(this.states.get(vacuum.entityId)!);
+    this.emit('state', after);
+    return after;
   }
 
   turnOn(entityId: string, actor: Actor) {

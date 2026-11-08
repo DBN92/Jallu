@@ -15,6 +15,10 @@ interface DevicesState {
   brightness: (entityId: string, value: number) => Promise<void>;
   /** Comando para aspirador robô. Retorna a mensagem de erro (ou null se deu certo). */
   vacuum: (entityId: string, command: VacuumCommand, fanSpeed?: string) => Promise<string | null>;
+  /** Controle extra do robô (lavar pano, sucção…). Retorna a mensagem de erro ou null. */
+  vacuumExtra: (entityId: string, id: string, value?: string | boolean) => Promise<string | null>;
+  /** Envia (ou remove, com null) a foto do robô. Retorna a mensagem de erro ou null. */
+  vacuumPhoto: (entityId: string, photo: Blob | null) => Promise<string | null>;
   /** Retorna a mensagem de erro (ou null se deu certo). */
   update: (entityId: string, patch: { aiAllowed?: boolean; aliases?: string[]; hidden?: boolean; name?: string | null }) => Promise<string | null>;
 }
@@ -76,6 +80,29 @@ export const useDevices = create<DevicesState>((set, get) => ({
       return errorMessage(err);
     } finally {
       set((s) => ({ busy: { ...s.busy, [entityId]: false } }));
+    }
+  },
+  vacuumExtra: async (entityId, id, value) => {
+    set((s) => ({ busy: { ...s.busy, [`${entityId}:${id}`]: true } }));
+    try {
+      get().upsert(await api<DeviceDto>(`/api/devices/${entityId}/vacuum/extra`, { body: { id, value } }));
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    } finally {
+      set((s) => ({ busy: { ...s.busy, [`${entityId}:${id}`]: false } }));
+    }
+  },
+  vacuumPhoto: async (entityId, photo) => {
+    try {
+      if (photo) {
+        const form = new FormData();
+        form.append('photo', photo, 'robo.jpg');
+        get().upsert(await api<DeviceDto>(`/api/devices/${entityId}/photo`, { method: 'POST', form }));
+      } else get().upsert(await api<DeviceDto>(`/api/devices/${entityId}/photo`, { method: 'DELETE' }));
+      return null;
+    } catch (err) {
+      return errorMessage(err);
     }
   },
   update: async (entityId, patch) => {

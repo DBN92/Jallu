@@ -5,6 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import helmet from '@fastify/helmet';
 import multipart from '@fastify/multipart';
+import { VacuumPhotos } from './modules/devices/vacuum-photos';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
@@ -98,6 +99,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const frame = deps.watchFrame ??
     (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
   const dataDir = env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.';
+  const vacuumPhotos = new VacuumPhotos(dataDir, devices);
+  void vacuumPhotos.init();
   const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
   chat.setCameras(cameras);
   chat.setWatches(watches);
@@ -113,7 +116,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;

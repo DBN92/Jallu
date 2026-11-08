@@ -36,6 +36,12 @@ export const vacuumCommandSchema = z.object({
   fanSpeed: z.string().min(1).max(60).optional(),
 });
 
+/** Controle extra do robô: apertar (ação), escolher opção ou ligar/desligar. */
+export const vacuumExtraSchema = z.object({
+  id: z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/),
+  value: z.union([z.string().min(1).max(60), z.boolean()]).optional(),
+});
+
 export const brightnessSchema = z.object({
   /** Brilho em porcentagem (0–100). */
   brightness: z.number().int().min(0).max(100),

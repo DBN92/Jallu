@@ -86,6 +86,23 @@ Depois disso, confira em **Ferramentas de desenvolvedor → Estados** se existe 
 O que mostrar no cartão depende do que o robô informa ao Home Assistant: bateria, potência e se ele sabe apitar.
 A bateria também é lida do sensor separado que as integrações novas criam, como `sensor.<robô>_battery`.
 
+## Tela completa do robô e foto
+
+Toque no robô no cartão da tela inicial ou em **Mais opções**. A tela completa mostra o que o robô oferece.
+Na Xiaomi Home, ela pode ter:
+- **Sucção**;
+- **Água do pano**;
+- **Estação**: lavar pano, secar ou parar a secagem, esvaziar o pó;
+- **Manutenção**: escovas, filtro e pano. Toque em uma peça para zerar a contagem depois de trocá-la;
+- **Limpezas**: área e quantidade, além dos agendamentos feitos no app do fabricante;
+- **Ajustes**: não perturbe, reforço no tapete, continuar de onde parou e trava infantil.
+
+A DIA só aciona controles dessa lista. Ela nunca chama outros comandos do robô.
+
+**Foto do robô:** toque na imagem do robô, ou em ⋯ → *Usar foto do meu robô*, e escolha uma foto. A foto de cima fica melhor.
+A DIA recorta e reduz a foto no celular e guarda no servidor, em `data/device-photos`.
+A foto aparece no cartão, na tela completa e na animação de começo e fim. Para voltar ao desenho, use ⋯ → *Remover foto*.
+
 ## 3. Comandos de voz
 
 | Você diz | A DIA faz |
