@@ -1,13 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
-// Chave de assinatura do APK: fica FORA do repositório. Informe no build:
+// Chave de assinatura do APK: keystore/ (repositório privado) ou, se preferir, pelas variáveis
 //   DIA_KEYSTORE=/caminho/dia.jks  DIA_KEYSTORE_PASSWORD=…  (alias “dia”)
 // Atualizações só instalam por cima se forem assinadas com a mesma chave.
-val keystorePath: String? = System.getenv("DIA_KEYSTORE")
-val keystorePassword: String? = System.getenv("DIA_KEYSTORE_PASSWORD")
+val repoKeystore = rootProject.file("keystore/keystore.properties")
+val repoPassword: String? = if (repoKeystore.exists()) Properties().apply { repoKeystore.inputStream().use { load(it) } }.getProperty("storePassword") else null
+val keystorePath: String? = System.getenv("DIA_KEYSTORE") ?: rootProject.file("keystore/dia.jks").takeIf { it.exists() }?.path
+val keystorePassword: String? = System.getenv("DIA_KEYSTORE_PASSWORD") ?: repoPassword
 
 android {
     namespace = "br.dia.app"

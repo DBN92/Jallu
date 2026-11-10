@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Compila o app Android da DIA e coloca o APK em apps/android/dist (servido pela DIA).
-# Precisa do SDK do Android (ANDROID_HOME) e da chave de assinatura FORA do repositório:
-#   DIA_KEYSTORE=/caminho/dia.jks DIA_KEYSTORE_PASSWORD=… bash scripts/android-build.sh
-# Use sempre a mesma chave: com outra, a versão nova não instala por cima da antiga.
+# Precisa do SDK do Android (ANDROID_HOME). A chave de assinatura vem de apps/android/keystore
+# (ou das variáveis DIA_KEYSTORE / DIA_KEYSTORE_PASSWORD). Use sempre a mesma chave: com outra,
+# a versão nova não instala por cima da antiga.
 set -euo pipefail
 cd "$(dirname "$0")/../apps/android"
 : "${ANDROID_HOME:?Defina ANDROID_HOME (SDK do Android)}"
-: "${DIA_KEYSTORE:?Defina DIA_KEYSTORE (arquivo .jks)}"
-: "${DIA_KEYSTORE_PASSWORD:?Defina DIA_KEYSTORE_PASSWORD}"
+[ -n "${DIA_KEYSTORE:-}" ] || [ -f keystore/dia.jks ] || { echo "Falta a chave de assinatura (apps/android/keystore/dia.jks)"; exit 1; }
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew --no-daemon -q testReleaseUnitTest assembleRelease
 APK=app/build/outputs/apk/release/app-release.apk
