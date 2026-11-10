@@ -15,6 +15,7 @@ import { ThemePicker } from '../components/ThemePicker';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
+import { AndroidSettings } from '../components/AndroidSettings';
 import { useWakeLog } from '../hooks/useWakeWord';
 
 /** O que o “Oi, Dia” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
@@ -426,6 +427,10 @@ export default function SettingsPage() {
 
       <Section title="Siri e Atalhos (iPhone)">
         <SiriSettings />
+      </Section>
+
+      <Section title="App Android (tablet)">
+        <AndroidSettings />
       </Section>
 
       {isAdmin && (

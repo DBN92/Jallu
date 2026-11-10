@@ -1,0 +1,12 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+# A chave de assinatura nunca vai para o repositório
+*.jks
+*.keystore
+
+# O APK pronto é servido pela DIA (Configurações › App Android)
+!dist/

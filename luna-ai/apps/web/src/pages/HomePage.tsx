@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, SendHorizontal, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { LunaOrb } from '../components/LunaOrb';
 import { ModernHome } from '../components/ModernHome';
+import { nativeApp, type NativeVoiceEvent } from '../lib/native';
 import { isModern } from '../lib/theme';
 import { MessageList } from '../components/Messages';
 import { CamerasPanel, EnvPanel, HomeRingPanel, LocationPanel, RoutinePanel, StatusPanel, VoicePanel } from '../components/HudPanels';
@@ -64,14 +65,16 @@ export default function HomePage() {
   // Android/computador: o Chrome escuta "DIA" de graça; a sessão da OpenAI só abre quando chamada.
   // iPhone: sem escuta contínua no navegador, o filtro de "DIA" roda dentro da sessão em tempo real.
   const wakeEnabled = Boolean(settings?.wakeWordEnabled);
-  const localWake = wakeWordSupport('basic').supported;
+  // Dentro do app Android (tablet) o próprio app escuta o “Oi, Dia” e reconhece a fala
+  const inApp = nativeApp() !== null;
+  const localWake = !inApp && wakeWordSupport('basic').supported;
 
   const realtime = useRealtimeVoice({
     onState: setState,
     onTranscript: (role, t) => appendLocal({ role, content: t, channel: 'voice', provider: role === 'assistant' ? 'openai-realtime' : null }),
     conversationId,
     onConversation: setConversationId,
-    wakeWord: wakeEnabled && voiceMode === 'realtime' && !localWake,
+    wakeWord: !inApp && wakeEnabled && voiceMode === 'realtime' && !localWake,
     autoStopMs: wakeEnabled && localWake ? 30_000 : undefined,
     onAudioBlocked: () => setNeedsTap(true),
   });
@@ -200,6 +203,7 @@ export default function HomePage() {
   };
 
   const onMic = async () => {
+    if (inApp) return nativeApp()!.listen();
     if (state === 'speaking') {
       tts.cancel();
       if (realtime.active) realtime.interrupt();
@@ -247,11 +251,26 @@ export default function HomePage() {
 
   const { w: vw, h: vh } = useViewport();
 
+  // Conversa pelo “Oi, Dia” do app Android: mostra a tela de voz (nuvem) com o que ouviu e respondeu
+  const [nativeVoice, setNativeVoice] = useState<{ heard: string; reply: string } | null>(null);
+  useEffect(() => {
+    if (!inApp) return;
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<NativeVoiceEvent>).detail;
+      if (d.state !== 'idle') setVoiceFocus(true);
+      setNativeVoice({ heard: d.heard, reply: d.reply });
+      setState(d.state === 'error' ? 'idle' : d.state);
+    };
+    window.addEventListener('dia-native-voice', on);
+    return () => window.removeEventListener('dia-native-voice', on);
+  }, [inApp, setState]);
+
   const voiceBusy = realtime.active || realtime.connecting || sr.listening || recorder.recording || tts.speaking || (voiceFocus && state !== 'idle' && state !== 'error');
   useEffect(() => {
     if (!voiceFocus || voiceBusy) return;
     const t = setTimeout(() => {
       setVoiceFocus(false);
+      setTimeout(() => setNativeVoice(null), 500);
       // Conversa por voz encerrada: a tela volta limpa (o histórico fica salvo em “Conversas”)
       setTimeout(() => useAssistant.getState().state === 'idle' && newConversation(), 500);
     }, 2500);
@@ -512,8 +531,8 @@ export default function HomePage() {
         open={voiceFocus}
         state={state}
         levelRef={realtime.levelRef}
-        heard={state === 'listening' ? interim : lastHeard}
-        reply={state === 'listening' ? '' : lastReply}
+        heard={nativeVoice ? nativeVoice.heard : state === 'listening' ? interim : lastHeard}
+        reply={nativeVoice ? (state === 'listening' ? '' : nativeVoice.reply) : state === 'listening' ? '' : lastReply}
         hint={voiceMode === 'realtime' ? 'Pode falar — estou ouvindo.' : 'Fale agora…'}
         onOrb={() => void onMic()}
         onClose={() => {
@@ -524,6 +543,7 @@ export default function HomePage() {
           setInterim('');
           setState('idle');
           setVoiceFocus(false);
+          setNativeVoice(null);
           setTimeout(newConversation, 500);
         }}
       />

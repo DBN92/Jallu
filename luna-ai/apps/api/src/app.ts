@@ -43,6 +43,7 @@ import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
 import { watchRoutes } from './modules/watches/watches.routes';
 import { siriRoutes } from './modules/siri/siri.routes';
+import { androidRoutes } from './modules/android/android.routes';
 import { SiriService } from './modules/siri/siri.service';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
@@ -211,6 +212,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(gestureRoutes);
   await app.register(watchRoutes);
   await app.register(siriRoutes);
+  await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel
