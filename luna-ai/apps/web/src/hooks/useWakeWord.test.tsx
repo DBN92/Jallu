@@ -43,7 +43,7 @@ class FakeRecognition {
   }
   say(text: string, ...others: string[]) {
     const alts = [text, ...others].map((t) => ({ transcript: t }));
-    this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal: true, length: alts.length, ...alts } } });
+    this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { ...alts, isFinal: true, length: alts.length } } });
   }
 }
 const active = () => FakeRecognition.instances.filter((r) => r.running);
