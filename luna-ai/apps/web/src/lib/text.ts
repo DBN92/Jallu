@@ -40,6 +40,28 @@ export function splitWake(text: string): string | null {
   return m ? (m[1] ?? m[2] ?? '').trim() : null;
 }
 
+/**
+ * Como o reconhecimento costuma ouvir o “Oi, Dia” quando a pessoa fala baixo ou de longe
+ * (“oi tia”, “boi dia”, “oi lia”, “o dia”…). Só vale quando a frase é SÓ isso — curta e
+ * sozinha —, para não acordar a DIA no meio de uma conversa (“o dia está lindo”).
+ */
+const WAKE_LOOKALIKE = /^(?:oi+|hoi|boi|ói|o|ola|ei|hey|e ai|oie)\s*,?\s*(?:dia+|tia|lia|bia|dya|di a|de a|gia|jia|d'ia)$/;
+
+/**
+ * Procura o “Oi, Dia” em todos os palpites do reconhecimento (o Android devolve vários).
+ * Devolve o pedido que veio junto (pode ser vazio) ou null.
+ */
+export function matchWake(alternatives: string[]): string | null {
+  for (const alt of alternatives) {
+    const rest = splitWake(alt);
+    if (rest !== null) return rest;
+  }
+  for (const alt of alternatives) {
+    if (WAKE_LOOKALIKE.test(normalize(alt).replace(/[.,!?]/g, '').trim())) return '';
+  }
+  return null;
+}
+
 /** Sinal sonoro curto ao ouvir “Oi, Dia” (como o anel de uma assistente). */
 export function playChime() {
   try {

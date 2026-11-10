@@ -24,3 +24,20 @@ describe('pedido junto com o chamado', () => {
     expect(splitWake('bom dia')).toBeNull();
   });
 });
+
+describe('“Oi, Dia” falado baixo (vários palpites)', () => {
+  it('acha a frase em qualquer palpite e em variações curtas', async () => {
+    const { matchWake } = await import('./text');
+    expect(matchWake(['oi tia acende a luz', 'oi dia acende a luz'])).toBe('acende a luz');
+    expect(matchWake(['boi dia'])).toBe('');
+    expect(matchWake(['oi tia'])).toBe('');
+    expect(matchWake(['Oi, Lia.'])).toBe('');
+    expect(matchWake(['o dia'])).toBe('');
+    expect(matchWake(['oi dia'])).toBe('');
+  });
+  it('não acorda em frases do dia a dia', async () => {
+    const { matchWake } = await import('./text');
+    for (const t of ['bom dia', 'o dia está lindo', 'que dia é hoje', 'oi tia tudo bem com você', 'dia', 'oi', 'falei com a tia ontem'])
+      expect(matchWake([t]), t).toBeNull();
+  });
+});

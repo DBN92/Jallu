@@ -15,6 +15,27 @@ import { ThemePicker } from '../components/ThemePicker';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
+import { useWakeLog } from '../hooks/useWakeWord';
+
+/** O que o “Oi, Dia” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
+function WakeHeard() {
+  const heard = useWakeLog((s) => s.heard);
+  if (!heard.length) return null;
+  return (
+    <div className="mt-4 rounded-xl bg-white/5 p-3 text-sm">
+      <p className="mb-2 text-xs text-white/50">O que o “Oi, Dia” ouviu por último (✅ = acordou a DIA)</p>
+      <ul className="space-y-1">
+        {heard.map((h) => (
+          <li key={h.at} className="flex justify-between gap-3">
+            <span className="min-w-0 truncate">“{h.text}”</span>
+            <span className="shrink-0">{h.woke ? '✅' : '—'}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-white/40">Se aparecer algo parecido com “oi dia” sem ✅, me conte o que saiu: dá para ensinar a DIA a aceitar.</p>
+    </div>
+  );
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -400,6 +421,7 @@ export default function SettingsPage() {
           }>
           <Toggle label="Oi, Dia" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
+        <WakeHeard />
       </Section>
 
       <Section title="Siri e Atalhos (iPhone)">

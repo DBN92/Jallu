@@ -41,8 +41,9 @@ class FakeRecognition {
     this.running = false;
     setTimeout(() => this.onend?.(), 10);
   }
-  say(text: string) {
-    this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal: true, length: 1, 0: { transcript: text } } } });
+  say(text: string, ...others: string[]) {
+    const alts = [text, ...others].map((t) => ({ transcript: t }));
+    this.onresult?.({ resultIndex: 0, results: { length: 1, 0: { isFinal: true, length: alts.length, ...alts } } });
   }
 }
 const active = () => FakeRecognition.instances.filter((r) => r.running);
@@ -89,6 +90,17 @@ describe('“Oi, Dia” contínuo', () => {
       advance(400);
     }
     expect(cmds).toEqual(['pedido 1', 'pedido 2', 'pedido 3']);
+  });
+
+  it('acorda quando o “oi dia” está no segundo palpite e registra o que ouviu', async () => {
+    const { useWakeLog } = await import('./useWakeWord');
+    const cmds: string[] = [];
+    render(false, (t) => cmds.push(t));
+    advance(300);
+    act(() => active()[0]!.say('oi tia acende a luz', 'oi dia acende a luz'));
+    expect(cmds).toEqual(['acende a luz']);
+    expect(useWakeLog.getState().heard[0]).toMatchObject({ text: 'oi tia acende a luz', woke: true });
+    expect(FakeRecognition.instances.at(-1)!.maxAlternatives).toBe(5);
   });
 
   it('volta a escutar sozinho mesmo se o pedido não ocupar a DIA', () => {

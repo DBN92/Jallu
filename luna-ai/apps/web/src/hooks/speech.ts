@@ -3,7 +3,7 @@ import { toSpeech } from '../lib/speechText';
 
 /* Tipos mínimos da Web Speech API (não inclusos no lib DOM) */
 interface SRAlternative { transcript: string }
-interface SRResult { isFinal: boolean; 0: SRAlternative; length: number }
+interface SRResult { isFinal: boolean; 0: SRAlternative; length: number; [i: number]: SRAlternative | undefined }
 interface SREvent { resultIndex: number; results: { length: number; [i: number]: SRResult } }
 interface SRErrorEvent { error: string }
 export interface SpeechRecognitionLike {

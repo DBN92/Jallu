@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { normalize, splitWake } from '../lib/text';
+import { matchWake } from '../lib/text';
+import { create } from 'zustand';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { getRecognitionCtor, isIOS, type SpeechRecognitionLike } from './speech';
 
@@ -16,6 +17,12 @@ export function wakeWordSupport(mode: 'basic' | 'realtime' = 'basic'): { support
   if (isIOS()) return { supported: false, reason: 'No modo básico o iPhone não permite escuta contínua. Use a voz em tempo real.' };
   return { supported: true, reason: null };
 }
+
+/** Últimas frases que o “Oi, Dia” ouviu (para conferir em Configurações › Voz). */
+export const useWakeLog = create<{ heard: { text: string; woke: boolean; at: number }[]; push: (text: string, woke: boolean) => void }>((set) => ({
+  heard: [],
+  push: (text, woke) => set((s) => ({ heard: [{ text, woke, at: Date.now() }, ...s.heard].slice(0, 8) })),
+}));
 
 export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text: string) => void) {
   const [armed, setArmed] = useState(false);
@@ -50,6 +57,8 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
       rec.lang = 'pt-BR';
       rec.continuous = true;
       rec.interimResults = false;
+      // Vários palpites por frase: falando baixo, o certo muitas vezes não é o primeiro
+      rec.maxAlternatives = 5;
       rec.onstart = () => {
         lastActivity = Date.now();
         failures = 0;
@@ -60,8 +69,10 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const r = e.results[i]!;
           if (!r.isFinal) continue;
-          const text = normalize(r[0].transcript);
-          const rest = splitWake(text);
+          const alts: string[] = [];
+          for (let k = 0; k < (r.length || 1); k++) if (r[k]?.transcript) alts.push(r[k]!.transcript);
+          const rest = matchWake(alts);
+          useWakeLog.getState().push(alts[0] ?? '', rest !== null);
           if (rest !== null) {
             // Libera o microfone ANTES de ouvir o pedido/falar. A pausa curta evita
             // reabrir o microfone; se o pedido não ocupar a DIA, a escuta volta sozinha.
