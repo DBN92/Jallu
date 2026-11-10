@@ -4,10 +4,8 @@ app/build/
 local.properties
 *.iml
 .idea/
-# Chave de assinatura: só entra no repositório com aprovação explícita do dono
-*.jks
+# Chave de assinatura: só a de keystore/ (repositório privado, aprovado pelo dono)
 *.keystore
-keystore/
 
 # O APK pronto é servido pela DIA (Configurações › App Android)
 !dist/
