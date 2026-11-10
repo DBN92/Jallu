@@ -21,6 +21,22 @@ model User {
   conversations Conversation[]
   memories      Memory[]
   preferences   Preference[]
+  apiTokens     ApiToken[]
+}
+
+/// Token para atalhos (Siri / app Atalhos). Só permite mandar comandos para a DIA.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  /// Primeiros caracteres, só para o usuário reconhecer o token na lista
+  prefix     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
 }
 
 model Session {

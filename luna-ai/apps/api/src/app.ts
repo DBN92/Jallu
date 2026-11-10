@@ -42,6 +42,8 @@ import { GesturesService } from './modules/gestures/gestures.service';
 import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
 import { watchRoutes } from './modules/watches/watches.routes';
+import { siriRoutes } from './modules/siri/siri.routes';
+import { SiriService } from './modules/siri/siri.service';
 import { healthRoutes } from './routes/health.routes';
 import { RealtimeHub, wsRoutes } from './routes/ws.routes';
 
@@ -116,7 +118,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -208,6 +210,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(cameraRoutes);
   await app.register(gestureRoutes);
   await app.register(watchRoutes);
+  await app.register(siriRoutes);
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel

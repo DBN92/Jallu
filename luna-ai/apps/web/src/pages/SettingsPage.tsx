@@ -14,6 +14,7 @@ import { DirectCameras } from '../components/DirectCameras';
 import { ThemePicker } from '../components/ThemePicker';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
+import { SiriSettings } from '../components/SiriSettings';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -399,6 +400,10 @@ export default function SettingsPage() {
           }>
           <Toggle label="Oi, Dia" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
+      </Section>
+
+      <Section title="Siri e Atalhos (iPhone)">
+        <SiriSettings />
       </Section>
 
       {isAdmin && (
