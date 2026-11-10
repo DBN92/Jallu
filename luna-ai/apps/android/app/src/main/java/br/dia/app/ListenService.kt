@@ -82,6 +82,17 @@ class ListenService : Service() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
+        // Rede de segurança: erro numa rotina de fundo (escuta, voz, download) não fecha o app —
+        // só para a escuta e mostra o motivo no aviso. Erros na tela principal seguem o normal.
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { t, e ->
+            if (t === Looper.getMainLooper().thread) previous?.uncaughtException(t, e)
+            else {
+                listening = false
+                status = "erro: ${e.message ?: e.javaClass.simpleName}"
+                main.post { update("A escuta parou por um erro. Abra a DIA para tentar de novo.") }
+            }
+        }
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do “Oi, Dia”", NotificationManager.IMPORTANCE_LOW))
         try {
@@ -129,24 +140,29 @@ class ListenService : Service() {
 
     private fun loadModel() {
         thread(name = "dia-modelo") {
-            try {
-                val progressWatcher = thread {
-                    while (model == null) {
-                        val p = ModelManager.progress
-                        if (p >= 0) { status = "baixando $p%"; main.post { update("Baixando o modelo de voz… $p%") } }
-                        Thread.sleep(700)
-                    }
+            // Mostra o progresso do download no aviso. Termina sozinha (sem interrupt): antes, a
+            // interrupção durante o sleep derrubava o app inteiro logo depois de baixar o modelo.
+            val loading = java.util.concurrent.atomic.AtomicBoolean(true)
+            thread(name = "dia-progresso") {
+                while (loading.get()) {
+                    val p = ModelManager.progress
+                    if (p >= 0) { status = "baixando $p%"; main.post { update("Baixando o modelo de voz… $p%") } }
+                    try { Thread.sleep(700) } catch (_: InterruptedException) { break }
                 }
+            }
+            try {
                 val dir = ModelManager.ensure(this)
                 model = Model(dir.absolutePath)
-                progressWatcher.interrupt()
                 main.post {
                     startListening()
                     if (pendingManual) { pendingManual = false; beginCommand() }
                 }
-            } catch (e: Exception) {
-                status = "erro: ${e.message}"
-                main.post { update(e.message ?: "Não consegui preparar a escuta.") }
+            } catch (e: Throwable) {
+                // Throwable: inclui falha ao carregar a biblioteca de voz no aparelho (não pode fechar o app)
+                status = "erro: ${e.message ?: e.javaClass.simpleName}"
+                main.post { update("Não consegui preparar a escuta: ${e.message ?: e.javaClass.simpleName}") }
+            } finally {
+                loading.set(false)
             }
         }
     }
@@ -186,7 +202,7 @@ class ListenService : Service() {
                         }
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 status = "erro no microfone"
             } finally {
                 try { record?.stop() } catch (_: Exception) {}
@@ -278,7 +294,7 @@ class ListenService : Service() {
                     else JSONObject(rec.partialResult).optString("partial").takeIf { it.isNotBlank() }?.let { WebEvents.voice("listening", heard = it) }
                 }
                 if (text.isBlank()) text = JSONObject(rec.finalResult).optString("text")
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
             } finally {
                 try { record?.stop() } catch (_: Exception) {}
                 record?.release()

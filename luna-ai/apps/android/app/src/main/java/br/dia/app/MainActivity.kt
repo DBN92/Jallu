@@ -154,7 +154,12 @@ class MainActivity : Activity() {
                 }
             }
         })
-        setContentView(box)
+        // Rolável: com o tablet deitado e o teclado aberto, nada fica escondido
+        setContentView(android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(Color.parseColor("#06070D"))
+            addView(box)
+        })
     }
 
     // ---------------- A DIA no WebView ----------------
