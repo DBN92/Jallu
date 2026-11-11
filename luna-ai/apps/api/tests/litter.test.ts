@@ -136,4 +136,25 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
     expect(parseIntent('aspira a casa')).toMatchObject({ type: 'vacuum' });
     expect(parseIntent('quando eu sair limpa a caixa de areia')).toBeNull();
   });
+
+  it('conta UMA visita quando o contador pula e não repete o mesmo aviso; apaga duplicadas antigas', async () => {
+    await withBox();
+    await ctx.inject('GET', '/api/litter');
+    advance(10 * 60_000);
+    await change(`sensor.${P}_cat_weight`, '4.5');
+    advance(60_000);
+    await change(`sensor.${P}_excretion_times_day`, '3.0'); // 0 → 3 de uma vez (como na caixa real)
+    advance(20_000);
+    await change(`sensor.${P}_excretion_times_day`, '4.0'); // mesmo aviso repetido logo depois
+    let b = (await ctx.inject('GET', `/api/litter/${P}`)).json;
+    expect(b.recent).toHaveLength(1);
+    expect(b.week.at(-1).count).toBe(1); // não usa o contador da caixa (que diz 4)
+    expect(b.cats.find((c: any) => c.weightKg === 4.5).todayVisits).toBe(1);
+    // Duplicadas gravadas pela versão anterior: mesmo segundo, peso e duração
+    const at = new Date(clock);
+    for (let i = 0; i < 3; i++) await (ctx.app as any).db.litterVisit.create({ data: { boxId: P, at, weightKg: 3.7, durationS: 112 } });
+    expect(await ctx.app.services.litter.removeDuplicates()).toBe(2);
+    b = (await ctx.inject('GET', `/api/litter/${P}`)).json;
+    expect(b.recent).toHaveLength(2);
+  });
 });

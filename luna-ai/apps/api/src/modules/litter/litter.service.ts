@@ -142,10 +142,14 @@ export class LitterService extends EventEmitter {
       if (before !== null && after !== null && after > before) {
         const weight = num(this.entity(prefix, 'sensor', 'weight').state);
         const duration = num(this.entity(prefix, 'sensor', 'duration').state);
-        for (let i = 0; i < Math.min(5, after - before); i++) {
-          await this.db.litterVisit.create({
-            data: { boxId: prefix, at: this.now(), weightKg: weight, durationS: duration === null ? null : Math.round(duration), catId: await this.identify(weight) },
-          });
+        const durationS = duration === null ? null : Math.round(duration);
+        // UMA visita por aviso, mesmo se o contador pular (ex.: 3 → 6): só há um peso e uma
+        // duração, ou seja, um gato. Contar o pulo inteiro duplicava a visita.
+        // E o mesmo aviso repetido logo em seguida (mesmo peso e duração) não conta de novo.
+        const last = await this.db.litterVisit.findFirst({ where: { boxId: prefix }, orderBy: { at: 'desc' } });
+        const repeated = last && this.now().getTime() - last.at.getTime() < 90_000 && last.weightKg === weight && last.durationS === durationS;
+        if (!repeated) {
+          await this.db.litterVisit.create({ data: { boxId: prefix, at: this.now(), weightKg: weight, durationS, catId: await this.identify(weight) } });
         }
       }
     } else if (key === SUFFIX.weight || key === SUFFIX.duration) {
@@ -210,9 +214,9 @@ export class LitterService extends EventEmitter {
       const date = this.day(new Date(now.getTime() - i * 86_400_000));
       week.push({ date, count: visits.filter((v) => this.day(v.at) === date).length });
     }
+    // O contador da própria caixa pula (ex.: 3 → 6 numa visita só): os números da tela usam as
+    // visitas que a Luna registrou, as mesmas da lista por gato, para baterem entre si.
     const sensorToday = num(times.state);
-    // Hoje: o maior entre o que a caixa conta e o que a Luna registrou
-    if (sensorToday !== null) week[6]!.count = Math.max(week[6]!.count, Math.round(sensorToday));
 
     const historyAge = first ? now.getTime() - first.at.getTime() : 0;
     const catDtos: LitterCatDto[] = [];
@@ -337,7 +341,28 @@ export class LitterService extends EventEmitter {
 
   // ---------------- Avisos periódicos ----------------
 
+  /**
+   * Apaga visitas duplicadas gravadas pela versão anterior (mesmo segundo, peso e duração —
+   * vinham de pulos do contador). Mantém a primeira de cada grupo. Devolve quantas apagou.
+   */
+  async removeDuplicates(): Promise<number> {
+    const all = await this.db.litterVisit.findMany({ orderBy: { at: 'asc' } });
+    const seen = new Set<string>();
+    const dup: string[] = [];
+    for (const v of all) {
+      const key = `${v.boxId}|${Math.floor(v.at.getTime() / 1000)}|${v.weightKg}|${v.durationS}`;
+      if (seen.has(key)) dup.push(v.id);
+      else seen.add(key);
+    }
+    if (dup.length) {
+      await this.db.litterVisit.deleteMany({ where: { id: { in: dup } } });
+      this.emit('update', null);
+    }
+    return dup.length;
+  }
+
   start() {
+    void this.removeDuplicates().catch(() => undefined);
     if (this.timer) return;
     const tick = async () => {
       try {

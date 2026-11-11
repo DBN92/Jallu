@@ -21,6 +21,7 @@ const tz = env.TZ || 'America/Sao_Paulo';
 const hora = (d) => new Intl.DateTimeFormat('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(d));
 const horas = Number(process.env.HORAS) || 48;
 const start = new Date(Date.now() - horas * 3600_000).toISOString();
+const end = new Date().toISOString(); // sem o fim, o Home Assistant devolve só 24 h a partir do início
 const ha = env.HA_URL.replace(/\/$/, '');
 const auth = { headers: { Authorization: 'Bearer ' + env.HA_TOKEN } };
 
@@ -32,7 +33,7 @@ const auth = { headers: { Authorization: 'Bearer ' + env.HA_TOKEN } };
   const ids = states.map((s) => s.entity_id).filter((id) => id.split('.')[1].startsWith(prefix + '_'));
 
   // 1) O que a caixa mandou (histórico do Home Assistant)
-  const url = `${ha}/api/history/period/${start}?filter_entity_id=${ids.join(',')}&no_attributes&significant_changes_only=0`;
+  const url = `${ha}/api/history/period/${encodeURIComponent(start)}?filter_entity_id=${ids.join(',')}&end_time=${encodeURIComponent(end)}&no_attributes&significant_changes_only=0`;
   const hist = await (await fetch(url, auth)).json();
   const rows = [];
   for (const serie of hist) for (const s of serie) rows.push([s.last_changed, s.entity_id.split('.')[1].slice(prefix.length + 1), s.state]);
