@@ -229,3 +229,13 @@ html[data-theme='vidro'] .dock-bg {
 html[data-theme='vidro'] .dock-btn.active i { background: rgba(255, 255, 255, 0.22); }
 html[data-theme='vidro'] .dock-btn i svg { color: rgba(255, 255, 255, 0.7); }
 html[data-theme='vidro'] .m-dots button.on i { background: #fff; }
+
+/* Vidro: o menu flutua por cima do conteúdo (que rola por trás do vidro, sem corte reto).
+ * --dock-h vem do Layout; as áreas roláveis (.dock-pad) ganham espaço no fim para nada ficar escondido.
+ * Celular deitado mantém o menu em coluna, como nos outros temas. */
+@media not all and (orientation: landscape) and (max-height: 520px) {
+  html[data-theme='vidro'] nav.dock-nav { margin-top: calc(-1 * var(--dock-h, 0px)); }
+  html[data-theme='vidro'] .dock-pad { padding-bottom: calc(var(--dock-h, 0px) + 12px) !important; }
+}
+html[data-theme='vidro'] .dock-row { padding-left: 14px; padding-right: 14px; }
+html[data-theme='vidro'] .dock-btn i { border-radius: 999px; }

@@ -391,11 +391,11 @@ export function ModernHome(p: ModernHomeProps) {
     );
     return (
       <div className="grid h-full min-h-0 gap-3 px-3 pt-2 pb-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.15fr)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
-        <div className="m-scroll flex min-h-0 flex-col gap-2.5 overflow-y-auto pb-1 [&>*]:shrink-0">
+        <div className="dock-pad m-scroll flex min-h-0 flex-col gap-2.5 overflow-y-auto pb-1 [&>*]:shrink-0">
           {compactHeader}
           {hero}
         </div>
-        <div className="m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
+        <div className="dock-pad m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
           {quick}
           <GarageCard />
           <VacuumCard />
@@ -413,12 +413,12 @@ export function ModernHome(p: ModernHomeProps) {
       <div className="flex h-full min-h-0 flex-col gap-5 px-8 pt-6 pb-3">
         {header}
         <div className="grid min-h-0 flex-1 gap-5" style={{ gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,1.7fr)' }}>
-          <div className="m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
+          <div className="dock-pad m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
             {hero}
             {quick}
             {cameraCard}
           </div>
-          <div className="m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
+          <div className="dock-pad m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
             {weatherCard}
             <GarageCard />
           <VacuumCard />
@@ -431,7 +431,7 @@ export function ModernHome(p: ModernHomeProps) {
     );
   }
   return (
-    <div className="m-scroll flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-safe pb-4 [&>*]:shrink-0">
+    <div className="dock-pad m-scroll flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-safe pb-4 [&>*]:shrink-0">
       <div className="pt-2">{header}</div>
       {hero}
       {!p.hasChat && (

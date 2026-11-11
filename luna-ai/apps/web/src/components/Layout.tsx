@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Bot, Brain, Cctv, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
 import { useAssistant } from '../stores/assistant';
@@ -48,8 +49,19 @@ export function Layout() {
 
 /** Barra de navegação em “dock” com botões redondos iluminados. */
 function Dock() {
+  const ref = useRef<HTMLElement>(null);
+  // Altura do menu numa variável CSS: no tema Vidro o conteúdo rola por trás dele
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const set = () => document.documentElement.style.setProperty('--dock-h', `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <nav className="dock-nav relative z-40 shrink-0 px-1 pt-2 pb-safe md:pb-3">
+    <nav ref={ref} className="dock-nav relative z-40 shrink-0 px-1 pt-2 pb-safe md:pb-3">
       <div className="dock-bg" aria-hidden="true" />
       <div className="dock-row relative mx-auto flex max-w-[760px] items-start justify-around gap-1 px-2 md:justify-center md:gap-5">
         {NAV.map(({ to, label, icon: Icon, end }) => (
@@ -67,5 +79,5 @@ function Dock() {
 
 /** Contêiner rolável padrão para as páginas secundárias. */
 export function Page({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 pt-safe pb-6 md:px-8 md:pb-6 md:pt-8">{children}</div>;
+  return <div className="dock-pad mx-auto w-full max-w-4xl flex-1 overflow-y-auto px-4 pt-safe pb-6 md:px-8 md:pb-6 md:pt-8">{children}</div>;
 }
