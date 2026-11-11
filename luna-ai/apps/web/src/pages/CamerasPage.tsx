@@ -34,7 +34,10 @@ export default function CamerasPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {cameras.map((c) => (
             <button key={c.entityId} onClick={() => open([c.entityId, ...cameras.filter((x) => x.entityId !== c.entityId).map((x) => x.entityId)])} className="hud-panel p-1.5 text-left">
-              <CameraThumb camera={c} className="aspect-video w-full" everyMs={6000} />
+              {/* Vídeo com os cantos acompanhando o cartão (senão as quinas saem pela borda arredondada) */}
+              <div className="overflow-hidden" style={{ borderRadius: 'max(0px, calc(var(--card-r, 0px) - 6px))' }}>
+                <CameraThumb camera={c} className="aspect-video w-full" everyMs={6000} />
+              </div>
               <div className="flex items-center justify-between px-2 py-2">
                 <span className="font-hud truncate font-semibold text-cyan-50">{c.name}</span>
                 <span className="hud-label flex items-center gap-1 text-[9px]">
