@@ -1,5 +1,5 @@
 /** Temas visuais da Luna. “hud” é o visual original; os outros são os modernos (cantos arredondados). */
-export type ThemeId = 'hud' | 'aurora' | 'neon' | 'grafite';
+export type ThemeId = 'hud' | 'aurora' | 'neon' | 'grafite' | 'vidro';
 
 export interface ThemeInfo {
   id: ThemeId;
@@ -14,6 +14,7 @@ export interface ThemeInfo {
 
 export const THEMES: ThemeInfo[] = [
   { id: 'aurora', name: 'Aurora', desc: 'Vidro escuro com brilhos ciano e violeta', fonts: 'Unbounded + Sora', swatch: ['#06070d', '#1a1d2b', '#22d3ee', '#8b5cf6'], meta: '#06070d' },
+  { id: 'vidro', name: 'Vidro', desc: 'Cartões de vidro translúcido sobre fundo colorido', fonts: 'Inter', swatch: ['#2a1f6b', '#8f86c9', '#64d2ff', '#bf5af2'], meta: '#120e2b' },
   { id: 'neon', name: 'Neon', desc: 'Preto profundo com ciano e verde-lima', fonts: 'Michroma + Space Grotesk', swatch: ['#05060a', '#0c0f16', '#00f0ff', '#b6ff3b'], meta: '#05060a' },
   { id: 'grafite', name: 'Grafite', desc: 'Cinza aconchegante com verde-água e âmbar', fonts: 'Exo 2 + Sora', swatch: ['#0d1016', '#1a1f28', '#2dd4bf', '#f59e0b'], meta: '#0d1016' },
   { id: 'hud', name: 'HUD clássico', desc: 'O visual original: painéis holográficos em 3D', fonts: 'Orbitron + Rajdhani', swatch: ['#02060b', '#08202f', '#00e5ff', '#3aa8ff'], meta: '#07080c' },

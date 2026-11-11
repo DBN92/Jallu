@@ -147,7 +147,8 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
       )}
       {p.banner}
-      <div className="flex items-center gap-4">
+      {/* Espaço em volta para o anel do microfone não ser cortado pela borda do cartão */}
+      <div className="flex items-center gap-4 py-2.5 pl-2.5">
         <button onClick={p.onMic} className={`m-mic ${p.micActive ? 'live' : ''}`} aria-label={p.micActive ? 'Parar' : 'Falar com a Luna'}>
           {p.micIcon}
         </button>
