@@ -15,10 +15,10 @@ describe('Siri e app Atalhos', () => {
     const created = await ctx.inject('POST', '/api/siri/tokens', { name: 'iPhone do Daniel' });
     expect(created.status).toBe(200);
     const token = created.json.token as string;
-    expect(token).toMatch(/^dia_[A-Za-z0-9_-]{40,}$/);
+    expect(token).toMatch(/^luna_[A-Za-z0-9_-]{40,}$/);
     // O token não volta mais: a lista só mostra o começo
     const list = (await ctx.inject('GET', '/api/siri/tokens')).json;
-    expect(list).toEqual([expect.objectContaining({ name: 'iPhone do Daniel', prefix: token.slice(0, 10), lastUsedAt: null })]);
+    expect(list).toEqual([expect.objectContaining({ name: 'iPhone do Daniel', prefix: token.slice(0, 11), lastUsedAt: null })]);
     expect(JSON.stringify(list)).not.toContain(token);
 
     const r = await ask(token, { texto: 'acende a luz da sala' });
@@ -57,6 +57,6 @@ describe('Siri e app Atalhos', () => {
   });
 
   it('limpa o texto para a fala', () => {
-    expect(forSpeech('**Pronto!** A DIA acendeu 💡 a `luz`.\n\n- Sala')).toBe('Pronto! A Dia acendeu a luz. - Sala');
+    expect(forSpeech('**Pronto!** A LUNA acendeu 💡 a `luz`.\n\n- Sala')).toBe('Pronto! A Luna acendeu a luz. - Sala');
   });
 });

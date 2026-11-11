@@ -7,12 +7,12 @@ import android.content.SharedPreferences
 class Prefs(ctx: Context) {
     private val p: SharedPreferences = ctx.getSharedPreferences("dia", Context.MODE_PRIVATE)
 
-    /** Endereço da DIA, ex.: http://192.168.15.6:8787 */
+    /** Endereço da Luna, ex.: http://192.168.15.6:8787 */
     var url: String
         get() = p.getString("url", "") ?: ""
         set(v) = p.edit().putString("url", v.trimEnd('/')).apply()
 
-    /** Token da Siri/Atalhos criado pela própria DIA (só serve para mandar comandos). */
+    /** Token da Siri/Atalhos criado pela própria Luna (só serve para mandar comandos). */
     var token: String
         get() = p.getString("token", "") ?: ""
         set(v) = p.edit().putString("token", v).apply()

@@ -1,9 +1,9 @@
 # Publicação pelo Cloudflare Tunnel
 
-A DIA é um único serviço HTTP (API + PWA + WebSocket) na porta `LUNA_PORT` (padrão **8787**).
+A Luna é um único serviço HTTP (API + PWA + WebSocket) na porta `LUNA_PORT` (padrão **8787**).
 O objetivo é reaproveitar o **túnel que você já tem** — sem criar outro e sem expor portas no roteador.
 
-> ⚠️ Não publique o Home Assistant por causa da DIA. Quem fala com o HA é o backend da DIA, pela rede local.
+> ⚠️ Não publique o Home Assistant por causa da Luna. Quem fala com o HA é o backend da Luna, pela rede local.
 
 ## 1. Descubra como o seu túnel roda
 
@@ -28,11 +28,11 @@ Rode `bash scripts/diagnose.sh` e veja a seção **Cloudflare Tunnel**:
 
 ## 2B. Túnel com config.yml local
 
-Acrescente somente a regra da DIA ao `ingress` (antes do `http_status:404`), conforme
+Acrescente somente a regra da Luna ao `ingress` (antes do `http_status:404`), conforme
 [`infra/cloudflare/config.example.yml`](../infra/cloudflare/config.example.yml), e recarregue o `cloudflared`
 **do jeito que ele já é gerenciado no seu sistema**. Faça backup do arquivo antes.
 
-## 3. Configure a DIA
+## 3. Configure a Luna
 
 No `.env`:
 
@@ -46,7 +46,7 @@ Reinicie: `bash scripts/stop.sh && bash scripts/start.sh` e teste: `bash scripts
 
 ## 4. Proteja com Cloudflare Access (fortemente recomendado)
 
-A DIA já tem login próprio, rate limiting e CSRF, mas o Access adiciona uma barreira **antes** do tráfego chegar à sua casa.
+A Luna já tem login próprio, rate limiting e CSRF, mas o Access adiciona uma barreira **antes** do tráfego chegar à sua casa.
 
 1. **Zero Trust › Access › Applications › Add application › Self-hosted**
 2. **Application domain:** `luna.seudominio.com`

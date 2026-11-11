@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compila o app Android da DIA e coloca o APK em apps/android/dist (servido pela DIA).
+# Compila o app Android da Luna e coloca o APK em apps/android/dist (servido pela Luna).
 # Precisa do SDK do Android (ANDROID_HOME). A chave de assinatura vem de apps/android/keystore
 # (ou das variáveis DIA_KEYSTORE / DIA_KEYSTORE_PASSWORD). Use sempre a mesma chave: com outra,
 # a versão nova não instala por cima da antiga.

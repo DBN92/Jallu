@@ -5,9 +5,9 @@ let ctx: TestCtx;
 afterEach(async () => ctx?.app.close());
 
 describe('conversa e controle da casa', () => {
-  it('“Dia, acenda a luz da sala” liga a lâmpada real e confirma', async () => {
+  it('“Luna, acenda a luz da sala” liga a lâmpada real e confirma', async () => {
     ctx = await makeApp();
-    const r = await chat(ctx, 'DIA, acenda a luz da sala.');
+    const r = await chat(ctx, 'Luna, acenda a luz da sala.');
     expect(r.provider).toBe('luna-nlu');
     expect(r.reply).toBe('Pronto! A luz da Sala está acesa.');
     expect(ctx.ha.states.get('light.luz_da_sala')!.state).toBe('on');
@@ -30,7 +30,7 @@ describe('conversa e controle da casa', () => {
     ctx = await makeApp();
     await ctx.inject('PATCH', '/api/devices/light.luz_da_varanda', { aiAllowed: false });
     ctx.ha.states.get('light.luz_da_varanda')!.state = 'on';
-    await chat(ctx, 'DIA, apague todas as luzes');
+    await chat(ctx, 'Luna, apague todas as luzes');
     expect(ctx.ha.states.get('light.luz_do_quarto_hospedes')!.state).toBe('off');
     expect(ctx.ha.states.get('light.luz_da_varanda')!.state).toBe('on');
     expect(ctx.ha.calls.every((c) => c.domain === 'light')).toBe(true);

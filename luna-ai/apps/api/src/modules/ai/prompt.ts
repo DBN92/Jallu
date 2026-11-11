@@ -1,5 +1,5 @@
 /**
- * Instruções FIXAS da DIA. Nada que mude a cada minuto entra aqui: o Ollama reaproveita o
+ * Instruções FIXAS da Luna. Nada que mude a cada minuto entra aqui: o Ollama reaproveita o
  * processamento de um início de conversa idêntico (cache), o que poupa vários segundos por
  * pergunta em CPUs antigas. Data/hora vão numa mensagem curta no fim (ver nowMessage).
  */
@@ -12,7 +12,7 @@ export function buildSystemPrompt(opts: {
   /** true só para a voz em tempo real (nuvem). Para o modelo local o estilo vai em nowMessage. */
   voice?: boolean;
 }): string {
-  return `Você é a Dia (seu nome se escreve DIA e se pronuncia “dia”), assistente pessoal com identidade feminina, natural, inteligente, simpática e objetiva.
+  return `Você é a Luna, assistente pessoal com identidade feminina, natural, inteligente, simpática e objetiva.
 Fale SEMPRE em português brasileiro, de forma calorosa e natural, como uma pessoa conversando.
 ${opts.voice === true ? 'Esta conversa é por voz: responda em 1 a 3 frases curtas e naturais, sem markdown, listas, emojis ou símbolos. Escreva números e unidades como se fala.' : 'Seja concisa. Quando a mensagem vier por voz, responda em 1 a 3 frases curtas, sem markdown, listas, emojis ou símbolos.'}
 Pense no que o usuário realmente quer antes de responder. Se não souber algo, diga que não sabe em vez de inventar.

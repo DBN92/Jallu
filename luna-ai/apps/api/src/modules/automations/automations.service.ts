@@ -75,8 +75,8 @@ export class AutomationsService {
     for (const e of entityIds) byDomain.set(domainOf(e), [...(byDomain.get(domainOf(e)) ?? []), e]);
     return {
       id,
-      alias: `DIA: ${draft.name}`,
-      description: `${description} (criada pela DIA)`,
+      alias: `Luna: ${draft.name}`,
+      description: `${description} (criada pela Luna)`,
       mode: 'single',
       trigger: [trigger],
       condition: [],

@@ -21,7 +21,7 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
   );
 }
 
-/** Configurações › App Android: baixar o app (fora dele) ou ajustar o “Oi, Dia” do tablet (dentro dele). */
+/** Configurações › App Android: baixar o app (fora dele) ou ajustar o chamado “Luna” do tablet (dentro dele). */
 export function AndroidSettings() {
   const bridge = nativeApp();
   const [apk, setApk] = useState<ApkInfo | null>(null);
@@ -43,23 +43,23 @@ export function AndroidSettings() {
     return (
       <div className="space-y-3 text-sm">
         <p className="text-white/60">
-          Para um <b>tablet Android</b> fixo (na tomada): o app da DIA escuta o <b>“Oi, Dia” com a tela desligada</b>, entende fala normal (sem gritar), abre sozinho quando o tablet liga e mantém a tela acesa. O áudio do “Oi,
-          Dia” é analisado no próprio tablet — nada é enviado até você chamar a DIA.
+          Para um <b>tablet Android</b> fixo (na tomada): o app escuta o <b>chamado “Luna” com a tela desligada</b>, abre sozinho quando o tablet liga e mantém a tela acesa. O áudio é analisado no
+          próprio tablet — nada é enviado até você chamar a Luna.
         </p>
         {apk ? (
           <>
             <a href="/api/android/apk" className="inline-block">
-              <Button type="button">Baixar o app DIA ({(apk.size / 1024 / 1024).toFixed(1)} MB · versão {apk.versionName})</Button>
+              <Button type="button">Baixar o app Luna ({(apk.size / 1024 / 1024).toFixed(1)} MB · versão {apk.versionName})</Button>
             </a>
             <ol className="list-decimal space-y-1 pl-5 text-white/60">
               <li>Abra esta página <b>no próprio tablet</b> e toque em “Baixar”.</li>
               <li>Abra o arquivo baixado. Se o Android pedir, permita “instalar apps desta fonte”.</li>
-              <li>No app, informe o endereço da DIA (o mesmo do navegador) e entre com seu usuário.</li>
-              <li>Volte aqui em Configurações › App Android e ligue o “Oi, Dia”.</li>
+              <li>No app, informe o endereço da Luna (o mesmo do navegador) e entre com seu usuário.</li>
+              <li>Volte aqui em Configurações › App Android e ligue o chamado “Luna”.</li>
             </ol>
           </>
         ) : (
-          <p className="text-white/40">O app Android ainda não está disponível neste servidor. Atualize a DIA.</p>
+          <p className="text-white/40">O app Android ainda não está disponível neste servidor. Atualize a Luna.</p>
         )}
       </div>
     );
@@ -99,7 +99,7 @@ export function AndroidSettings() {
         </div>
       )}
       <Row
-        title="“Oi, Dia” com a tela desligada"
+        title="Chamado “Luna” com a tela desligada"
         hint={
           !st?.wake
             ? 'Desligado'
@@ -110,14 +110,14 @@ export function AndroidSettings() {
               : listening.startsWith('erro')
                 ? listening
                 : listening === 'ouvindo'
-                  ? 'Ouvindo — diga “Oi, Dia”'
+                  ? 'Ouvindo — diga “Luna”'
                   : listening || 'Ligando…'
         }
       >
-        <Toggle label="Oi, Dia no tablet" checked={!!st?.wake} disabled={busy} onChange={(v) => void enableWake(v)} />
+        <Toggle label="Luna no tablet" checked={!!st?.wake} disabled={busy} onChange={(v) => void enableWake(v)} />
       </Row>
       {st?.wake && !st.mic && (
-        <Row title="Microfone sem permissão" hint="Permita o microfone para o app da DIA.">
+        <Row title="Microfone sem permissão" hint="Permita o microfone para o app da Luna.">
           <Button type="button" variant="ghost" onClick={() => bridge.openAppSettings()}>
             Permitir
           </Button>
@@ -156,13 +156,13 @@ export function AndroidSettings() {
           </Button>
         )}
       </Row>
-      <Row title="Tela sempre acesa (com a DIA aberta)">
+      <Row title="Tela sempre acesa (com a Luna aberta)">
         <Toggle label="Tela sempre acesa" checked={!!st?.keepOn} onChange={(v) => { bridge.setKeepOn(v); setTimeout(() => setSt(nativeStatus()), 200); }} />
       </Row>
       <p className="mt-3 text-xs text-white/50">
-        Dica: na cortina de atalhos do Android (deslize de cima duas vezes → editar), adicione o botão <b>“Falar com a DIA”</b>. App versão {st?.version ?? bridge.version()}.{' '}
+        Dica: na cortina de atalhos do Android (deslize de cima duas vezes → editar), adicione o botão <b>“Falar com a Luna”</b>. App versão {st?.version ?? bridge.version()}.{' '}
         <button className="underline" onClick={() => bridge.changeServer()}>
-          Trocar endereço da DIA
+          Trocar endereço da Luna
         </button>
       </p>
     </div>

@@ -1,4 +1,4 @@
-/** Ponte com o app Android da DIA (tablet). Só existe quando a DIA está aberta dentro do app. */
+/** Ponte com o app Android da Luna (tablet). Só existe quando a Luna está aberta dentro do app. */
 export interface NativeStatus {
   version: string;
   versionCode: number;

@@ -18,20 +18,20 @@ export interface ApiTokenDto {
   lastUsedAt: string | null;
 }
 
-/** Texto para a Siri falar: sem markdown, emojis nem símbolos; “DIA” lido como “Dia”. */
+/** Texto para a Siri falar: sem markdown, emojis nem símbolos; “LUNA” lido como “Luna”. */
 export function forSpeech(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/[*_#`>~|]/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '')
-    .replace(/\bDIA\b/g, 'Dia')
+    .replace(/\bLUNA\b/g, 'Luna')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /**
- * Siri e app Atalhos: tokens próprios (não a senha) que SÓ servem para mandar comandos à DIA.
+ * Siri e app Atalhos: tokens próprios (não a senha) que SÓ servem para mandar comandos à Luna.
  * O token aparece uma única vez; no banco fica apenas o hash. Pode ser revogado a qualquer momento.
  */
 export class SiriService {
@@ -52,8 +52,8 @@ export class SiriService {
 
   async create(userId: string, name: string): Promise<{ token: string; info: ApiTokenDto }> {
     if ((await this.db.apiToken.count({ where: { userId } })) >= MAX_TOKENS) throw badRequest(`Limite de ${MAX_TOKENS} tokens. Apague um que não usa mais.`);
-    const token = `dia_${randomBytes(32).toString('base64url')}`;
-    const row = await this.db.apiToken.create({ data: { userId, name: name.trim().slice(0, 40) || 'iPhone', tokenHash: sha256(token), prefix: token.slice(0, 10) } });
+    const token = `luna_${randomBytes(32).toString('base64url')}`;
+    const row = await this.db.apiToken.create({ data: { userId, name: name.trim().slice(0, 40) || 'iPhone', tokenHash: sha256(token), prefix: token.slice(0, 11) } });
     return { token, info: this.dto(row) };
   }
 
@@ -62,17 +62,18 @@ export class SiriService {
     if (!r.count) throw notFound('Token não encontrado.');
   }
 
-  /** Valida o cabeçalho “Authorization: Bearer dia_…”. */
+  /** Valida o cabeçalho “Authorization: Bearer luna_…”. */
   async resolve(header: string | undefined): Promise<PublicUser> {
-    const token = header?.match(/^Bearer\s+(dia_[A-Za-z0-9_-]{20,})$/)?.[1];
-    if (!token) throw new AppError(401, 'Token da DIA ausente ou inválido. Crie um em Configurações › Siri e Atalhos.', 'unauthenticated');
+    // “luna_” (atual) ou “dia_” (tokens criados antes da volta do nome — continuam valendo)
+    const token = header?.match(/^Bearer\s+((?:luna|dia)_[A-Za-z0-9_-]{20,})$/)?.[1];
+    if (!token) throw new AppError(401, 'Token da Luna ausente ou inválido. Crie um em Configurações › Siri e Atalhos.', 'unauthenticated');
     const row = await this.db.apiToken.findUnique({ where: { tokenHash: sha256(token) }, include: { user: true } });
     if (!row) throw new AppError(401, 'Este token foi apagado ou não existe. Crie outro em Configurações › Siri e Atalhos.', 'unauthenticated');
     await this.db.apiToken.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
     return toPublicUser(row.user);
   }
 
-  /** Recebe o que foi dito para a Siri e devolve a resposta da DIA pronta para ser falada. */
+  /** Recebe o que foi dito para a Siri e devolve a resposta da Luna pronta para ser falada. */
   async ask(user: PublicUser, text: string): Promise<string> {
     const message = text.trim();
     if (!message) return 'Não ouvi nada. Tente de novo.';

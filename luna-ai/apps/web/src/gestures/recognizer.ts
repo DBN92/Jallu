@@ -9,7 +9,7 @@ type Recognizer = {
 let loading: Promise<Recognizer> | null = null;
 
 /**
- * Carrega o reconhecedor de gestos (MediaPipe, WebAssembly) a partir do próprio servidor da DIA.
+ * Carrega o reconhecedor de gestos (MediaPipe, WebAssembly) a partir do próprio servidor da Luna.
  * Roda 100% no aparelho; nenhuma imagem sai dele para analisar.
  */
 export function loadRecognizer(): Promise<Recognizer> {
@@ -33,7 +33,7 @@ export function loadRecognizer(): Promise<Recognizer> {
       }
     })().catch((err) => {
       loading = null;
-      throw new Error(`Não consegui carregar o reconhecedor de gestos (${(err as Error).message}). Rode a atualização da DIA no servidor.`);
+      throw new Error(`Não consegui carregar o reconhecedor de gestos (${(err as Error).message}). Rode a atualização da Luna no servidor.`);
     });
   }
   return loading;
@@ -164,7 +164,7 @@ export async function detect(img: Source): Promise<Detection> {
   return { ...d, via: d.box ? 'full' : null };
 }
 
-/** Quadro de uma câmera da DIA (área de gestos recortada no servidor). */
+/** Quadro de uma câmera da Luna (área de gestos recortada no servidor). */
 export async function cameraFrame(entityId: string, signal?: AbortSignal): Promise<ImageBitmap> {
   const res = await fetch(`/api/cameras/${entityId}/gesture-frame?t=${Date.now()}`, { credentials: 'same-origin', signal });
   if (!res.ok) throw new Error(`câmera sem imagem (HTTP ${res.status})`);

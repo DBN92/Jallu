@@ -17,7 +17,7 @@ const KINDS: { kind: WatchDto['kind']; label: string; hint: string }[] = [
 
 /**
  * Ajustes › Garagem: vigias por foto de referência. Para cada coisa (carro, portão) o usuário marca
- * a área na imagem e salva fotos dos dois estados; a DIA compara a cada 15 s.
+ * a área na imagem e salva fotos dos dois estados; a Luna compara a cada 15 s.
  */
 export function GarageSettings() {
   const { watches, load } = useWatches();
@@ -46,7 +46,7 @@ export function GarageSettings() {
   return (
     <div className="space-y-3 px-4 py-3" id="garagem">
       <p className="text-xs text-white/45">
-        A DIA olha a câmera a cada 15 s e compara com fotos que você salva aqui (ex.: garagem <b>com</b> e <b>sem</b> carro). Avisa quando muda, guarda a foto do momento por 7 dias e pode acender a luz à
+        A Luna olha a câmera a cada 15 s e compara com fotos que você salva aqui (ex.: garagem <b>com</b> e <b>sem</b> carro). Avisa quando muda, guarda a foto do momento por 7 dias e pode acender a luz à
         noite. Tudo processado no seu servidor.
       </p>
       <label className="block text-xs text-white/50">
@@ -188,7 +188,7 @@ function WatchEditor({ watch: w, onChange }: { watch: WatchDto; onChange: () => 
           ))}
         </div>
       )}
-      {!motion && <p className="text-[11px] text-white/40">Dica: salve fotos de dia e de noite de cada estado (2 a 3 de cada) para a DIA acertar sempre.</p>}
+      {!motion && <p className="text-[11px] text-white/40">Dica: salve fotos de dia e de noite de cada estado (2 a 3 de cada) para a Luna acertar sempre.</p>}
 
       {(w.kind === 'car' || w.kind === 'gate') && (
         <div className="grid grid-cols-2 gap-2">

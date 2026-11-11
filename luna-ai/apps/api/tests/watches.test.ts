@@ -30,7 +30,7 @@ afterEach(async () => ctx?.app.close());
 
 describe('garagem: perguntas por voz', () => {
   it('entende perguntas sobre carro, portão e garagem sem confundir com comandos', () => {
-    expect(parseIntent('Oi, Dia, o carro está na garagem?')).toMatchObject({ type: 'watch_status' });
+    expect(parseIntent('Luna, o carro está na garagem?')).toMatchObject({ type: 'watch_status' });
     expect(parseIntent('o portão está aberto?')).toMatchObject({ type: 'watch_status' });
     expect(parseIntent('como está a garagem')).toMatchObject({ type: 'watch_status' });
     expect(parseIntent('acende a luz da garagem')).toMatchObject({ type: 'device_power' });

@@ -38,7 +38,7 @@ export async function api<T = unknown>(path: string, opts: { method?: string; bo
     });
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err;
-    throw new ApiError(0, navigator.onLine ? 'Não consegui falar com o servidor da DIA.' : 'Você está sem internet.', 'offline');
+    throw new ApiError(0, navigator.onLine ? 'Não consegui falar com o servidor da Luna.' : 'Você está sem internet.', 'offline');
   }
   const ct = res.headers.get('content-type') ?? '';
   const data = ct.includes('json') ? await res.json() : await res.text();
@@ -66,7 +66,7 @@ export async function apiStream(path: string, body: unknown, onEvent: (event: st
       body: JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, navigator.onLine ? 'Não consegui falar com o servidor da DIA.' : 'Você está sem internet.', 'offline');
+    throw new ApiError(0, navigator.onLine ? 'Não consegui falar com o servidor da Luna.' : 'Você está sem internet.', 'offline');
   }
   if (!res.ok || !res.body) {
     const data = (await res.json().catch(() => ({}))) as { message?: string; error?: string };

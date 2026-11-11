@@ -63,7 +63,7 @@ describe('API de dispositivos (Home Assistant)', () => {
   });
 });
 
-describe('renomear dispositivos na DIA', () => {
+describe('renomear dispositivos na Luna', () => {
   it('renomeia, entende o novo nome e o original, e volta ao original', async () => {
     ctx = await makeApp();
     const r = await ctx.inject('PATCH', '/api/devices/light.luz_do_quarto_casal', { name: 'Abajur da cama' });
@@ -86,7 +86,7 @@ describe('renomear dispositivos na DIA', () => {
     expect(reset.json).toMatchObject({ name: 'Luz do Quarto Casal', renamed: false });
   });
 
-  it('impede nomes repetidos (a DIA não saberia qual usar)', async () => {
+  it('impede nomes repetidos (a Luna não saberia qual usar)', async () => {
     ctx = await makeApp();
     const r = await ctx.inject('PATCH', '/api/devices/light.luz_da_varanda', { name: 'luz da sala' });
     expect(r.status).toBe(400);
@@ -109,7 +109,7 @@ describe('mesmo aparelho com duas entidades no HA (ex.: tomada usada como luz)',
     ctx.ha.states.set('switch.cabeceira', { entity_id: 'switch.cabeceira', state: 'off', attributes: { friendly_name: 'Cabeceira Socket 1', device_class: 'outlet' } });
   };
 
-  it('o nome dado na DIA vence: “ligar a cabeceira” não pergunta qual', async () => {
+  it('o nome dado na Luna vence: “ligar a cabeceira” não pergunta qual', async () => {
     ctx = await makeApp();
     addCabeceira(ctx);
     await ctx.inject('GET', '/api/devices?all=1');
@@ -120,7 +120,7 @@ describe('mesmo aparelho com duas entidades no HA (ex.: tomada usada como luz)',
     expect(ctx.ha.states.get('light.cabeceira_socket_1')!.state).toBe('on');
   });
 
-  it('entidades ocultas pelo Home Assistant não aparecem nem confundem a DIA', async () => {
+  it('entidades ocultas pelo Home Assistant não aparecem nem confundem a Luna', async () => {
     ctx = await makeApp();
     addCabeceira(ctx);
     ctx.app.services.devices.setHiddenProvider(async () => new Set(['switch.cabeceira']));

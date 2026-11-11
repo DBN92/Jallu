@@ -41,7 +41,7 @@ function CatEditor({ cat, onDone }: { cat: LitterCatDto; onDone: () => void }) {
   return (
     <div className="mt-2 space-y-2 rounded-2xl bg-white/5 p-3 text-sm">
       <input className="w-full rounded-xl bg-black/30 px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} placeholder="Nome" aria-label="Nome do gato" />
-      <input className="w-full rounded-xl bg-black/30 px-3 py-2" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="Peso em kg (vazio = a DIA aprende sozinha)" aria-label="Peso do gato" />
+      <input className="w-full rounded-xl bg-black/30 px-3 py-2" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="Peso em kg (vazio = a Luna aprende sozinha)" aria-label="Peso do gato" />
       {err && <p className="text-xs text-rose-300">{err}</p>}
       <div className="flex gap-2">
         <button className="m-chip act flex-1 justify-center" onClick={() => void save()}>
@@ -109,7 +109,7 @@ export default function LitterPage() {
               {b.name}
             </p>
             <p className="m-muted mt-1 mb-2 text-[13px] opacity-70">
-              {b.lastVisit ? `Última visita às ${hour(b.lastVisit.at)}${b.lastVisit.weightKg !== null ? ` · ${kg(b.lastVisit.weightKg)}` : ''}${dur(b.lastVisit.durationS) ? ` · ficou ${dur(b.lastVisit.durationS)}` : ''}` : 'Ainda sem visitas registradas pela DIA'}
+              {b.lastVisit ? `Última visita às ${hour(b.lastVisit.at)}${b.lastVisit.weightKg !== null ? ` · ${kg(b.lastVisit.weightKg)}` : ''}${dur(b.lastVisit.durationS) ? ` · ficou ${dur(b.lastVisit.durationS)}` : ''}` : 'Ainda sem visitas registradas pela Luna'}
             </p>
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${b.available ? 'bg-emerald-400/15 text-emerald-100' : 'bg-white/10 text-white/60'}`}>{b.statusLabel}</span>
           </div>
@@ -148,7 +148,7 @@ export default function LitterPage() {
             </div>
             <p className="m-muted mt-2.5 text-[12.5px] opacity-70">
               {!b.historySince
-                ? 'A DIA registra as visitas a partir de agora (o Home Assistant não guarda histórico).'
+                ? 'A Luna registra as visitas a partir de agora (o Home Assistant não guarda histórico).'
                 : avg !== null
                   ? `Média de ${avg} visitas por dia.${b.week[6]!.count > avg * 1.8 && new Date().getHours() >= 12 ? ' Hoje está bem acima do normal — vale observar os gatos.' : ''}`
                   : `Registrando desde ${new Date(b.historySince).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}.`}
@@ -179,7 +179,7 @@ export default function LitterPage() {
                 ⚠️ {c.alert}
               </p>
             ))}
-            <p className="m-muted mt-2.5 text-xs opacity-60">Toque num gato para dar o nome ou acertar o peso. Sem peso informado, a DIA aprende sozinha pelas primeiras visitas.</p>
+            <p className="m-muted mt-2.5 text-xs opacity-60">Toque num gato para dar o nome ou acertar o peso. Sem peso informado, a Luna aprende sozinha pelas primeiras visitas.</p>
           </>,
         )}
 
@@ -237,10 +237,10 @@ export default function LitterPage() {
             {isAdmin && (
               <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-white/10 pt-2.5">
                 <div>
-                  <p className="text-sm">DIA pode controlar pela voz</p>
-                  <p className="m-muted mt-0.5 text-xs opacity-60">“Oi, Dia, limpa a caixa de areia”</p>
+                  <p className="text-sm">Luna pode controlar pela voz</p>
+                  <p className="m-muted mt-0.5 text-xs opacity-60">“Luna, limpa a caixa de areia”</p>
                 </div>
-                <Switch name="DIA pode controlar pela voz" on={b.voiceAllowed} disabled={busy} onChange={async (v) => done(await setVoice(b.id, v), v ? 'Comandos de voz autorizados.' : 'Comandos de voz desligados.')} />
+                <Switch name="Luna pode controlar pela voz" on={b.voiceAllowed} disabled={busy} onChange={async (v) => done(await setVoice(b.id, v), v ? 'Comandos de voz autorizados.' : 'Comandos de voz desligados.')} />
               </div>
             )}
           </>,

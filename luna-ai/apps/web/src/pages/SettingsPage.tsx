@@ -18,13 +18,13 @@ import { SiriSettings } from '../components/SiriSettings';
 import { AndroidSettings } from '../components/AndroidSettings';
 import { useWakeLog } from '../hooks/useWakeWord';
 
-/** O que o “Oi, Dia” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
+/** O que o chamado “Luna” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
 function WakeHeard() {
   const heard = useWakeLog((s) => s.heard);
   if (!heard.length) return null;
   return (
     <div className="mt-4 rounded-xl bg-white/5 p-3 text-sm">
-      <p className="mb-2 text-xs text-white/50">O que o “Oi, Dia” ouviu por último (✅ = acordou a DIA)</p>
+      <p className="mb-2 text-xs text-white/50">O que o chamado “Luna” ouviu por último (✅ = acordou a Luna)</p>
       <ul className="space-y-1">
         {heard.map((h) => (
           <li key={h.at} className="flex justify-between gap-3">
@@ -33,7 +33,7 @@ function WakeHeard() {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-white/40">Se aparecer algo parecido com “oi dia” sem ✅, me conte o que saiu: dá para ensinar a DIA a aceitar.</p>
+      <p className="mt-2 text-xs text-white/40">Se aparecer algo parecido com “oi dia” sem ✅, me conte o que saiu: dá para ensinar a Luna a aceitar.</p>
     </div>
   );
 }
@@ -244,7 +244,7 @@ function Account() {
             <input className={inputClass} placeholder="Usuário" value={nu.username} onChange={(e) => setNu({ ...nu, username: e.target.value })} required minLength={3} autoCapitalize="none" />
             <input type="password" className={inputClass} placeholder="Senha (mín. 8)" value={nu.password} onChange={(e) => setNu({ ...nu, password: e.target.value })} required minLength={8} autoComplete="new-password" />
             <select className={inputClass} value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value })}>
-              <option value="member">Membro (usa a DIA)</option>
+              <option value="member">Membro (usa a Luna)</option>
               <option value="admin">Administrador</option>
             </select>
             <Button type="submit" variant="ghost" className="sm:col-span-2">Adicionar usuário</Button>
@@ -312,7 +312,7 @@ export default function SettingsPage() {
 
       {!isStandalone() && isIOS() && (
         <Banner kind="info">
-          Instale a DIA no iPhone: toque em <Share className="inline h-3.5 w-3.5" /> Compartilhar e depois em “Adicionar à Tela de Início”.
+          Instale a Luna no iPhone: toque em <Share className="inline h-3.5 w-3.5" /> Compartilhar e depois em “Adicionar à Tela de Início”.
         </Banner>
       )}
 
@@ -358,7 +358,7 @@ export default function SettingsPage() {
             {!caps?.realtime && ' Voz em tempo real requer OPENAI_API_KEY no servidor.'}
           </p>
         </div>
-        <Row label="Falar as respostas" hint="No modo básico, a DIA lê as respostas em voz alta.">
+        <Row label="Falar as respostas" hint="No modo básico, a Luna lê as respostas em voz alta.">
           <Toggle label="Falar respostas" checked={settings.autoSpeak} onChange={(v) => void save({ autoSpeak: v })} />
         </Row>
         <div className="space-y-3 px-4 py-3">
@@ -380,7 +380,7 @@ export default function SettingsPage() {
               {isIOS() ? (
                 <p>
                   No iPhone: <b>Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português (Brasil) › Luciana</b> e baixe a versão <b>Premium</b> (ou
-                  “Aprimorada”). Depois feche e reabra a DIA — ela passa a usar essa voz automaticamente.
+                  “Aprimorada”). Depois feche e reabra a Luna — ela passa a usar essa voz automaticamente.
                 </p>
               ) : (
                 <p>
@@ -394,7 +394,7 @@ export default function SettingsPage() {
             Velocidade da fala: {settings.voiceRate.toFixed(1)}x
             <input type="range" min={0.5} max={2} step={0.1} value={settings.voiceRate} onChange={(e) => void save({ voiceRate: Number(e.target.value) })} className="mt-2 w-full" />
           </label>
-          <Button variant="ghost" onClick={() => tts.speak('Olá! Eu sou a Dia, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate })} disabled={!tts.supported}>
+          <Button variant="ghost" onClick={() => tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate })} disabled={!tts.supported}>
             Testar voz
           </Button>
           {caps?.realtime && (
@@ -413,14 +413,14 @@ export default function SettingsPage() {
         <Row label="Transcrição na nuvem" hint="Se o navegador não reconhecer fala (comum em apps instalados no iPhone), o áudio é transcrito pela OpenAI.">
           <Toggle label="Transcrição na nuvem" disabled={!caps?.realtime} checked={settings.allowCloudTranscription} onChange={(v) => void save({ allowCloudTranscription: v })} />
         </Row>
-        <Row label="Palavra de ativação “Oi, Dia”" hint={
+        <Row label="Palavra de ativação “Luna”" hint={
             wake.supported
               ? voiceMode === 'realtime'
-                ? 'Durante a conversa em tempo real, a DIA só responde quando você diz “DIA” (ou logo após ela falar). A tela fica acesa; com o app fechado ela não escuta.'
+                ? 'Durante a conversa em tempo real, a Luna só responde quando você diz “Luna” (ou logo após ela falar). A tela fica acesa; com o app fechado ela não escuta.'
                 : 'Somente com o app aberto e em primeiro plano.'
               : wake.reason
           }>
-          <Toggle label="Oi, Dia" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
+          <Toggle label="Luna" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
         <WakeHeard />
       </Section>
@@ -501,25 +501,25 @@ export default function SettingsPage() {
             ))}
           </div>
           <p className="mt-2 text-xs text-white/45">
-            Tela feita para o controle remoto (Fire TV / Android TV). “Automático” liga sozinho quando a DIA é aberta numa TV. Para sair na TV, use o ícone de celular no canto superior.
+            Tela feita para o controle remoto (Fire TV / Android TV). “Automático” liga sozinho quando a Luna é aberta numa TV. Para sair na TV, use o ícone de celular no canto superior.
           </p>
         </div>
-        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Oi, Dia” para voltar.">
+        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Luna” para voltar.">
           <Toggle label="Modo ambiente" checked={ambientMode} onChange={setAmbientMode} />
         </Row>
         <Row
           label="Modo assistente fixo"
-          hint="Para um celular/tablet dedicado à DIA: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."
+          hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."
         >
           <Toggle label="Modo assistente fixo" checked={kioskMode} onChange={setKioskMode} />
         </Row>
         {kioskMode && (
           <div className="font-hud space-y-2 px-4 py-3 text-sm text-cyan-100/70">
-            <p className="hud-label">Abrir a DIA ao ligar/desbloquear o Android</p>
+            <p className="hud-label">Abrir a Luna ao ligar/desbloquear o Android</p>
             <p>Apps web não podem se abrir sozinhos; use o app gratuito <b className="text-cyan-200">MacroDroid</b> (Play Store):</p>
             <ol className="list-decimal space-y-1 pl-5">
               <li>Adicionar macro › <b>Gatilho</b>: Tela ligada (ou Dispositivo desbloqueado)</li>
-              <li><b>Ação</b>: Aplicativos › Abrir aplicativo › escolha <b>DIA</b></li>
+              <li><b>Ação</b>: Aplicativos › Abrir aplicativo › escolha <b>Luna</b></li>
               <li>Salve e permita o MacroDroid rodar em segundo plano (bateria sem restrições).</li>
             </ol>
             <p className="text-cyan-100/50">Dica: deixe o aparelho no carregador e, em Configurações › Apps › Chrome › Bateria, escolha “Sem restrições”.</p>

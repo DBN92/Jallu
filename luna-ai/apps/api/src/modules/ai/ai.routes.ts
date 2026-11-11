@@ -35,7 +35,7 @@ export async function aiRoutes(app: FastifyInstance) {
       const res = await chat.handle(req.user!, body, (text) => send('delta', { text }));
       send('done', res);
     } catch (err) {
-      send('error', { message: err instanceof AppError ? err.message : 'Erro interno no servidor da DIA.' });
+      send('error', { message: err instanceof AppError ? err.message : 'Erro interno no servidor da Luna.' });
       if (!(err instanceof AppError)) req.log.error(err);
     } finally {
       clearInterval(ping);

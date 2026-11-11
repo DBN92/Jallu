@@ -34,10 +34,10 @@ import kotlin.concurrent.thread
 import kotlin.math.max
 
 /**
- * Escuta o “Oi, Dia” o tempo todo (também com a tela desligada), no próprio tablet:
- *  1. Vosk off-line, restrito à frase “oi dia” — nenhum áudio sai do aparelho;
+ * Escuta o chamado “Luna” o tempo todo (também com a tela desligada), no próprio tablet:
+ *  1. Vosk off-line, restrito ao chamado “Luna” (e iscas parecidas) — nenhum áudio sai do aparelho;
  *  2. ao ouvir, toca um sinal e reconhece o pedido (reconhecimento de fala do Android);
- *  3. manda o texto para a DIA (mesmo caminho seguro da Siri) e fala a resposta.
+ *  3. manda o texto para a Luna (mesmo caminho seguro da Siri) e fala a resposta.
  * O Android exige um aviso fixo enquanto o microfone está em uso — com botão de pausar.
  */
 class ListenService : Service() {
@@ -90,11 +90,11 @@ class ListenService : Service() {
             else {
                 listening = false
                 status = "erro: ${e.message ?: e.javaClass.simpleName}"
-                main.post { update("A escuta parou por um erro. Abra a DIA para tentar de novo.") }
+                main.post { update("A escuta parou por um erro. Abra a Luna para tentar de novo.") }
             }
         }
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do “Oi, Dia”", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do chamado “Luna”", NotificationManager.IMPORTANCE_LOW))
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, notification("Preparando…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             else startForeground(NOTIF_ID, notification("Preparando…"))
@@ -136,7 +136,7 @@ class ListenService : Service() {
         super.onDestroy()
     }
 
-    // ---------------- Modelo e escuta do “Oi, Dia” ----------------
+    // ---------------- Modelo e escuta do chamado “Luna” ----------------
 
     private fun loadModel() {
         thread(name = "dia-modelo") {
@@ -172,7 +172,7 @@ class ListenService : Service() {
     private fun startListening() {
         val m = model ?: return
         if (paused || inSession || listening || !prefs.wake) { update(); return }
-        if (!hasMic()) { status = "sem permissão de microfone"; update("Permita o microfone no app da DIA."); return }
+        if (!hasMic()) { status = "sem permissão de microfone"; update("Permita o microfone no app da Luna."); return }
         listening = true
         status = "ouvindo"
         update()
@@ -254,7 +254,7 @@ class ListenService : Service() {
                 handleText(t)
             }
             override fun onError(error: Int) {
-                // Sem fala ou não entendeu: volta a esperar o “Oi, Dia” sem incomodar
+                // Sem fala ou não entendeu: volta a esperar o chamado “Luna” sem incomodar
                 if (lastPartial.isNotBlank()) handleText(lastPartial) else endSession()
             }
             override fun onReadyForSpeech(p: Bundle?) {}
@@ -344,7 +344,7 @@ class ListenService : Service() {
             !prefs.wake -> "Escuta desligada"
             paused -> "Pausado — toque em Retomar"
             model == null -> "Preparando o modelo de voz…"
-            else -> "Ouvindo “Oi, Dia”"
+            else -> "Ouvindo “Luna”"
         }
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notification(msg))
     }
@@ -355,7 +355,7 @@ class ListenService : Service() {
         val action = PendingIntent.getService(this, 1, Intent(this, ListenService::class.java).setAction(toggle), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_dia)
-            .setContentTitle("DIA")
+            .setContentTitle("Luna")
             .setContentText(text)
             .setOngoing(true)
             .setContentIntent(open)

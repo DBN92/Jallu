@@ -18,7 +18,7 @@ export async function litterRoutes(app: FastifyInstance) {
     return litter.setAuto(boxParams.parse(req.params).id, on, delaySeconds, { source: 'ui', userId: req.user!.id });
   });
 
-  // Autorizar comandos por voz (como “DIA pode controlar” dos outros aparelhos): só administradores
+  // Autorizar comandos por voz (como “Luna pode controlar” dos outros aparelhos): só administradores
   app.post('/api/litter/:id/voice', { preHandler: requireAdmin }, async (req) => {
     const { allowed } = z.object({ allowed: z.boolean() }).parse(req.body);
     return litter.setVoice(boxParams.parse(req.params).id, allowed);

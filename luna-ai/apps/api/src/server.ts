@@ -8,7 +8,7 @@ async function main() {
   const app = await buildApp({ env });
 
   const shutdown = async (signal: string) => {
-    app.log.info(`Recebido ${signal}, encerrando a DIA...`);
+    app.log.info(`Recebido ${signal}, encerrando a Luna...`);
     await app.close();
     process.exit(0);
   };
@@ -16,10 +16,10 @@ async function main() {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
   await app.listen({ host: env.LUNA_HOST, port: env.LUNA_PORT });
-  app.log.info(`🌙 DIA ${APP_VERSION} ouvindo em http://${env.LUNA_HOST}:${env.LUNA_PORT}`);
+  app.log.info(`🌙 Luna ${APP_VERSION} ouvindo em http://${env.LUNA_HOST}:${env.LUNA_PORT}`);
 }
 
 main().catch((err) => {
-  console.error('Falha ao iniciar a DIA:', err instanceof Error ? err.message : err);
+  console.error('Falha ao iniciar a Luna:', err instanceof Error ? err.message : err);
   process.exit(1);
 });

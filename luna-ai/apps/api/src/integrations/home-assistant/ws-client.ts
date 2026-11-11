@@ -12,7 +12,7 @@ interface Logger {
  * e reconecta automaticamente com backoff exponencial.
  * Eventos: 'state_changed' (HaStateChangedEvent), 'connected', 'disconnected'.
  */
-/** Entrada do registro de entidades do HA (o que a DIA usa dele). */
+/** Entrada do registro de entidades do HA (o que a Luna usa dele). */
 export interface RegistryEntry {
   platform: string;
   hidden: boolean;

@@ -41,14 +41,14 @@ export default function MemoryPage() {
   };
 
   const clearAll = async () => {
-    if (!confirm('Apagar TODAS as memórias da DIA? Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Apagar TODAS as memórias da Luna? Esta ação não pode ser desfeita.')) return;
     await api('/api/memories', { method: 'DELETE' }).catch((e) => setError(errorMessage(e)));
     void load();
   };
 
   return (
     <Page>
-      <PageHeader title="Memória" subtitle="O que a DIA sabe sobre você — somente o que você pediu para lembrar" />
+      <PageHeader title="Memória" subtitle="O que a Luna sabe sobre você — somente o que você pediu para lembrar" />
       {error && <Banner onClose={() => setError(null)}>{error}</Banner>}
       <Card className="mb-4">
         <form onSubmit={add} className="space-y-2">
@@ -61,7 +61,7 @@ export default function MemoryPage() {
             <input className={inputClass} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Ex.: Prefiro luz quente à noite" maxLength={1000} required minLength={2} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-xs text-white/40">Dica: diga “Dia, lembre que…” ou “esqueça que…”. Senhas e documentos não são memorizados.</p>
+            <p className="text-xs text-white/40">Dica: diga “Luna, lembre que…” ou “esqueça que…”. Senhas e documentos não são memorizados.</p>
             <Button type="submit">Adicionar</Button>
           </div>
         </form>
@@ -73,7 +73,7 @@ export default function MemoryPage() {
       ) : items.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 py-8 text-center text-sm text-white/50">
           <Brain className="h-8 w-8 text-violet-300/60" />
-          Nenhuma memória salva. A DIA não inventa lembranças.
+          Nenhuma memória salva. A Luna não inventa lembranças.
         </Card>
       ) : (
         <>

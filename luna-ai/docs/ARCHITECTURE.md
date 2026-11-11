@@ -19,14 +19,14 @@
                                └──▶ OpenAI Realtime (token efêmero emitido pelo backend)
 ```
 
-## Fluxo de um comando (“Dia, acenda a luz da sala”)
+## Fluxo de um comando (“Luna, acenda a luz da sala”)
 
 1. PWA envia `POST /api/chat` (texto ou transcrição de voz).
 2. `ChatService` tenta a **NLU local** (`modules/ai/nlu.ts`): reconhece verbo + alvo.
 3. `DevicesService.findByName` compara o alvo com **entidades reais** do HA (nome, apelidos, entity_id).
    - Nenhuma → “não encontrei”. Mais de uma → pergunta qual e guarda a pendência da conversa.
 4. Autorização: domínio na lista fechada (`light`, `switch`, `fan`, `input_boolean`, `climate`) **e**
-   dispositivo marcado como “DIA pode controlar”.
+   dispositivo marcado como “Luna pode controlar”.
 5. `POST /api/services/light/turn_on` no HA, depois lê o estado real para confirmar.
 6. Grava em `action_logs`, emite `device_state` no WebSocket e responde “Pronto! A luz da Sala está acesa.”
 

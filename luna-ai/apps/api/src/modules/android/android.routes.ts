@@ -5,7 +5,7 @@ import { notFound } from '../../lib/errors';
 import { requireAuth } from '../../middleware/auth';
 
 /**
- * App Android da DIA (tablet): o APK vem pronto no repositório (apps/android/dist) e é
+ * App Android da Luna (tablet): o APK vem pronto no repositório (apps/android/dist) e é
  * servido aqui para instalar/atualizar pelo próprio tablet, sem Play Store.
  */
 export async function androidRoutes(app: FastifyInstance, opts: { distDir: string }) {
@@ -28,7 +28,7 @@ export async function androidRoutes(app: FastifyInstance, opts: { distDir: strin
     if (!existsSync(apk)) throw notFound('O app Android ainda não está disponível neste servidor.');
     return reply
       .header('content-type', 'application/vnd.android.package-archive')
-      .header('content-disposition', 'attachment; filename="DIA.apk"')
+      .header('content-disposition', 'attachment; filename="Luna.apk"')
       .header('content-length', statSync(apk).size)
       .send(createReadStream(apk));
   });

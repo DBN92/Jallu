@@ -64,7 +64,7 @@ describe('voz', () => {
     expect(sent.session.model).toBe('gpt-realtime');
   });
 
-  it('modo "Oi, Dia": o servidor não responde sozinho a qualquer fala', async () => {
+  it('modo "Luna": o servidor não responde sozinho a qualquer fala', async () => {
     ctx = await makeApp();
     await ctx.inject('POST', '/api/voice/realtime/session', { wakeWord: true });
     const normal = ctx.llm.requests[0] as { session: { audio: { input: { turn_detection: { create_response: boolean } } } } };

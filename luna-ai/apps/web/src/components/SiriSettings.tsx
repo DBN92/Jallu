@@ -74,17 +74,17 @@ export function SiriSettings() {
     setTest('Testando…');
     try {
       const r = await fetch('/api/siri/ask', { method: 'POST', headers: { authorization: `Bearer ${fresh}`, 'content-type': 'application/json' }, body: JSON.stringify({ texto: 'que horas são?' }) });
-      setTest(`${r.ok ? '✅' : '⚠️'} A DIA respondeu: “${await r.text()}”`);
+      setTest(`${r.ok ? '✅' : '⚠️'} A Luna respondeu: “${await r.text()}”`);
     } catch {
-      setTest('⚠️ Não consegui falar com a DIA.');
+      setTest('⚠️ Não consegui falar com a Luna.');
     }
   };
 
   return (
     <div className="space-y-4 text-sm">
       <p className="text-white/60">
-        Fale com a DIA pela Siri, até com o iPhone bloqueado: diga <b>“E aí Siri, DIA”</b>, depois o comando (ex.: “acende a luz da sala”), e a Siri fala a resposta. Funciona pelo app <b>Atalhos</b> do iPhone com um token
-        próprio, que só serve para mandar comandos à DIA — não é a sua senha e pode ser apagado quando quiser.
+        Fale com a Luna pela Siri, até com o iPhone bloqueado: diga <b>“E aí Siri, Luna”</b>, depois o comando (ex.: “acende a luz da sala”), e a Siri fala a resposta. Funciona pelo app <b>Atalhos</b> do iPhone com um token
+        próprio, que só serve para mandar comandos à Luna — não é a sua senha e pode ser apagado quando quiser.
       </p>
       {error && <Banner onClose={() => setError(null)}>{error}</Banner>}
 
@@ -128,12 +128,12 @@ export function SiriSettings() {
           </div>
           {local && (
             <p className="text-xs text-amber-100/80">
-              Você abriu a DIA por um endereço da rede de casa. Para a Siri funcionar também fora de casa, abra a DIA pelo endereço do Cloudflare (https) e crie o token por lá — o endereço acima muda junto.
+              Você abriu a Luna por um endereço da rede de casa. Para a Siri funcionar também fora de casa, abra a Luna pelo endereço do Cloudflare (https) e crie o token por lá — o endereço acima muda junto.
             </p>
           )}
           <ol className="list-decimal space-y-2 pl-5 text-white/75">
             <li>
-              No iPhone, abra o app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>DIA</b> ao atalho (é o nome que você vai falar para a Siri).
+              No iPhone, abra o app <b>Atalhos</b>, toque em <b>+</b> e dê o nome <b>Luna</b> ao atalho (é o nome que você vai falar para a Siri).
             </li>
             <li>
               Adicione a ação <b>Ditar Texto</b>. Em idioma, escolha <b>Português (Brasil)</b>; em “Parar de Ouvir”, <b>Após Pausa</b>.
@@ -146,7 +146,7 @@ export function SiriSettings() {
                   toque na setinha: <b>Método</b> = <b>POST</b>;
                 </li>
                 <li>
-                  <b>Cabeçalhos</b> → Adicionar: chave <code>Authorization</code>, valor = o <b>Token</b> copiado (começa com “Bearer dia_”);
+                  <b>Cabeçalhos</b> → Adicionar: chave <code>Authorization</code>, valor = o <b>Token</b> copiado (começa com “Bearer luna_”);
                 </li>
                 <li>
                   <b>Corpo da Solicitação</b> = <b>JSON</b> → Adicionar campo <b>Texto</b>: chave <code>texto</code>, valor = a variável <b>Texto Ditado</b>.
@@ -157,12 +157,12 @@ export function SiriSettings() {
               Adicione a ação <b>Falar Texto</b> com <b>Conteúdo do URL</b>.
             </li>
             <li>
-              Pronto: diga <b>“E aí Siri, DIA”</b> e, quando ela abrir o ditado, fale o comando.
+              Pronto: diga <b>“E aí Siri, Luna”</b> e, quando ela abrir o ditado, fale o comando.
             </li>
           </ol>
           <p className="text-xs text-white/50">
-            Atalhos de um comando só (ex.: “E aí Siri, boa noite DIA”): duplique o atalho, troque “Ditar Texto” por uma ação <b>Texto</b> com a frase (“boa noite”) e use “Texto” no campo <code>texto</code>.
-            Se a DIA estiver protegida pelo Cloudflare Access, libere o caminho <code>/api/siri/ask</code> (veja docs/SIRI.md).
+            Atalhos de um comando só (ex.: “E aí Siri, boa noite Luna”): duplique o atalho, troque “Ditar Texto” por uma ação <b>Texto</b> com a frase (“boa noite”) e use “Texto” no campo <code>texto</code>.
+            Se a Luna estiver protegida pelo Cloudflare Access, libere o caminho <code>/api/siri/ask</code> (veja docs/SIRI.md).
           </p>
           <Button type="button" variant="ghost" onClick={() => setFresh(null)}>
             Já copiei, fechar

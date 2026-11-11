@@ -5,8 +5,8 @@
 export function toSpeech(text: string): string {
   let t = text;
   t = t.replace(/https?:\/\/\S+/g, ' ');
-  // O nome “DIA” em maiúsculas seria soletrado pela voz; lê como “Dia”
-  t = t.replace(/\bDIA\b/g, 'Dia');
+  // O nome em maiúsculas (“LUNA”) seria soletrado pela voz; lê como “Luna”
+  t = t.replace(/\bLUNA\b/g, 'Luna');
   t = t.replace(/[*_#`>~|]/g, ' ').replace(/[✓✗•]/g, ' ');
   t = t.replace(/\p{Extended_Pictographic}/gu, ' ');
   // Horários 19:00 / 7:30 / 19h30

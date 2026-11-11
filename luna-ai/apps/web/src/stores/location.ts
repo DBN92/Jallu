@@ -38,7 +38,7 @@ export const useLocation = create<LocationState>((set, get) => ({
           set({
             status: denied ? 'denied' : 'unavailable',
             message: denied
-              ? 'A localização foi bloqueada. No iPhone: Ajustes › Privacidade › Serviços de Localização › Safari (ou DIA).'
+              ? 'A localização foi bloqueada. No iPhone: Ajustes › Privacidade › Serviços de Localização › Safari (ou Luna).'
               : 'Não consegui obter sua localização agora.',
           });
           resolve(null);

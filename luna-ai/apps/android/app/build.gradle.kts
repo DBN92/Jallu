@@ -21,8 +21,8 @@ android {
         applicationId = "br.dia.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         // Tablets Samsung usam ARM: deixa o APK menor
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -57,7 +57,7 @@ android {
 }
 
 dependencies {
-    // Reconhecimento de fala off-line (“Oi, Dia” sem internet e sem mandar áudio para fora)
+    // Reconhecimento de fala off-line (“Luna” sem internet e sem mandar áudio para fora)
     implementation("com.alphacephei:vosk-android:0.3.75@aar")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     testImplementation("junit:junit:4.13.2")

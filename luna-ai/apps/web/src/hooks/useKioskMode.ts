@@ -7,7 +7,7 @@ const IDLE_MS = 90_000;
 
 /**
  * Modo assistente fixo (aparelho dedicado, ex.: Android na parede):
- * - tela sempre acesa enquanto a DIA estiver aberta;
+ * - tela sempre acesa enquanto a Luna estiver aberta;
  * - volta para a tela inicial após 90 s sem toques em outra página;
  * - ao reabrir o app (desbloqueio/voltar do segundo plano), mostra a tela inicial.
  */

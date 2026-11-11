@@ -104,7 +104,7 @@ export default function App() {
     return (
       <div className="app-bg flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
         <WifiOff className="h-10 w-10 text-rose-300" />
-        <p className="text-lg font-medium">Não consegui falar com o servidor da DIA</p>
+        <p className="text-lg font-medium">Não consegui falar com o servidor da Luna</p>
         <p className="max-w-sm text-sm text-white/50">Verifique sua internet ou se o servidor está ligado. Fora de casa, o acesso passa pelo Cloudflare Tunnel.</p>
         <Button onClick={() => void check()}>Tentar novamente</Button>
       </div>

@@ -461,7 +461,7 @@ export class ChatService {
     if (conv.messages.length < 2) throw new AppError(400, 'A conversa é curta demais para resumir.', 'too_short');
     const settings = await this.settings.get(user.id);
     const order = settings.aiMode === 'local' ? [this.providers.ollama] : [this.providers.ollama, this.providers.openai];
-    const transcript = conv.messages.map((m) => `${m.role === 'user' ? 'Usuário' : 'DIA'}: ${m.content}`).join('\n');
+    const transcript = conv.messages.map((m) => `${m.role === 'user' ? 'Usuário' : 'Luna'}: ${m.content}`).join('\n');
     for (const p of order) {
       if (!(await p.isAvailable())) continue;
       if (p.isCloud && !settings.allowCloudMemory) continue;

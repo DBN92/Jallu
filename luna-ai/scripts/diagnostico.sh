@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Lista entidades do Home Assistant para adaptar a DIA a um aparelho (somente leitura).
+# Lista entidades do Home Assistant para adaptar a Luna a um aparelho (somente leitura).
 # Uso:
 #   sudo bash scripts/diagnostico.sh areia      # caixa de areia (Smart Life/Tuya, New Pet…)
 #   sudo bash scripts/diagnostico.sh robo       # aspirador robô
 #   sudo bash scripts/diagnostico.sh "termo"    # qualquer outro termo (nome do aparelho)
-# Não mostra o token. Mande a saída para a DIA ser ajustada ao seu modelo.
+# Não mostra o token. Mande a saída para a Luna ser ajustada ao seu modelo.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NODE=./runtime/node/bin/node

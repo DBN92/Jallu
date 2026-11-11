@@ -30,7 +30,7 @@ export async function siriRoutes(app: FastifyInstance) {
       return reply.type('text/plain; charset=utf-8').send(answer);
     } catch (err) {
       const status = err instanceof AppError ? err.statusCode : err instanceof z.ZodError ? 400 : 500;
-      const msg = err instanceof AppError ? err.message : status === 400 ? 'Pedido inválido.' : 'A DIA teve um problema para responder agora.';
+      const msg = err instanceof AppError ? err.message : status === 400 ? 'Pedido inválido.' : 'A Luna teve um problema para responder agora.';
       if (status === 500) req.log.error({ err }, 'siri ask');
       return reply.code(status).type('text/plain; charset=utf-8').send(msg);
     }

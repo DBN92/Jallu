@@ -21,7 +21,7 @@ async function withVacuums() {
     attributes: { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] },
     last_changed: now,
   });
-  // Autoriza os dois para a DIA (como o usuário faria em “Minha casa”)
+  // Autoriza os dois para a Luna (como o usuário faria em “Minha casa”)
   await ctx.inject('GET', '/api/devices?all=1');
   for (const id of ['vacuum.robo_xiaomi', 'vacuum.neatsvor']) expect((await ctx.inject('PATCH', `/api/devices/${id}`, { aiAllowed: true })).status).toBe(200);
 }
@@ -57,7 +57,7 @@ describe('Aspiradores robôs', () => {
 
   it('entende comandos de voz e pergunta qual robô quando há dois', async () => {
     await withVacuums();
-    let r = await chat(ctx, 'Oi, Dia, aspira a casa');
+    let r = await chat(ctx, 'Luna, aspira a casa');
     expect(r.reply).toMatch(/Qual robô deve limpar: Neatsvor ou Robô Xiaomi\? Ou os dois\?/);
     r = await chat(ctx, 'os dois', { conversationId: r.conversationId });
     expect(r.reply).toMatch(/Robô Xiaomi começou a aspirar/);
@@ -77,7 +77,7 @@ describe('Aspiradores robôs', () => {
     expect(ctx.ha.calls.at(-1)).toMatchObject({ domain: 'vacuum', service: 'locate' });
   });
 
-  it('respeita a autorização da DIA e avisa quando não há robô', async () => {
+  it('respeita a autorização da Luna e avisa quando não há robô', async () => {
     ctx = await makeApp();
     let r = await chat(ctx, 'aspira a casa');
     expect(r.reply).toMatch(/não encontrei nenhum aspirador/i);
@@ -127,7 +127,7 @@ describe('Aspiradores robôs', () => {
     expect(seen.at(-1)).toMatchObject({ entityId: 'vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', vacuum: { battery: 70 } });
     // Comando por voz com o nome dado na Xiaomi Home
     await ctx.inject('PATCH', '/api/devices/vacuum.xiaomi_cn_8812_c102gl_robot_cleaner', { aiAllowed: true });
-    const r = await chat(ctx, 'Oi, Dia, aspira a casa');
+    const r = await chat(ctx, 'Luna, aspira a casa');
     expect(r.reply).toMatch(/Robô Aspirador começou a aspirar/);
   });
 });

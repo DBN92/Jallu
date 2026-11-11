@@ -167,7 +167,7 @@ export class WatchesService {
     return { ok: true };
   }
 
-  /** Teste ao vivo (Ajustes): o que a DIA vê agora nesta área. */
+  /** Teste ao vivo (Ajustes): o que a Luna vê agora nesta área. */
   async check(id: string) {
     const w = await this.db.visualWatch.findUnique({ where: { id }, include: { refs: true } });
     if (!w) throw notFound('Vigia não encontrado.');

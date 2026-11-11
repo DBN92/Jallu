@@ -5,7 +5,7 @@ import type { AIProvider } from '../src/modules/ai/types';
 
 describe('NLU local', () => {
   it.each([
-    ['DIA, acenda a luz da sala.', { type: 'device_power', action: 'turn_on', target: 'a luz da sala', all: false }],
+    ['Luna, acenda a luz da sala.', { type: 'device_power', action: 'turn_on', target: 'a luz da sala', all: false }],
     ['ei luna desligue o ventilador por favor', { type: 'device_power', action: 'turn_off', target: 'o ventilador' }],
     ['Apague todas as luzes', { type: 'device_power', action: 'turn_off', all: true }],
     ['você pode ligar a tomada da cafeteira?', { type: 'device_power', action: 'turn_on', target: 'a tomada da cafeteira' }],
@@ -58,12 +58,15 @@ describe('roteador de IA', () => {
   });
 });
 
-describe('chamado “Oi, Dia”', () => {
-  it('tira o chamado do início, mas não mexe em “dia” comum', async () => {
+describe('chamado “Luna”', () => {
+  it('tira o chamado do início (com ou sem vírgula/saudação) e não mexe no resto', async () => {
     const { stripWake, parseIntent } = await import('../src/modules/ai/nlu');
-    expect(stripWake('Oi, Dia, acende a luz da sala')).toBe('acende a luz da sala');
-    expect(stripWake('Dia, que horas são?')).toBe('que horas são?');
+    expect(stripWake('Luna, acende a luz da sala')).toBe('acende a luz da sala');
+    expect(stripWake('luna acende a luz da sala')).toBe('acende a luz da sala');
+    expect(stripWake('Oi Luna, que horas são?')).toBe('que horas são?');
     expect(stripWake('dia 15 é feriado?')).toBe('dia 15 é feriado?');
-    expect(parseIntent('Oi Dia, que horas são?')).toMatchObject({ type: 'datetime' });
+    expect(stripWake('a lua está linda')).toBe('a lua está linda');
+    expect(parseIntent('Luna que horas são?')).toMatchObject({ type: 'datetime' });
+    expect(parseIntent('Luna, acende a luz da sala')).toMatchObject({ type: 'device_power', action: 'turn_on' });
   });
 });

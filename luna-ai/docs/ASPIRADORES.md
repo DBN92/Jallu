@@ -1,8 +1,8 @@
-# Aspiradores robôs na DIA
+# Aspiradores robôs na Luna
 
-A DIA controla qualquer aspirador robô que apareça no Home Assistant como entidade `vacuum.*`.
+A Luna controla qualquer aspirador robô que apareça no Home Assistant como entidade `vacuum.*`.
 Ela não fala direto com a nuvem da Xiaomi nem da Neatsvor. O caminho é sempre:
-robô → integração no Home Assistant → DIA.
+robô → integração no Home Assistant → Luna.
 
 ## 1. Colocar os robôs no Home Assistant
 
@@ -47,9 +47,9 @@ sudo docker restart homeassistant
 
 Sem um gateway central da Xiaomi (vendido só na China), os comandos passam pela nuvem da Xiaomi. É normal levar 1 a 3 segundos.
 
-**3. Na DIA não precisa configurar nada** (para comandos de voz, só autorize o robô, como na seção 2).
+**3. Na Luna não precisa configurar nada** (para comandos de voz, só autorize o robô, como na seção 2).
 A Xiaomi Home cria dezenas de entidades para o robô: bateria, escovas, "não perturbe" e outras.
-A DIA usa o registro de dispositivos do Home Assistant para:
+A Luna usa o registro de dispositivos do Home Assistant para:
 - ligar a bateria ao robô certo;
 - esconder as outras entidades do robô da lista de aparelhos.
 
@@ -63,11 +63,11 @@ Robôs da marca Roborock têm a integração **Roborock**.
 1. Muitos modelos da Neatsvor são feitos sobre a plataforma Tuya. Abra o app **Smart Life** (ou Tuya Smart), o mesmo das suas lâmpadas e tomadas.
 2. Tente adicionar o robô por **Adicionar dispositivo**.
 3. Se ele entrar no Smart Life, aparece sozinho no Home Assistant pela integração **Tuya** que você já usa. Talvez seja preciso recarregar a integração.
-4. Se o robô só funcionar no app próprio da Neatsvor e não aceitar o Smart Life, não há integração pública para ele. Nesse caso a DIA não consegue controlá-lo.
+4. Se o robô só funcionar no app próprio da Neatsvor e não aceitar o Smart Life, não há integração pública para ele. Nesse caso a Luna não consegue controlá-lo.
 
 Depois disso, confira em **Ferramentas de desenvolvedor → Estados** se existe uma entidade `vacuum.…` para cada robô.
 
-## 2. Na DIA
+## 2. Na Luna
 
 1. Os robôs aparecem sozinhos:
    - no cartão **Aspiradores** da tela inicial;
@@ -80,7 +80,7 @@ Depois disso, confira em **Ferramentas de desenvolvedor → Estados** se existe 
    - escolher a **potência** de sucção (ícone de vento).
 3. Para usar **voz e texto**, autorize cada robô:
    - abra **Minha casa → ajustar** (ícone de controles);
-   - ligue **DIA pode controlar**.
+   - ligue **Luna pode controlar**.
 4. Se quiser, dê um nome falado a cada robô pelo lápis, por exemplo "robô da sala" ou "Neatsvor".
 
 O que mostrar no cartão depende do que o robô informa ao Home Assistant: bateria, potência e se ele sabe apitar.
@@ -97,17 +97,17 @@ Na Xiaomi Home, ela pode ter:
 - **Limpezas**: área e quantidade, além dos agendamentos feitos no app do fabricante;
 - **Ajustes**: não perturbe, reforço no tapete, continuar de onde parou e trava infantil.
 
-A DIA só aciona controles dessa lista. Ela nunca chama outros comandos do robô.
+A Luna só aciona controles dessa lista. Ela nunca chama outros comandos do robô.
 
 **Foto do robô:** toque na imagem do robô, ou em ⋯ → *Usar foto do meu robô*, e escolha uma foto. A foto de cima fica melhor.
-A DIA recorta e reduz a foto no celular e guarda no servidor, em `data/device-photos`.
+A Luna recorta e reduz a foto no celular e guarda no servidor, em `data/device-photos`.
 A foto aparece no cartão, na tela completa e na animação de começo e fim. Para voltar ao desenho, use ⋯ → *Remover foto*.
 
 ## 3. Comandos de voz
 
-| Você diz | A DIA faz |
+| Você diz | A Luna faz |
 | --- | --- |
-| "Oi, Dia, aspira a casa" / "liga o aspirador" / "manda o Neatsvor limpar" | começa a limpar. Com dois robôs e nenhum nome dito, ela pergunta qual deve limpar (responda o nome ou "os dois"). |
+| "Luna, aspira a casa" / "liga o aspirador" / "manda o Neatsvor limpar" | começa a limpar. Com dois robôs e nenhum nome dito, ela pergunta qual deve limpar (responda o nome ou "os dois"). |
 | "pausa o aspirador" | pausa quem está limpando |
 | "para o robô" | para no lugar |
 | "manda o robô voltar pra base" / "desliga o aspirador" | manda para a base quem não está nela |
@@ -119,5 +119,5 @@ Por exemplo, dá para criar uma automação "ao sair de casa, ligar o Robô Xiao
 
 ## Limites (por segurança e por enquanto)
 
-- A DIA só usa os comandos padrão de aspirador do Home Assistant: começar, pausar, parar, voltar para a base, apitar e potência. Ela nunca envia comandos livres (`send_command`) ao robô.
-- Limpar **só um cômodo** ainda não é suportado, porque os cômodos são guardados de forma diferente em cada marca. Se você pedir "aspira a sala", a DIA avisa que ainda não consegue.
+- A Luna só usa os comandos padrão de aspirador do Home Assistant: começar, pausar, parar, voltar para a base, apitar e potência. Ela nunca envia comandos livres (`send_command`) ao robô.
+- Limpar **só um cômodo** ainda não é suportado, porque os cômodos são guardados de forma diferente em cada marca. Se você pedir "aspira a sala", a Luna avisa que ainda não consegue.

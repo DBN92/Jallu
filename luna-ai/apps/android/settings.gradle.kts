@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "DIA"
+rootProject.name = "Luna"
 include(":app")

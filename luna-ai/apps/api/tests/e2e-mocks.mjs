@@ -152,7 +152,7 @@ http.createServer(async (req, res) => {
     }
     if (last.role === 'tool') return send(res, 200, { message: { role: 'assistant', content: 'A temperatura da sala está em 24,6 °C. Está agradável!' } });
     if (/temperatura/i.test(last.content)) return send(res, 200, { message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'get_device_state', arguments: { device: 'temperatura da sala' } } }] } });
-    return send(res, 200, { message: { role: 'assistant', content: 'Oi! Eu sou a DIA. Posso controlar sua casa, ver o clima e conversar com você.' } });
+    return send(res, 200, { message: { role: 'assistant', content: 'Oi! Eu sou a Luna. Posso controlar sua casa, ver o clima e conversar com você.' } });
   }
   send(res, 404, {});
 }).listen(11435);

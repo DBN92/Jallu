@@ -10,9 +10,9 @@ import android.content.Intent
 import android.provider.Settings
 
 /**
- * Tablet ligou (ou o app foi atualizado): abre a DIA sozinha. O Android só deixa abrir uma tela
+ * Tablet ligou (ou o app foi atualizado): abre a Luna sozinha. O Android só deixa abrir uma tela
  * a partir daqui com “Aparecer sobre outros apps” permitido; sem isso, mostra um aviso para tocar.
- * A escuta do “Oi, Dia” liga quando a tela da DIA abre.
+ * A escuta do chamado “Luna” liga quando a tela da Luna abre.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -23,13 +23,13 @@ class BootReceiver : BroadcastReceiver() {
             try { ctx.startActivity(open); return } catch (_: Exception) {}
         }
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("inicio", "Abrir a DIA", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel("inicio", "Abrir a Luna", NotificationManager.IMPORTANCE_DEFAULT))
         nm.notify(
             8,
             Notification.Builder(ctx, "inicio")
                 .setSmallIcon(R.drawable.ic_stat_dia)
-                .setContentTitle("DIA")
-                .setContentText("Toque para abrir a DIA e ligar o “Oi, Dia”.")
+                .setContentTitle("Luna")
+                .setContentText("Toque para abrir a Luna e ligar o chamado “Luna”.")
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(ctx, 3, open, PendingIntent.FLAG_IMMUTABLE))
                 .build(),

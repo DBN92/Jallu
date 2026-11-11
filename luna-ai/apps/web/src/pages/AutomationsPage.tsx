@@ -173,7 +173,7 @@ export default function AutomationsPage() {
       ) : rules.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 py-8 text-center text-sm text-white/50">
           <Workflow className="h-8 w-8 text-violet-300/60" />
-          Nenhuma automação. Crie acima ou peça: “Dia, crie uma automação para desligar as luzes às 23h”.
+          Nenhuma automação. Crie acima ou peça: “Luna, crie uma automação para desligar as luzes às 23h”.
         </Card>
       ) : (
         <ul className="space-y-3">

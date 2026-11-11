@@ -115,7 +115,7 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
   it('voz: só com autorização; entende limpar, ligar automático e perguntar', async () => {
     await withBox();
     await ctx.inject('GET', '/api/litter');
-    let r = await chat(ctx, 'Oi, Dia, limpa a caixa de areia');
+    let r = await chat(ctx, 'Luna, limpa a caixa de areia');
     expect(r.reply).toMatch(/não está autorizada/);
     expect(ctx.ha.calls).toHaveLength(0);
     await ctx.inject('POST', `/api/litter/${P}/voice`, { allowed: true });

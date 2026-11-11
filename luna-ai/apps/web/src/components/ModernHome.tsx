@@ -57,7 +57,7 @@ export interface ModernHomeProps {
   gesturesOn: boolean;
 }
 
-/** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da DIA e controles diretos. */
+/** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da Luna e controles diretos. */
 export function ModernHome(p: ModernHomeProps) {
   const navigate = useNavigate();
   const devicesMap = useDevices((s) => s.devices);
@@ -78,7 +78,7 @@ export function ModernHome(p: ModernHomeProps) {
     const el = trackRef.current;
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
   };
-  // Ao falar com a DIA (ou chegar resposta), volta para o cartão da DIA
+  // Ao falar com a Luna (ou chegar resposta), volta para o cartão da Luna
   useEffect(() => {
     if (p.state !== 'idle' || p.hasChat) goTo(0);
   }, [p.state, p.hasChat]);
@@ -99,11 +99,11 @@ export function ModernHome(p: ModernHomeProps) {
     for (const d of lights.filter((l) => l.isOn === !on)) await useDevices.getState().toggle(d);
   };
 
-  // Celular deitado: pouca altura → duas colunas, cartão da DIA mais baixo
+  // Celular deitado: pouca altura → duas colunas, cartão da Luna mais baixo
   const land = !p.wide && p.vw > p.vh && p.vh <= 520;
   const waveW = p.wide ? Math.min(460, p.vw * 0.34) : land ? Math.min(p.vw * 0.42 - 70, 420) : Math.min(p.vw - 76, 460);
 
-  // ---------- Carrossel do cartão: DIA · Sistema · Casa agora ----------
+  // ---------- Carrossel do cartão: Luna · Sistema · Casa agora ----------
   const sys = p.health?.system;
   const services = p.health?.services;
   const allOk = !!services && services.database.ok && services.homeAssistant.ok && (services.ollama.ok || services.openai.ok);
@@ -119,7 +119,7 @@ export function ModernHome(p: ModernHomeProps) {
     <>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="m-label">DIA</p>
+          <p className="m-label">Luna</p>
           <p className="mt-1 text-lg font-semibold">{p.stateLabel}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export function ModernHome(p: ModernHomeProps) {
       )}
       {p.banner}
       <div className="flex items-center gap-4">
-        <button onClick={p.onMic} className={`m-mic ${p.micActive ? 'live' : ''}`} aria-label={p.micActive ? 'Parar' : 'Falar com a DIA'}>
+        <button onClick={p.onMic} className={`m-mic ${p.micActive ? 'live' : ''}`} aria-label={p.micActive ? 'Parar' : 'Falar com a Luna'}>
           {p.micIcon}
         </button>
         <form onSubmit={p.onSubmit} className="m-input flex-1">
@@ -155,7 +155,7 @@ export function ModernHome(p: ModernHomeProps) {
             ref={p.inputRef}
             value={p.text}
             onChange={(e) => p.setText(e.target.value)}
-            placeholder={p.micActive ? 'Ouvindo…' : 'Diga “Oi, Dia” ou digite…'}
+            placeholder={p.micActive ? 'Ouvindo…' : 'Diga “Luna” ou digite…'}
             enterKeyHint="send"
             autoComplete="off"
             maxLength={4000}
@@ -244,14 +244,14 @@ export function ModernHome(p: ModernHomeProps) {
     <div className="m-card" style={{ padding: p.wide ? 24 : land ? 14 : 20 }}>
       <div ref={trackRef} className="m-carousel" onScroll={onTrackScroll}>
         {slides.map((sl, i) => (
-          <section key={i} className="m-slide" aria-hidden={i !== slide} aria-label={['DIA', 'Sistema', 'Casa agora'][i]}>
+          <section key={i} className="m-slide" aria-hidden={i !== slide} aria-label={['Luna', 'Sistema', 'Casa agora'][i]}>
             {sl}
           </section>
         ))}
       </div>
       <div className="m-dots" role="tablist">
         {slides.map((_, i) => (
-          <button key={i} role="tab" aria-selected={i === slide} aria-label={['DIA', 'Sistema', 'Casa agora'][i]} className={i === slide ? 'on' : ''} onClick={() => goTo(i)}>
+          <button key={i} role="tab" aria-selected={i === slide} aria-label={['Luna', 'Sistema', 'Casa agora'][i]} className={i === slide ? 'on' : ''} onClick={() => goTo(i)}>
             <i />
           </button>
         ))}

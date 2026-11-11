@@ -12,9 +12,9 @@ import type { Actor } from '../devices/devices.service';
  * Entidades usadas (sufixos criados pela integração Tuya):
  *   sensor …_cat_weight · sensor …_excretion_times_day · sensor …_excretion_duration · sensor …_status
  *   button …_manual_clean · switch …_auto_clean · number …_delay_clean_time
- * O botão “restaurar padrões de fábrica” existe na integração, mas a DIA não usa de propósito.
+ * O botão “restaurar padrões de fábrica” existe na integração, mas a Luna não usa de propósito.
  *
- * O Home Assistant só guarda o ÚLTIMO peso: a DIA registra cada visita quando o contador do dia
+ * O Home Assistant só guarda o ÚLTIMO peso: a Luna registra cada visita quando o contador do dia
  * sobe (o peso pode repetir sem gerar evento) e reconhece o gato pelo peso.
  */
 
@@ -211,7 +211,7 @@ export class LitterService extends EventEmitter {
       week.push({ date, count: visits.filter((v) => this.day(v.at) === date).length });
     }
     const sensorToday = num(times.state);
-    // Hoje: o maior entre o que a caixa conta e o que a DIA registrou
+    // Hoje: o maior entre o que a caixa conta e o que a Luna registrou
     if (sensorToday !== null) week[6]!.count = Math.max(week[6]!.count, Math.round(sensorToday));
 
     const historyAge = first ? now.getTime() - first.at.getTime() : 0;
@@ -220,7 +220,7 @@ export class LitterService extends EventEmitter {
       const mine = visits.filter((v) => v.catId === c.id);
       const last = mine[0]?.at ?? (await this.db.litterVisit.findFirst({ where: { catId: c.id }, orderBy: { at: 'desc' } }))?.at ?? null;
       let alert: string | null = null;
-      // Só avisa de gatos já conhecidos e quando a DIA já registra há mais de 24 h
+      // Só avisa de gatos já conhecidos e quando a Luna já registra há mais de 24 h
       if (c.weightKg !== null && historyAge > 86_400_000 && (!last || now.getTime() - last.getTime() > 86_400_000)) {
         alert = `${c.name} não usa a caixa há mais de 24 h.`;
       }
@@ -254,7 +254,7 @@ export class LitterService extends EventEmitter {
   private guard(prefix: string, actor: Actor, voiceAllowed: boolean) {
     if (!this.boxes.includes(prefix)) throw notFound('Caixa de areia não encontrada no Home Assistant.');
     if ((actor.source.startsWith('ai:') || actor.source === 'voice') && !voiceAllowed) {
-      throw forbidden('A caixa de areia não está autorizada para comandos de voz. Autorize na tela da caixa, em “DIA pode controlar pela voz”.');
+      throw forbidden('A caixa de areia não está autorizada para comandos de voz. Autorize na tela da caixa, em “Luna pode controlar pela voz”.');
     }
   }
 

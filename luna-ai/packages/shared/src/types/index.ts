@@ -26,11 +26,11 @@ export interface PublicUser {
 export interface DeviceDto {
   entityId: string;
   domain: string;
-  /** Nome exibido: o personalizado na DIA, ou o do Home Assistant */
+  /** Nome exibido: o personalizado na Luna, ou o do Home Assistant */
   name: string;
   /** Nome original no Home Assistant */
   originalName: string;
-  /** true quando o usuário renomeou na DIA */
+  /** true quando o usuário renomeou na Luna */
   renamed: boolean;
   category: DeviceCategory;
   state: string;
@@ -218,7 +218,7 @@ export interface HealthDto {
   system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number; temperatureC?: number | null };
   /** Acesso de fora de casa (endereço público, ex.: Cloudflare Tunnel) */
   publicAccess?: { configured: boolean; ok: boolean };
-  /** Último pedido feito à DIA por este usuário */
+  /** Último pedido feito à Luna por este usuário */
   lastCommand?: { text: string; at: string; channel: string } | null;
   services: {
     database: ServiceHealth;
@@ -261,7 +261,7 @@ export type ServerEvent =
   | { type: 'devices_reload' }
   | { type: 'ha_status'; connected: boolean }
   | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
-  /** Resposta da DIA (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
+  /** Resposta da Luna (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
   | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] }
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
   | { type: 'camera_event'; event: CameraEventDto }
@@ -378,9 +378,9 @@ export interface LitterBoxDto {
   /** Visitas de hoje segundo a própria caixa */
   todayCount: number | null;
   lastVisit: LitterVisitDto | null;
-  /** Visitas por dia (7 dias, o último é hoje) registradas pela DIA */
+  /** Visitas por dia (7 dias, o último é hoje) registradas pela Luna */
   week: { date: string; count: number }[];
-  /** Desde quando a DIA registra as visitas (antes disso não há histórico) */
+  /** Desde quando a Luna registra as visitas (antes disso não há histórico) */
   historySince: string | null;
   recent: LitterVisitDto[];
   cats: LitterCatDto[];

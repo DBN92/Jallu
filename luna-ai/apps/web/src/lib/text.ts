@@ -24,31 +24,32 @@ export const STATE_LABEL: Record<string, string> = {
 export const PROVIDER_LABEL: Record<string, string> = {
   ollama: 'IA local',
   openai: 'OpenAI',
-  'luna-nlu': 'DIA (local)',
+  'luna-nlu': 'Luna (local)',
   'openai-realtime': 'Voz em tempo real',
 };
 
 /**
- * “Oi, Dia” (também “Olá/Ei/Hey, Dia” e “oidia”, como alguns celulares transcrevem).
- * Exige a saudação antes do nome: “dia” sozinho é comum demais (“bom dia”, “que dia é hoje”).
+ * Chamado direto: “Luna” no COMEÇO da frase — “Luna”, “Luna, acende a luz”.
+ * Uma saudação antes (“oi Luna”) também vale, mas não é necessária. No meio da frase
+ * (“pergunta pra Luna…”) não acorda.
  */
-const WAKE_RE = /\b(?:oi|ola|ei|hey)\s+dia\b\s*(.*)$|\boidia\b\s*(.*)$/;
+const WAKE_RE = /^\s*(?:(?:oi|ola|ei|hey|e ai)\s+)?luna\b\s*(.*)$/;
 export const isWakeCall = (text: string) => WAKE_RE.test(normalize(text));
-/** Se a fala chama a DIA, devolve o pedido que veio junto (pode ser vazio); senão, null. */
+/** Se a fala chama a Luna, devolve o pedido que veio junto (pode ser vazio); senão, null. */
 export function splitWake(text: string): string | null {
   const m = normalize(text).match(WAKE_RE);
-  return m ? (m[1] ?? m[2] ?? '').trim() : null;
+  return m ? (m[1] ?? '').trim() : null;
 }
 
 /**
- * Como o reconhecimento costuma ouvir o “Oi, Dia” quando a pessoa fala baixo ou de longe
- * (“oi tia”, “boi dia”, “oi lia”, “o dia”…). Só vale quando a frase é SÓ isso — curta e
- * sozinha —, para não acordar a DIA no meio de uma conversa (“o dia está lindo”).
+ * Como o reconhecimento costuma ouvir o chamado “Luna” quando a pessoa fala baixo ou de longe
+ * (“lua”, “luma”, “lona”…). Só vale quando a frase é SÓ isso — curta e sozinha —, para não
+ * acordar a Luna no meio de uma conversa (“a lua está linda”).
  */
-const WAKE_LOOKALIKE = /^(?:oi+|hoi|boi|ói|o|ola|ei|hey|e ai|oie)\s*,?\s*(?:dia+|tia|lia|bia|dya|di a|de a|gia|jia|d'ia)$/;
+const WAKE_LOOKALIKE = /^(?:(?:oi|ola|ei|hey|e ai)\s+)?(?:lua|luma|lona|lunna|luna+|nuna|luna a)$/;
 
 /**
- * Procura o “Oi, Dia” em todos os palpites do reconhecimento (o Android devolve vários).
+ * Procura o chamado “Luna” em todos os palpites do reconhecimento (o Android devolve vários).
  * Devolve o pedido que veio junto (pode ser vazio) ou null.
  */
 export function matchWake(alternatives: string[]): string | null {
@@ -62,7 +63,7 @@ export function matchWake(alternatives: string[]): string | null {
   return null;
 }
 
-/** Sinal sonoro curto ao ouvir “Oi, Dia” (como o anel de uma assistente). */
+/** Sinal sonoro curto ao ouvir “Luna” (como o anel de uma assistente). */
 export function playChime() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

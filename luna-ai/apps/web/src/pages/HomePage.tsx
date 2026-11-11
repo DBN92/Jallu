@@ -62,10 +62,10 @@ export default function HomePage() {
   const [muted, setMuted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Android/computador: o Chrome escuta "DIA" de graça; a sessão da OpenAI só abre quando chamada.
-  // iPhone: sem escuta contínua no navegador, o filtro de "DIA" roda dentro da sessão em tempo real.
+  // Android/computador: o Chrome escuta "Luna" de graça; a sessão da OpenAI só abre quando chamada.
+  // iPhone: sem escuta contínua no navegador, o filtro de "Luna" roda dentro da sessão em tempo real.
   const wakeEnabled = Boolean(settings?.wakeWordEnabled);
-  // Dentro do app Android (tablet) o próprio app escuta o “Oi, Dia” e reconhece a fala
+  // Dentro do app Android (tablet) o próprio app escuta o chamado “Luna” e reconhece a fala
   const inApp = nativeApp() !== null;
   const localWake = !inApp && wakeWordSupport('basic').supported;
 
@@ -98,7 +98,7 @@ export default function HomePage() {
 
   /**
    * Envia por voz e FALA EM FLUXO: cada frase pronta entra na fila de fala enquanto o
-   * modelo ainda gera o resto — a DIA começa a responder bem antes de terminar de pensar.
+   * modelo ainda gera o resto — a Luna começa a responder bem antes de terminar de pensar.
    */
   const sendVoice = useCallback(
     async (t: string, continueAfter = false) => {
@@ -251,7 +251,7 @@ export default function HomePage() {
 
   const { w: vw, h: vh } = useViewport();
 
-  // Conversa pelo “Oi, Dia” do app Android: mostra a tela de voz (nuvem) com o que ouviu e respondeu
+  // Conversa pelo chamado “Luna” do app Android: mostra a tela de voz (nuvem) com o que ouviu e respondeu
   const [nativeVoice, setNativeVoice] = useState<{ heard: string; reply: string } | null>(null);
   useEffect(() => {
     if (!inApp) return;
@@ -281,7 +281,7 @@ export default function HomePage() {
   const lastReply = lastMsg?.role === 'assistant' ? lastMsg.content : '';
   const lastHeard = interim || ([...messages].reverse().find((m) => m.role === 'user')?.content ?? '');
 
-  // ---- Modo ambiente: entra após 45 s sem uso, sai com toque ou quando a DIA é chamada ----
+  // ---- Modo ambiente: entra após 45 s sem uso, sai com toque ou quando a Luna é chamada ----
   const ambientEnabled = useSettings((s) => s.ambientMode);
   const [ambient, setAmbient] = useState(false);
   const lastUse = useRef(Date.now());
@@ -370,7 +370,7 @@ export default function HomePage() {
           greeting={greeting(now)}
           userName={user?.displayName?.split(' ')[0] ?? ''}
           state={state}
-          stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Oi, Dia”' : 'Disponível'}
+          stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Luna”' : 'Disponível'}
           aiTag={settings?.aiMode === 'local' ? 'IA local' : settings?.aiMode === 'cloud' ? 'IA nuvem' : 'IA híbrida'}
           hasChat={hasChat}
           messages={messages}
@@ -408,11 +408,11 @@ export default function HomePage() {
         <div className="font-hud flex min-w-0 items-center gap-2 justify-self-start border border-cyan-300/25 bg-ink-950/75 px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.18em] text-cyan-300/85 uppercase [clip-path:polygon(8px_0,100%_0,100%_calc(100%-8px),calc(100%-8px)_100%,0_100%,0_8px)] md:px-3.5 md:text-xs" aria-live="polite">
           <span className={`h-2 w-2 shrink-0 rounded-full ${STATE_DOT[state]}`} />
           <span className="truncate">
-            {state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? <>Comando de voz · <b className="text-emerald-300">Oi, Dia</b></> : 'Disponível'}
+            {state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? <>Comando de voz · <b className="text-emerald-300">Luna</b></> : 'Disponível'}
           </span>
         </div>
         <div className={`text-center transition-opacity ${hasChat ? 'max-md:hidden' : ''}`}>
-          <p className="hud-title text-[11px] tracking-[0.6em] text-cyan-100 [text-shadow:0_0_10px_#00e5ff] md:text-sm [@media(max-height:560px)]:hidden">DIA</p>
+          <p className="hud-title text-[11px] tracking-[0.6em] text-cyan-100 [text-shadow:0_0_10px_#00e5ff] md:text-sm [@media(max-height:560px)]:hidden">Luna</p>
           <p className="hud-title hud-glow text-4xl leading-tight font-bold text-cyan-50 tabular-nums md:text-5xl [@media(max-height:560px)]:text-2xl">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
           <p className="hud-label text-[10px] md:text-xs [@media(max-height:560px)]:hidden">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
         </div>
@@ -489,7 +489,7 @@ export default function HomePage() {
               ref={inputRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={micActive ? 'Ouvindo…' : 'Digite um comando para a DIA…'}
+              placeholder={micActive ? 'Ouvindo…' : 'Digite um comando para a Luna…'}
               className="font-hud min-w-0 flex-1 bg-transparent px-1 py-2 text-base text-cyan-50 placeholder-cyan-100/30 outline-none"
               enterKeyHint="send"
               autoComplete="off"
@@ -552,7 +552,7 @@ export default function HomePage() {
         <AmbientMode
           now={now}
           weather={weather.data}
-          hint={wake.armed ? 'Diga “Oi, Dia” ou toque na tela' : 'Toque na tela para voltar'}
+          hint={wake.armed ? 'Diga “Luna” ou toque na tela' : 'Toque na tela para voltar'}
           onExit={() => {
             lastUse.current = Date.now();
             setAmbient(false);
@@ -565,7 +565,7 @@ export default function HomePage() {
         createPortal(
           <div className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),0.75rem)] z-[70] flex justify-center px-4">
             <div className="font-hud animate-fade-up rounded-sm border border-amber-300/50 bg-ink-950/95 px-4 py-2 text-sm text-amber-100 shadow-[0_0_16px_rgba(255,181,71,0.25)]">
-              🔊 Toque em qualquer lugar da tela para liberar a voz da DIA
+              🔊 Toque em qualquer lugar da tela para liberar a voz da Luna
             </div>
           </div>,
           document.body,

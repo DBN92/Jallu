@@ -31,8 +31,8 @@ import java.net.URL
 import kotlin.concurrent.thread
 
 /**
- * Tela do app: a própria DIA (as mesmas telas do servidor, que se atualizam sozinhas) dentro de
- * um WebView, mais a ponte “DiaAndroid” para a tela ligar a escuta do “Oi, Dia” no tablet.
+ * Tela do app: a própria Luna (as mesmas telas do servidor, que se atualizam sozinhas) dentro de
+ * um WebView, mais a ponte “DiaAndroid” para a tela ligar a escuta do chamado “Luna” no tablet.
  */
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         if (prefs.wake && hasMic()) ListenService.send(this, ListenService.ACTION_START)
     }
 
-    /** Botão “Falar com a DIA” (cortina), assistente do sistema ou atalho: ouve um pedido agora. */
+    /** Botão “Falar com a Luna” (cortina), assistente do sistema ou atalho: ouve um pedido agora. */
     private fun handleIntent(i: Intent?) {
         if (i?.action == Intent.ACTION_ASSIST || i?.getBooleanExtra("listen", false) == true) {
             if (hasMic()) ListenService.send(this, ListenService.ACTION_LISTEN_NOW)
@@ -95,7 +95,7 @@ class MainActivity : Activity() {
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    // ---------------- Primeira vez: endereço da DIA ----------------
+    // ---------------- Primeira vez: endereço da Luna ----------------
 
     private fun showSetup(error: String? = null) {
         web?.destroy()
@@ -109,13 +109,13 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.parseColor("#06070D"))
         }
         box.addView(TextView(this).apply {
-            text = "DIA"
+            text = "Luna"
             textSize = 34f
             setTextColor(Color.parseColor("#22D3EE"))
             gravity = Gravity.CENTER
         })
         box.addView(TextView(this).apply {
-            text = "Endereço da DIA na sua casa (o mesmo que você abre no navegador):"
+            text = "Endereço da Luna na sua casa (o mesmo que você abre no navegador):"
             textSize = 16f
             setTextColor(Color.WHITE)
             setPadding(0, pad, 0, pad / 3)
@@ -149,7 +149,7 @@ class MainActivity : Activity() {
                     } catch (_: Exception) { false }
                     runOnUiThread {
                         if (ok) { prefs.url = url; showWeb() }
-                        else { msg.setTextColor(Color.parseColor("#FB7185")); msg.text = "Não encontrei a DIA nesse endereço. Confira o IP e a porta." }
+                        else { msg.setTextColor(Color.parseColor("#FB7185")); msg.text = "Não encontrei a Luna nesse endereço. Confira o IP e a porta." }
                     }
                 }
             }
@@ -162,7 +162,7 @@ class MainActivity : Activity() {
         })
     }
 
-    // ---------------- A DIA no WebView ----------------
+    // ---------------- A Luna no WebView ----------------
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun showWeb() {
@@ -182,7 +182,7 @@ class MainActivity : Activity() {
         w.addJavascriptInterface(Bridge(), "DiaAndroid")
         w.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, req: WebResourceRequest): Boolean {
-                // Só a DIA abre aqui dentro; links de fora vão para o navegador
+                // Só a Luna abre aqui dentro; links de fora vão para o navegador
                 if (sameOrigin(req.url.toString())) return false
                 try { startActivity(Intent(Intent.ACTION_VIEW, req.url)) } catch (_: Exception) {}
                 return true
@@ -224,7 +224,7 @@ class MainActivity : Activity() {
     }
 
     private fun offlinePage() = """<html><body style="background:#06070d;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
-        <h2 style="color:#22d3ee">Sem conexão com a DIA</h2><p>Confira se o servidor está ligado e o tablet no Wi-Fi de casa.</p>
+        <h2 style="color:#22d3ee">Sem conexão com a Luna</h2><p>Confira se o servidor está ligado e o tablet no Wi-Fi de casa.</p>
         <p><button style="font-size:18px;padding:12px 24px;border-radius:24px;border:0" onclick="location.href='${prefs.url}'">Tentar de novo</button></p>
         <p><button style="font-size:14px;padding:8px 16px;border-radius:16px;border:0;opacity:.7" onclick="DiaAndroid.changeServer()">Trocar endereço</button></p></body></html>"""
 
@@ -247,8 +247,8 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Ponte chamada pela tela da DIA (Configurações › App Android). Só responde quando a página
-     * aberta é a própria DIA — nenhum outro site consegue usar estas funções.
+     * Ponte chamada pela tela da Luna (Configurações › App Android). Só responde quando a página
+     * aberta é a própria Luna — nenhum outro site consegue usar estas funções.
      */
     inner class Bridge {
         private fun allowed() = currentUrl.isEmpty() || sameOrigin(currentUrl)
@@ -276,7 +276,7 @@ class MainActivity : Activity() {
                 .toString()
         }
 
-        @JavascriptInterface fun setToken(token: String) { if (allowed() && token.startsWith("dia_")) prefs.token = token }
+        @JavascriptInterface fun setToken(token: String) { if (allowed() && (token.startsWith("luna_") || token.startsWith("dia_"))) prefs.token = token }
 
         @JavascriptInterface
         fun setWake(on: Boolean) {
@@ -312,7 +312,7 @@ class MainActivity : Activity() {
             }
         }
 
-        /** “Aparecer sobre outros apps”: necessário para a DIA abrir sozinha quando o tablet liga. */
+        /** “Aparecer sobre outros apps”: necessário para a Luna abrir sozinha quando o tablet liga. */
         @JavascriptInterface
         fun openOverlay() {
             if (allowed()) runOnUiThread { startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))) }
@@ -323,7 +323,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun changeServer() { runOnUiThread { showSetup() } }
 
         /**
-         * Atualização: baixa o APK novo pela própria DIA (com o login do app) para a pasta Downloads.
+         * Atualização: baixa o APK novo pela própria Luna (com o login do app) para a pasta Downloads.
          * Ao terminar, tocar no aviso abre o instalador do Android, que pede confirmação.
          */
         @JavascriptInterface
@@ -334,10 +334,10 @@ class MainActivity : Activity() {
                 val req = android.app.DownloadManager.Request(Uri.parse(url))
                     .addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
                     .setMimeType("application/vnd.android.package-archive")
-                    .setTitle("DIA — atualização")
+                    .setTitle("Luna — atualização")
                     .setDescription("Toque para instalar a nova versão")
                     .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "DIA-${System.currentTimeMillis()}.apk")
+                    .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "Luna-${System.currentTimeMillis()}.apk")
                 getSystemService(android.app.DownloadManager::class.java).enqueue(req)
             }
         }

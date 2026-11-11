@@ -5,7 +5,7 @@ import { waveColors } from '../lib/theme';
 type V3 = [number, number, number];
 type Shape = 'dust' | 'shell' | 'core' | 'net';
 
-/** Forma da nuvem em cada estado da DIA. */
+/** Forma da nuvem em cada estado da Luna. */
 const STATE_SHAPE: Record<AssistantState, Shape> = { idle: 'shell', listening: 'shell', processing: 'core', acting: 'core', speaking: 'net', error: 'shell' };
 /** Velocidade de giro (rad/s) em cada estado. */
 const STATE_SPIN: Record<AssistantState, number> = { idle: 0.22, listening: 0.3, processing: 1.6, acting: 1.8, speaking: 0.35, error: 0.1 };
@@ -98,7 +98,7 @@ function sprite(rgb: V3) {
 }
 
 /**
- * Núcleo visual da DIA: nuvem de partículas 3D nas cores do tema.
+ * Núcleo visual da Luna: nuvem de partículas 3D nas cores do tema.
  * Em repouso é uma esfera que respira; ouvindo, pulsa com a voz; pensando, vira um núcleo
  * brilhante; falando, vira uma esfera de rede (pontos ligados) que pulsa com a fala.
  * Um único canvas, sem re-render do React; pausa quando sai da tela ou o app fica oculto,
@@ -311,7 +311,7 @@ export function LunaOrb({
     <button
       type="button"
       onClick={onClick}
-      aria-label="Falar com a DIA"
+      aria-label="Falar com a Luna"
       className="hud-core relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
       data-state={state}
       style={{ width: size, height: H }}

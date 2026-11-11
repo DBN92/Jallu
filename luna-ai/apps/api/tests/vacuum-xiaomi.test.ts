@@ -113,7 +113,7 @@ describe('Rita (Xiaomi Home, modelo c102gl)', () => {
     expect(ctx.ha.calls.at(-1)).toMatchObject({ domain: 'select', service: 'select_option', data: { option: 'Silent' } });
     expect(fan.json.vacuum.fanSpeed).toBe('Silent');
     await ctx.inject('PATCH', `/api/devices/vacuum.${P}`, { aiAllowed: true });
-    const r = await chat(ctx, 'Oi, Dia, aspira a casa');
+    const r = await chat(ctx, 'Luna, aspira a casa');
     expect(r.reply).toMatch(/Rita começou a aspirar/);
   });
 

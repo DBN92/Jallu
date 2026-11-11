@@ -25,7 +25,7 @@ const EMPTY = {
 };
 
 /**
- * Câmeras lidas diretamente pela DIA (RTSP), para modelos que o Home Assistant não consegue mostrar
+ * Câmeras lidas diretamente pela Luna (RTSP), para modelos que o Home Assistant não consegue mostrar
  * (ex.: Yoosee H.265 só por UDP). A senha fica no servidor e nunca volta para o navegador.
  */
 export function DirectCameras() {
@@ -103,7 +103,7 @@ export function DirectCameras() {
   };
 
   const remove = async (c: DirectCam) => {
-    if (!confirm(`Remover a câmera “${c.name}” da DIA?`)) return;
+    if (!confirm(`Remover a câmera “${c.name}” da Luna?`)) return;
     try {
       await api(`/api/cameras/direct/${c.id}`, { method: "DELETE" });
       await load();
@@ -167,7 +167,7 @@ export function DirectCameras() {
     <div className="space-y-3 px-4 py-3">
       <p className="text-xs text-white/45">
         Para câmeras que não aparecem pelo Home Assistant (ex.: Yoosee em
-        H.265). A DIA se conecta direto à câmera e converte o vídeo para tocar
+        H.265). A Luna se conecta direto à câmera e converte o vídeo para tocar
         no iPhone, Android e Fire TV. Se houver uma câmera do Home Assistant com
         o mesmo nome, ela é substituída por esta.
       </p>

@@ -4,7 +4,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** Manda o pedido para a DIA (mesmo caminho da Siri) e devolve a resposta em texto. */
+/** Manda o pedido para a Luna (mesmo caminho da Siri) e devolve a resposta em texto. */
 object DiaApi {
     fun ask(baseUrl: String, token: String, text: String): String {
         val conn = URL("$baseUrl/api/siri/ask").openConnection() as HttpURLConnection
@@ -18,9 +18,9 @@ object DiaApi {
             conn.outputStream.use { it.write(JSONObject().put("texto", text).toString().toByteArray()) }
             val code = conn.responseCode
             val body = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
-            if (code == 401) "Preciso ser ativada de novo. Abra a DIA no tablet, em Configurações, App Android." else body.ifBlank { "Pronto." }
+            if (code == 401) "Preciso ser ativada de novo. Abra a Luna no tablet, em Configurações, App Android." else body.ifBlank { "Pronto." }
         } catch (e: Exception) {
-            "Não consegui falar com o servidor da DIA."
+            "Não consegui falar com o servidor da Luna."
         } finally {
             conn.disconnect()
         }

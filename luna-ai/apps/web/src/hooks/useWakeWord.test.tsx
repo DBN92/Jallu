@@ -53,7 +53,7 @@ function Harness({ paused, onCmd }: { paused: boolean; onCmd: (t: string) => voi
   return null;
 }
 
-describe('“Oi, Dia” contínuo', () => {
+describe('Chamado “Luna” contínuo', () => {
   let root: ReturnType<typeof createRoot>;
   let container: HTMLDivElement;
   beforeEach(() => {
@@ -80,10 +80,10 @@ describe('“Oi, Dia” contínuo', () => {
     advance(300);
     for (let i = 1; i <= 3; i++) {
       expect(active()).toHaveLength(1);
-      act(() => active()[0]!.say(`oi dia pedido ${i}`));
+      act(() => active()[0]!.say(`luna pedido ${i}`));
       expect(cmds).toHaveLength(i);
       expect(active()).toHaveLength(0); // microfone liberado para a resposta
-      render(true, onCmd); // DIA processando/falando
+      render(true, onCmd); // Luna processando/falando
       advance(2000);
       expect(active()).toHaveLength(0);
       render(false, onCmd); // voltou a ficar disponível
@@ -92,25 +92,25 @@ describe('“Oi, Dia” contínuo', () => {
     expect(cmds).toEqual(['pedido 1', 'pedido 2', 'pedido 3']);
   });
 
-  it('acorda quando o “oi dia” está no segundo palpite e registra o que ouviu', async () => {
+  it('acorda quando o “luna” está no segundo palpite e registra o que ouviu', async () => {
     const { useWakeLog } = await import('./useWakeWord');
     const cmds: string[] = [];
     render(false, (t) => cmds.push(t));
     advance(300);
-    act(() => active()[0]!.say('oi tia acende a luz', 'oi dia acende a luz'));
+    act(() => active()[0]!.say('lua acende a luz', 'luna acende a luz'));
     expect(cmds).toEqual(['acende a luz']);
-    expect(useWakeLog.getState().heard[0]).toMatchObject({ text: 'oi tia acende a luz', woke: true });
+    expect(useWakeLog.getState().heard[0]).toMatchObject({ text: 'lua acende a luz', woke: true });
     expect(FakeRecognition.instances.at(-1)!.maxAlternatives).toBe(5);
   });
 
-  it('volta a escutar sozinho mesmo se o pedido não ocupar a DIA', () => {
+  it('volta a escutar sozinho mesmo se o pedido não ocupar a Luna', () => {
     const cmds: string[] = [];
     render(false, (t) => cmds.push(t));
     advance(300);
-    act(() => active()[0]!.say('oi dia'));
+    act(() => active()[0]!.say('luna'));
     advance(7000);
     expect(active()).toHaveLength(1);
-    act(() => active()[0]!.say('oi dia de novo'));
+    act(() => active()[0]!.say('luna de novo'));
     expect(cmds).toEqual(['', 'de novo']);
   });
 

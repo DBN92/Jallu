@@ -9,7 +9,7 @@ import type { ActionLogService } from './action-log.service';
 import { CONTROLLABLE_DOMAINS, SUPPORTED_DOMAINS, domainOf, toDeviceDto } from './categorize';
 import { buildExtras, parseCompanion } from './vacuum-extras';
 
-/** Entidades do robô que mudam o tempo todo e não aparecem na DIA (mapa, logs…): não geram atualização. */
+/** Entidades do robô que mudam o tempo todo e não aparecem na Luna (mapa, logs…): não geram atualização. */
 const NOISY_COMPANIONS = new Set(['map_data', 'object_name', 'robot_time', 'result_code', 'clean_log_filename', 'voice_change_state', 'clean_extend_data', 'remote_state', 'clean_start_time', 'relocation_status']);
 
 /** Quem está pedindo a ação. Ações vindas da IA exigem dispositivo autorizado para IA. */
@@ -231,7 +231,7 @@ export class DevicesService extends EventEmitter {
     const current = await this.get(entityId);
     if (patch.name) {
       const clash = (await this.list({ includeHidden: true })).find((d) => d.entityId !== entityId && normalize(d.name) === normalize(patch.name!));
-      if (clash) throw badRequest(`Já existe um dispositivo chamado “${clash.name}”. Use um nome diferente para a DIA não confundir.`);
+      if (clash) throw badRequest(`Já existe um dispositivo chamado “${clash.name}”. Use um nome diferente para a Luna não confundir.`);
     }
     if (patch.aiAllowed && !CONTROLLABLE_DOMAINS.has(domainOf(entityId))) {
       throw badRequest('Somente dispositivos controláveis podem ser autorizados para a IA. Sensores já podem ser consultados.');
@@ -255,7 +255,7 @@ export class DevicesService extends EventEmitter {
     const device = await this.get(entityId);
     if (!device.controllable) throw forbidden(`${device.name} é somente leitura.`);
     if (this.isActor(actor.source) && !device.aiAllowed) {
-      throw forbidden(`${device.name} não está autorizado para comandos da DIA. Autorize em "Minha casa".`);
+      throw forbidden(`${device.name} não está autorizado para comandos da Luna. Autorize em "Minha casa".`);
     }
     if (!device.available) throw new AppError(409, `${device.name} está indisponível no momento.`, 'device_unavailable');
     return device;
@@ -299,7 +299,7 @@ export class DevicesService extends EventEmitter {
       const before = await this.authorize(entityId, actor);
       const info = before.vacuum!;
       if (command === 'set_fan_speed') {
-        if (!info.can.fanSpeed) throw badRequest(`${before.name} não permite ajustar a potência pela DIA.`);
+        if (!info.can.fanSpeed) throw badRequest(`${before.name} não permite ajustar a potência pela Luna.`);
         const wanted = info.fanSpeeds.find((f) => normalize(f) === normalize(fanSpeed ?? ''));
         if (!wanted) throw badRequest(`Potência inválida. Opções: ${info.fanSpeeds.join(', ')}.`);
         data.fan_speed = wanted;
@@ -334,7 +334,7 @@ export class DevicesService extends EventEmitter {
 
   /**
    * Controles extras do robô (lavar pano, sucção, não perturbe…). Só aceita os controles que a
-   * própria DIA listou para este aspirador — nada de chamar serviço arbitrário do Home Assistant.
+   * própria Luna listou para este aspirador — nada de chamar serviço arbitrário do Home Assistant.
    */
   async vacuumExtra(entityId: string, controlId: string, value: string | boolean | undefined, actor: Actor): Promise<DeviceDto> {
     if (domainOf(entityId) !== 'vacuum') throw badRequest('Este comando é só para aspiradores robôs.');
@@ -430,7 +430,7 @@ export class DevicesService extends EventEmitter {
         matches.push({ device: d, score: 100 });
         continue;
       }
-      // Pesos: nome dado na DIA > apelidos/nome no HA > identificador técnico (entity_id)
+      // Pesos: nome dado na Luna > apelidos/nome no HA > identificador técnico (entity_id)
       const names: [string, number][] = [
         [d.name, d.renamed ? 3 : 0],
         [d.originalName, 0],

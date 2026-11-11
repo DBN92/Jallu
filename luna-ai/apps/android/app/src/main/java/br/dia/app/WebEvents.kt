@@ -6,7 +6,7 @@ import android.webkit.WebView
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 
-/** Avisa a tela da DIA (aberta no app) sobre a conversa por voz, para mostrar a animação. */
+/** Avisa a tela da Luna (aberta no app) sobre a conversa por voz, para mostrar a animação. */
 object WebEvents {
     private var view: WeakReference<WebView>? = null
     private val main = Handler(Looper.getMainLooper())

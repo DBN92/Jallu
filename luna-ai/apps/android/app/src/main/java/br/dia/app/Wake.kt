@@ -33,26 +33,29 @@ class AutoGain(private val target: Float = 1200f, private val maxGain: Float = 1
 }
 
 object WakeMatch {
-    /** Frases que o reconhecedor pode escolher: as “iscas” evitam que “bom dia” vire “oi dia”. */
-    const val GRAMMAR = "[\"oi dia\", \"bom dia\", \"o dia\", \"dia\", \"oi\", \"tia\", \"boa\", \"[unk]\"]"
+    /**
+     * Frases que o reconhecedor pode escolher. “Luna” sozinha é curta: o modelo em português
+     * muitas vezes ouve “lona”, então as duas valem. As outras são “iscas” para que palavras
+     * parecidas e frequentes em casa (“luz”, “lua”, “uma”, “acende/apaga a luz da sala”) não
+     * virem “Luna”. Escolhidas no teste com vozes sintéticas.
+     */
+    const val GRAMMAR = "[\"luna\", \"lona\", \"lua\", \"luz\", \"uma\", \"una\", \"lula\", \"bom dia\", \"acende\", \"apaga\", \"a\", \"da\", \"sala\", \"[unk]\"]"
+    private val CALL = setOf("luna", "lona")
 
     /** Confiança mínima por nível de sensibilidade. */
     fun threshold(sensitivity: String): Float = when (sensitivity) {
-        "alta" -> 0.45f
-        "baixa" -> 0.8f
-        else -> 0.6f
+        "alta" -> 0.3f
+        "baixa" -> 0.55f
+        else -> 0.4f
     }
 
-    /** Lê o resultado do Vosk e devolve a confiança do “oi dia” (0 se não houver). */
+    /** Lê o resultado do Vosk e devolve a confiança do chamado “Luna” (0 se não houver). */
     fun score(json: String): Float {
         val words = JSONObject(json).optJSONArray("result") ?: return 0f
         var best = 0f
-        for (k in 0 until words.length() - 1) {
-            val a = words.getJSONObject(k)
-            val b = words.getJSONObject(k + 1)
-            if (a.optString("word") == "oi" && b.optString("word") == "dia") {
-                best = max(best, ((a.optDouble("conf", 0.0) + b.optDouble("conf", 0.0)) / 2).toFloat())
-            }
+        for (k in 0 until words.length()) {
+            val w = words.getJSONObject(k)
+            if (w.optString("word") in CALL) best = max(best, w.optDouble("conf", 0.0).toFloat())
         }
         return best
     }
