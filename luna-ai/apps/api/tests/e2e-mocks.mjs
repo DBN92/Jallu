@@ -76,6 +76,11 @@ const ha = http.createServer(async (req, res) => {
   if (url.pathname === '/__ptz') return send(res, 200, ptzLog);
   if (url.pathname === '/api/') return send(res, 200, { message: 'API running.' });
   if (url.pathname === '/api/states') return send(res, 200, [...states.values()]);
+  // Histórico (versão simples: o valor atual de cada entidade pedida)
+  if (url.pathname.startsWith('/api/history/period/')) {
+    const ids = (url.searchParams.get('filter_entity_id') || '').split(',').filter((id) => states.has(id));
+    return send(res, 200, ids.map((id) => [{ entity_id: id, state: states.get(id).state, last_changed: states.get(id).last_changed ?? new Date().toISOString() }]));
+  }
   // Só no teste: muda um valor e avisa pelo WebSocket, como o Home Assistant faria
   if (url.pathname === '/__test/set' && req.method === 'POST') {
     const d = await body(req);
