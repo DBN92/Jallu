@@ -32,7 +32,7 @@ import kotlin.concurrent.thread
 
 /**
  * Tela do app: a própria Luna (as mesmas telas do servidor, que se atualizam sozinhas) dentro de
- * um WebView, mais a ponte “DiaAndroid” para a tela ligar a escuta do chamado “Luna” no tablet.
+ * um WebView, mais a ponte “DiaAndroid” para a tela ligar a escuta do chamado “Oi, Luna” no tablet.
  */
 class MainActivity : Activity() {
     private lateinit var prefs: Prefs

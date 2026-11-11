@@ -34,8 +34,8 @@ import kotlin.concurrent.thread
 import kotlin.math.max
 
 /**
- * Escuta o chamado “Luna” o tempo todo (também com a tela desligada), no próprio tablet:
- *  1. Vosk off-line, restrito ao chamado “Luna” (e iscas parecidas) — nenhum áudio sai do aparelho;
+ * Escuta o chamado “Oi, Luna” o tempo todo (também com a tela desligada), no próprio tablet:
+ *  1. Vosk off-line, restrito ao chamado “oi luna” (e iscas parecidas) — nenhum áudio sai do aparelho;
  *  2. ao ouvir, toca um sinal e reconhece o pedido (reconhecimento de fala do Android);
  *  3. manda o texto para a Luna (mesmo caminho seguro da Siri) e fala a resposta.
  * O Android exige um aviso fixo enquanto o microfone está em uso — com botão de pausar.
@@ -94,7 +94,7 @@ class ListenService : Service() {
             }
         }
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do chamado “Luna”", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do chamado “Oi, Luna”", NotificationManager.IMPORTANCE_LOW))
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, notification("Preparando…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             else startForeground(NOTIF_ID, notification("Preparando…"))
@@ -136,7 +136,7 @@ class ListenService : Service() {
         super.onDestroy()
     }
 
-    // ---------------- Modelo e escuta do chamado “Luna” ----------------
+    // ---------------- Modelo e escuta do chamado “Oi, Luna” ----------------
 
     private fun loadModel() {
         thread(name = "dia-modelo") {
@@ -254,7 +254,7 @@ class ListenService : Service() {
                 handleText(t)
             }
             override fun onError(error: Int) {
-                // Sem fala ou não entendeu: volta a esperar o chamado “Luna” sem incomodar
+                // Sem fala ou não entendeu: volta a esperar o chamado “Oi, Luna” sem incomodar
                 if (lastPartial.isNotBlank()) handleText(lastPartial) else endSession()
             }
             override fun onReadyForSpeech(p: Bundle?) {}
@@ -344,7 +344,7 @@ class ListenService : Service() {
             !prefs.wake -> "Escuta desligada"
             paused -> "Pausado — toque em Retomar"
             model == null -> "Preparando o modelo de voz…"
-            else -> "Ouvindo “Luna”"
+            else -> "Ouvindo “Oi, Luna”"
         }
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notification(msg))
     }

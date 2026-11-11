@@ -5,7 +5,7 @@ import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { getRecognitionCtor, isIOS, type SpeechRecognitionLike } from './speech';
 
 /**
- * Estrutura para a palavra de ativação “Luna”.
+ * Estrutura para a palavra de ativação “Oi, Luna”.
  * Funciona SOMENTE com o app aberto, em primeiro plano, e em navegadores com reconhecimento
  * contínuo (ex.: Chrome no computador/Android). No iPhone não há escuta contínua em PWA,
  * então o recurso é reportado como não suportado — não simulamos escuta em segundo plano.
@@ -18,7 +18,7 @@ export function wakeWordSupport(mode: 'basic' | 'realtime' = 'basic'): { support
   return { supported: true, reason: null };
 }
 
-/** Últimas frases que o chamado “Luna” ouviu (para conferir em Configurações › Voz). */
+/** Últimas frases que o chamado “Oi, Luna” ouviu (para conferir em Configurações › Voz). */
 export const useWakeLog = create<{ heard: { text: string; woke: boolean; at: number }[]; push: (text: string, woke: boolean) => void }>((set) => ({
   heard: [],
   push: (text, woke) => set((s) => ({ heard: [{ text, woke, at: Date.now() }, ...s.heard].slice(0, 8) })),
@@ -87,7 +87,7 @@ export function useWakeWord(enabled: boolean, paused: boolean, onCommand: (text:
         lastActivity = Date.now();
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
           failures = 99;
-          setError('Sem permissão de microfone para o chamado “Luna”. Toque na tela e permita o microfone.');
+          setError('Sem permissão de microfone para o chamado “Oi, Luna”. Toque na tela e permita o microfone.');
         } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
           failures++;
         }

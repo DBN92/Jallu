@@ -1,4 +1,4 @@
-# Android como assistente sempre ligada (“Luna”)
+# Android como assistente sempre ligada (“Oi, Luna”)
 
 > **Tablet na tomada? Use o app Luna (recomendado).** A seção abaixo explica o app.
 > O modo pelo navegador Chrome, mais adiante, continua funcionando para celulares.
@@ -7,7 +7,7 @@
 
 O app abre as mesmas telas da Luna, que se atualizam sozinhas junto com o servidor. Ele também faz o que o navegador não consegue:
 
-- **"Luna" com a tela desligada** e sem gritar:
+- **"Oi, Luna" com a tela desligada** e sem gritar:
   - a escuta é **off-line, no próprio tablet** (Vosk, modelo em português de 32 MB, baixado uma única vez);
   - um **ganho automático** ajuda quem fala baixo ou longe;
   - nenhum áudio sai do tablet antes do chamado.
@@ -20,7 +20,7 @@ O app abre as mesmas telas da Luna, que se atualizam sozinhas junto com o servid
 2. Abra o arquivo baixado e permita "instalar apps desta fonte" quando o Android pedir.
 3. No app, informe o endereço da Luna (o mesmo do navegador, ex.: `http://192.168.15.6:PORTA`) e entre com seu usuário.
 4. Em **Configurações → App Android (tablet)**:
-   - ligue o **"Luna" com a tela desligada**: na primeira vez ele baixa o modelo de voz;
+   - ligue o **"Oi, Luna" com a tela desligada**: na primeira vez ele baixa o modelo de voz;
    - toque em **Permitir** para "Aparecer sobre outros apps", necessário para abrir sozinho ao ligar;
    - toque em **Liberar** para o uso em segundo plano, porque a Samsung costuma fechar apps para economizar bateria.
 
@@ -31,8 +31,7 @@ Enquanto escuta, o Android mostra o aviso fixo **"Luna — Ouvindo 'Luna'"**, co
 - **Alta:** ouve de mais longe, mas pode acordar por engano.
 - **Baixa:** só acorda com a frase bem clara.
 
-**Limite atual:** no teste com vozes sintéticas, a escuta off-line acertou só cerca de **55%** dos "Luna" ditos sozinhos, e 4 em 144 frases comuns acordaram a Luna por engano.
-"Luna" é curta e o modelo em português costuma ouvir "lona". Com a antiga chamada "Oi, Dia", o acerto era de 90%.
+**Acerto:** no teste com vozes sintéticas e ruído de fundo, a escuta off-line do tablet reconheceu o "Oi, Luna" em cerca de **80%** das vezes com fala normal, **73%** com fala baixa e **65%** com fala bem baixa. Das 144 frases comuns testadas, nenhuma acordou a Luna por engano com fala normal, e só 1 com fala baixa.
 Se falhar muito na prática, dá para trocar a escuta do tablet pelo reconhecimento do Google. Ele entende melhor, mas manda o áudio para o Google o tempo todo.
 
 **Atualizar:** quando o servidor tiver uma versão nova, a seção mostra **Atualizar**. O app baixa o APK, e tocar no aviso abre o instalador.
@@ -48,14 +47,14 @@ Para gerar uma versão nova, use `scripts/android-build.sh`. O script precisa do
 
 | Etapa | Onde roda | Custo |
 |---|---|---|
-| Escutar a palavra “Luna” continuamente | Reconhecimento de fala do **Chrome** (Android) | Gratuito |
+| Escutar a palavra “Oi, Luna” continuamente | Reconhecimento de fala do **Chrome** (Android) | Gratuito |
 | Conversa depois do chamado | OpenAI Realtime (voz em tempo real) **ou** modo básico | Só durante a conversa |
 | Encerrar a conversa | Automático após **30 s** sem fala | — |
 
-A sessão da OpenAI **não** fica aberta o tempo todo: ela abre ao ouvir “Luna” (com um sinal sonoro) e fecha sozinha.
-Você pode falar tudo de uma vez — “Luna, acende a luz da sala” — ou só “Luna” e esperar o sinal.
+A sessão da OpenAI **não** fica aberta o tempo todo: ela abre ao ouvir “Oi, Luna” (com um sinal sonoro) e fecha sozinha.
+Você pode falar tudo de uma vez — “Oi, Luna, acende a luz da sala” — ou só “Oi, Luna” e esperar o sinal.
 
-> Privacidade: enquanto espera o chamado, o áudio é processado pelo serviço de reconhecimento de fala do Google (é assim que o Chrome funciona). A Luna só envia o que vem **depois** de “Luna”.
+> Privacidade: enquanto espera o chamado, o áudio é processado pelo serviço de reconhecimento de fala do Google (é assim que o Chrome funciona). A Luna só envia o que vem **depois** de “Oi, Luna”.
 
 ## Preparar o aparelho
 
@@ -65,7 +64,7 @@ Você pode falar tudo de uma vez — “Luna, acende a luz da sala” — ou só
 4. **Ajustes**:
    - Inteligência artificial: **Híbrido** ou **Nuvem**
    - Modo de voz: **Tempo real (OpenAI)** (ou Básico para custo zero de voz)
-   - **Palavra de ativação “Luna”: ligada**
+   - **Palavra de ativação “Oi, Luna”: ligada**
 5. Na tela inicial deve aparecer **“Disponível · diga ‘Luna’”**.
 
 ## Deixar sempre ligado
@@ -81,6 +80,6 @@ Você pode falar tudo de uma vez — “Luna, acende a luz da sala” — ou só
 | Sintoma | Solução |
 |---|---|
 | “Diga ‘Luna’” não aparece | Confirme que a opção está ligada em Ajustes e que está no **Chrome** |
-| Não reconhece “Luna” | Fale “Luna” com uma pequena pausa; aproxime-se do aparelho |
+| Não reconhece “Oi, Luna” | Fale “Oi, Luna” com uma pequena pausa; aproxime-se do aparelho |
 | Sons de “bip” frequentes | Alguns aparelhos tocam um som a cada reinício do reconhecimento: em *Configurações › Sons*, reduza o volume de **notificações/sistema** (o volume de mídia da Luna continua normal) |
 | Para de escutar depois de horas | Recarregue a página; verifique a otimização de bateria do Chrome |

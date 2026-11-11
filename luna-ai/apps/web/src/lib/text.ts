@@ -29,27 +29,27 @@ export const PROVIDER_LABEL: Record<string, string> = {
 };
 
 /**
- * Chamado direto: “Luna” no COMEÇO da frase — “Luna”, “Luna, acende a luz”.
- * Uma saudação antes (“oi Luna”) também vale, mas não é necessária. No meio da frase
- * (“pergunta pra Luna…”) não acorda.
+ * Chamado “Oi, Luna” (também “Olá/Ei/Hey, Luna” e “oiluna”, como alguns celulares transcrevem).
+ * Exige a saudação antes do nome: assim “Luna” no meio de uma conversa não acorda a assistente,
+ * e o reconhecimento acerta bem mais do que com uma palavra só.
  */
-const WAKE_RE = /^\s*(?:(?:oi|ola|ei|hey|e ai)\s+)?luna\b\s*(.*)$/;
+const WAKE_RE = /\b(?:oi|ola|ei|hey|e ai)\s+luna\b\s*(.*)$|\boiluna\b\s*(.*)$/;
 export const isWakeCall = (text: string) => WAKE_RE.test(normalize(text));
 /** Se a fala chama a Luna, devolve o pedido que veio junto (pode ser vazio); senão, null. */
 export function splitWake(text: string): string | null {
   const m = normalize(text).match(WAKE_RE);
-  return m ? (m[1] ?? '').trim() : null;
+  return m ? (m[1] ?? m[2] ?? '').trim() : null;
 }
 
 /**
- * Como o reconhecimento costuma ouvir o chamado “Luna” quando a pessoa fala baixo ou de longe
- * (“lua”, “luma”, “lona”…). Só vale quando a frase é SÓ isso — curta e sozinha —, para não
- * acordar a Luna no meio de uma conversa (“a lua está linda”).
+ * Como o reconhecimento costuma ouvir o “Oi, Luna” quando a pessoa fala baixo ou de longe
+ * (“oi lua”, “boi luna”, “oi lona”…). Só vale quando a frase é SÓ isso — curta e sozinha —,
+ * para não acordar a Luna no meio de uma conversa (“oi, a lua está linda”).
  */
-const WAKE_LOOKALIKE = /^(?:(?:oi|ola|ei|hey|e ai)\s+)?(?:lua|luma|lona|lunna|luna+|nuna|luna a)$/;
+const WAKE_LOOKALIKE = /^(?:oi+|hoi|boi|oie|ola|ei|hey|e ai)\s*(?:lua|luma|lona|una|nuna|lunna|luna+|lu na)$/;
 
 /**
- * Procura o chamado “Luna” em todos os palpites do reconhecimento (o Android devolve vários).
+ * Procura o chamado “Oi, Luna” em todos os palpites do reconhecimento (o Android devolve vários).
  * Devolve o pedido que veio junto (pode ser vazio) ou null.
  */
 export function matchWake(alternatives: string[]): string | null {
@@ -63,7 +63,7 @@ export function matchWake(alternatives: string[]): string | null {
   return null;
 }
 
-/** Sinal sonoro curto ao ouvir “Luna” (como o anel de uma assistente). */
+/** Sinal sonoro curto ao ouvir “Oi, Luna” (como o anel de uma assistente). */
 export function playChime() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

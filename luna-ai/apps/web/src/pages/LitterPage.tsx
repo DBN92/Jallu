@@ -238,7 +238,7 @@ export default function LitterPage() {
               <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-white/10 pt-2.5">
                 <div>
                   <p className="text-sm">Luna pode controlar pela voz</p>
-                  <p className="m-muted mt-0.5 text-xs opacity-60">“Luna, limpa a caixa de areia”</p>
+                  <p className="m-muted mt-0.5 text-xs opacity-60">“Oi, Luna, limpa a caixa de areia”</p>
                 </div>
                 <Switch name="Luna pode controlar pela voz" on={b.voiceAllowed} disabled={busy} onChange={async (v) => done(await setVoice(b.id, v), v ? 'Comandos de voz autorizados.' : 'Comandos de voz desligados.')} />
               </div>

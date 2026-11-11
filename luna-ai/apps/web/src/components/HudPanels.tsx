@@ -182,7 +182,7 @@ export function VoicePanel({ messages, state }: { messages: UiMessage[]; state: 
       code="V-03"
       expanded={() => (
         <div>
-          {messages.length ? <MessageList messages={messages} /> : <p className="font-hud text-cyan-100/60">Nenhuma conversa nesta sessão. Diga “Luna” ou toque na onda.</p>}
+          {messages.length ? <MessageList messages={messages} /> : <p className="font-hud text-cyan-100/60">Nenhuma conversa nesta sessão. Diga “Oi, Luna” ou toque na onda.</p>}
           <Link to="/conversas" className="hud-label mt-4 inline-block text-cyan-300/70 hover:text-cyan-200" data-no-expand>
             ver histórico completo ›
           </Link>
@@ -190,7 +190,7 @@ export function VoicePanel({ messages, state }: { messages: UiMessage[]; state: 
       )}
     >
       <p className="hud-label text-[9px] text-cyan-300/50">{last ? 'Última resposta' : 'Pronta para ouvir'}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-cyan-50/90">{last?.content ?? 'Diga “Luna” ou toque na onda para falar.'}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-cyan-50/90">{last?.content ?? 'Diga “Oi, Luna” ou toque na onda para falar.'}</p>
       <div className={`voice-wave mt-2 flex h-10 items-center gap-[3px] ${active ? 'is-active' : ''}`} aria-hidden="true">
         {Array.from({ length: 36 }, (_, i) => (
           <i key={i} style={{ height: `${18 + Math.abs(Math.sin(i * 0.45) * Math.cos(i * 0.13)) * 82}%`, animationDelay: `${(i % 9) * 70}ms` }} />
@@ -274,7 +274,7 @@ export function RoutinePanel({ rules }: { rules: AutomationRuleDto[] | null }) {
               ))}
             </ul>
           ) : (
-            <p className="font-hud text-cyan-100/60">Nenhuma automação ainda. Peça: “Luna, crie uma automação para desligar as luzes às 23h”.</p>
+            <p className="font-hud text-cyan-100/60">Nenhuma automação ainda. Peça: “Oi, Luna, crie uma automação para desligar as luzes às 23h”.</p>
           )}
           <Link to="/automacoes" className="hud-label mt-4 inline-block text-cyan-300/70 hover:text-cyan-200" data-no-expand>
             gerenciar automações ›

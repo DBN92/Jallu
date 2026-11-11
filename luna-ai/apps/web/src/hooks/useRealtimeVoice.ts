@@ -234,7 +234,7 @@ export function useRealtimeVoice(opts: {
         setConnecting(false);
         optsRef.current.onState('listening');
         bumpIdle();
-        // Pedido falado junto com a palavra de ativação ("Luna, acenda a luz") segue direto
+        // Pedido falado junto com a palavra de ativação ("Oi, Luna, acenda a luz") segue direto
         if (initialText) {
           void saveTranscript('user', initialText);
           send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: initialText }] } });

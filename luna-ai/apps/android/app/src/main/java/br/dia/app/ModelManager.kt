@@ -10,7 +10,7 @@ import java.util.zip.ZipInputStream
 
 /**
  * Modelo de fala em português do Vosk (off-line, ~32 MB). Baixado uma vez, conferido pelo
- * SHA-256 e guardado na área privada do app. Depois disso o chamado “Luna” funciona sem internet.
+ * SHA-256 e guardado na área privada do app. Depois disso o chamado “Oi, Luna” funciona sem internet.
  */
 object ModelManager {
     private const val NAME = "vosk-model-small-pt-0.3"

@@ -12,7 +12,7 @@ import android.provider.Settings
 /**
  * Tablet ligou (ou o app foi atualizado): abre a Luna sozinha. O Android só deixa abrir uma tela
  * a partir daqui com “Aparecer sobre outros apps” permitido; sem isso, mostra um aviso para tocar.
- * A escuta do chamado “Luna” liga quando a tela da Luna abre.
+ * A escuta do chamado “Oi, Luna” liga quando a tela da Luna abre.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -29,7 +29,7 @@ class BootReceiver : BroadcastReceiver() {
             Notification.Builder(ctx, "inicio")
                 .setSmallIcon(R.drawable.ic_stat_dia)
                 .setContentTitle("Luna")
-                .setContentText("Toque para abrir a Luna e ligar o chamado “Luna”.")
+                .setContentText("Toque para abrir a Luna e ligar o chamado “Oi, Luna”.")
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(ctx, 3, open, PendingIntent.FLAG_IMMUTABLE))
                 .build(),

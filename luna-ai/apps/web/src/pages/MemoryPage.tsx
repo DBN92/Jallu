@@ -61,7 +61,7 @@ export default function MemoryPage() {
             <input className={inputClass} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Ex.: Prefiro luz quente à noite" maxLength={1000} required minLength={2} />
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-xs text-white/40">Dica: diga “Luna, lembre que…” ou “esqueça que…”. Senhas e documentos não são memorizados.</p>
+            <p className="text-xs text-white/40">Dica: diga “Oi, Luna, lembre que…” ou “esqueça que…”. Senhas e documentos não são memorizados.</p>
             <Button type="submit">Adicionar</Button>
           </div>
         </form>

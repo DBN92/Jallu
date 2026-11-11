@@ -18,13 +18,13 @@ import { SiriSettings } from '../components/SiriSettings';
 import { AndroidSettings } from '../components/AndroidSettings';
 import { useWakeLog } from '../hooks/useWakeWord';
 
-/** O que o chamado “Luna” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
+/** O que o chamado “Oi, Luna” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
 function WakeHeard() {
   const heard = useWakeLog((s) => s.heard);
   if (!heard.length) return null;
   return (
     <div className="mt-4 rounded-xl bg-white/5 p-3 text-sm">
-      <p className="mb-2 text-xs text-white/50">O que o chamado “Luna” ouviu por último (✅ = acordou a Luna)</p>
+      <p className="mb-2 text-xs text-white/50">O que o chamado “Oi, Luna” ouviu por último (✅ = acordou a Luna)</p>
       <ul className="space-y-1">
         {heard.map((h) => (
           <li key={h.at} className="flex justify-between gap-3">
@@ -413,10 +413,10 @@ export default function SettingsPage() {
         <Row label="Transcrição na nuvem" hint="Se o navegador não reconhecer fala (comum em apps instalados no iPhone), o áudio é transcrito pela OpenAI.">
           <Toggle label="Transcrição na nuvem" disabled={!caps?.realtime} checked={settings.allowCloudTranscription} onChange={(v) => void save({ allowCloudTranscription: v })} />
         </Row>
-        <Row label="Palavra de ativação “Luna”" hint={
+        <Row label="Palavra de ativação “Oi, Luna”" hint={
             wake.supported
               ? voiceMode === 'realtime'
-                ? 'Durante a conversa em tempo real, a Luna só responde quando você diz “Luna” (ou logo após ela falar). A tela fica acesa; com o app fechado ela não escuta.'
+                ? 'Durante a conversa em tempo real, a Luna só responde quando você diz “Oi, Luna” (ou logo após ela falar). A tela fica acesa; com o app fechado ela não escuta.'
                 : 'Somente com o app aberto e em primeiro plano.'
               : wake.reason
           }>
@@ -504,7 +504,7 @@ export default function SettingsPage() {
             Tela feita para o controle remoto (Fire TV / Android TV). “Automático” liga sozinho quando a Luna é aberta numa TV. Para sair na TV, use o ícone de celular no canto superior.
           </p>
         </div>
-        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Luna” para voltar.">
+        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Oi, Luna” para voltar.">
           <Toggle label="Modo ambiente" checked={ambientMode} onChange={setAmbientMode} />
         </Row>
         <Row

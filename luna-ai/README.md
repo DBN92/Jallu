@@ -101,7 +101,7 @@ luna-ai/
 
 ## Limitações honestas
 
-- **“Luna”**: no **Android/computador (Chrome)** a palavra de ativação é detectada de graça pelo navegador e a
+- **“Oi, Luna”**: no **Android/computador (Chrome)** a palavra de ativação é detectada de graça pelo navegador e a
   conversa em tempo real só abre quando chamada — ideal para um aparelho dedicado ([docs/ANDROID.md](docs/ANDROID.md)).
   No **iPhone** funciona apenas durante uma sessão de voz em tempo real aberta (o iOS não permite escuta contínua em apps web).
   Em todos os casos, só com o app aberto e em primeiro plano.

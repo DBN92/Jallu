@@ -107,7 +107,7 @@ A foto aparece no cartão, na tela completa e na animação de começo e fim. Pa
 
 | Você diz | A Luna faz |
 | --- | --- |
-| "Luna, aspira a casa" / "liga o aspirador" / "manda o Neatsvor limpar" | começa a limpar. Com dois robôs e nenhum nome dito, ela pergunta qual deve limpar (responda o nome ou "os dois"). |
+| "Oi, Luna, aspira a casa" / "liga o aspirador" / "manda o Neatsvor limpar" | começa a limpar. Com dois robôs e nenhum nome dito, ela pergunta qual deve limpar (responda o nome ou "os dois"). |
 | "pausa o aspirador" | pausa quem está limpando |
 | "para o robô" | para no lugar |
 | "manda o robô voltar pra base" / "desliga o aspirador" | manda para a base quem não está nela |

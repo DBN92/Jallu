@@ -12,30 +12,30 @@ describe('utilitários de texto', () => {
   });
 });
 
-describe('chamado “Luna”', () => {
-  it.each(['Luna', 'Luna, acende a luz', 'luna que horas são', 'Luna? vai chover?', 'oi Luna', 'OI LUNA!', 'Lúna, aspira a casa'])('reconhece: %s', (t) => expect(isWakeCall(t)).toBe(true));
-  it.each(['acende a luz', 'a lua está linda', 'pergunta pra luna', 'bom dia, tudo bem?', 'oi dia', 'uma luz acesa', 'Luana chegou'])('ignora: %s', (t) => expect(isWakeCall(t)).toBe(false));
+describe('chamado “Oi, Luna”', () => {
+  it.each(['Oi, Luna', 'oi luna acende a luz', 'Olá Luna, vai chover?', 'OI LUNA!', 'ei luna que horas são', 'oiluna', 'tá bom, oi Luna, apaga a luz'])('reconhece: %s', (t) => expect(isWakeCall(t)).toBe(true));
+  it.each(['Luna', 'Luna, acende a luz', 'acende a luz', 'a lua está linda', 'pergunta pra luna', 'oi, tudo bem?', 'oi lua', 'Luana chegou'])('ignora: %s', (t) => expect(isWakeCall(t)).toBe(false));
 });
 
 describe('pedido junto com o chamado', () => {
-  it('separa o comando de “Luna”', () => {
-    expect(splitWake('Luna, acende a luz da sala')).toBe('acende a luz da sala');
-    expect(splitWake('Luna')).toBe('');
-    expect(splitWake('acende a luz')).toBeNull();
+  it('separa o comando de “Oi, Luna”', () => {
+    expect(splitWake('Oi, Luna, acende a luz da sala')).toBe('acende a luz da sala');
+    expect(splitWake('oi luna')).toBe('');
+    expect(splitWake('Luna, acende a luz')).toBeNull();
   });
 });
 
-describe('“Luna” falado baixo (vários palpites)', () => {
+describe('“Oi, Luna” falado baixo (vários palpites)', () => {
   it('acha o chamado em qualquer palpite e em variações curtas', async () => {
     const { matchWake } = await import('./text');
-    expect(matchWake(['lua acende a luz', 'luna acende a luz'])).toBe('acende a luz');
-    expect(matchWake(['Lua.'])).toBe('');
-    expect(matchWake(['luma'])).toBe('');
-    expect(matchWake(['lona'])).toBe('');
+    expect(matchWake(['oi lua acende a luz', 'oi luna acende a luz'])).toBe('acende a luz');
+    expect(matchWake(['Oi, lua.'])).toBe('');
+    expect(matchWake(['boi luna'])).toBe('');
+    expect(matchWake(['oi lona'])).toBe('');
   });
   it('não acorda em frases do dia a dia', async () => {
     const { matchWake } = await import('./text');
-    for (const t of ['a lua está linda', 'acende a luz', 'lua cheia hoje', 'uma', 'luz', 'falei com a Luana', 'bom dia'])
+    for (const t of ['a lua está linda', 'acende a luz', 'luna', 'oi', 'oi, a lua está linda', 'falei com a Luana', 'bom dia'])
       expect(matchWake([t]), t).toBeNull();
   });
 });

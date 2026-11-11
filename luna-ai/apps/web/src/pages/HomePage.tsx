@@ -65,7 +65,7 @@ export default function HomePage() {
   // Android/computador: o Chrome escuta "Luna" de graça; a sessão da OpenAI só abre quando chamada.
   // iPhone: sem escuta contínua no navegador, o filtro de "Luna" roda dentro da sessão em tempo real.
   const wakeEnabled = Boolean(settings?.wakeWordEnabled);
-  // Dentro do app Android (tablet) o próprio app escuta o chamado “Luna” e reconhece a fala
+  // Dentro do app Android (tablet) o próprio app escuta o chamado “Oi, Luna” e reconhece a fala
   const inApp = nativeApp() !== null;
   const localWake = !inApp && wakeWordSupport('basic').supported;
 
@@ -251,7 +251,7 @@ export default function HomePage() {
 
   const { w: vw, h: vh } = useViewport();
 
-  // Conversa pelo chamado “Luna” do app Android: mostra a tela de voz (nuvem) com o que ouviu e respondeu
+  // Conversa pelo chamado “Oi, Luna” do app Android: mostra a tela de voz (nuvem) com o que ouviu e respondeu
   const [nativeVoice, setNativeVoice] = useState<{ heard: string; reply: string } | null>(null);
   useEffect(() => {
     if (!inApp) return;
@@ -370,7 +370,7 @@ export default function HomePage() {
           greeting={greeting(now)}
           userName={user?.displayName?.split(' ')[0] ?? ''}
           state={state}
-          stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Luna”' : 'Disponível'}
+          stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Oi, Luna”' : 'Disponível'}
           aiTag={settings?.aiMode === 'local' ? 'IA local' : settings?.aiMode === 'cloud' ? 'IA nuvem' : 'IA híbrida'}
           hasChat={hasChat}
           messages={messages}
@@ -552,7 +552,7 @@ export default function HomePage() {
         <AmbientMode
           now={now}
           weather={weather.data}
-          hint={wake.armed ? 'Diga “Luna” ou toque na tela' : 'Toque na tela para voltar'}
+          hint={wake.armed ? 'Diga “Oi, Luna” ou toque na tela' : 'Toque na tela para voltar'}
           onExit={() => {
             lastUse.current = Date.now();
             setAmbient(false);

@@ -21,7 +21,7 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
   );
 }
 
-/** Configurações › App Android: baixar o app (fora dele) ou ajustar o chamado “Luna” do tablet (dentro dele). */
+/** Configurações › App Android: baixar o app (fora dele) ou ajustar o chamado “Oi, Luna” do tablet (dentro dele). */
 export function AndroidSettings() {
   const bridge = nativeApp();
   const [apk, setApk] = useState<ApkInfo | null>(null);
@@ -43,7 +43,7 @@ export function AndroidSettings() {
     return (
       <div className="space-y-3 text-sm">
         <p className="text-white/60">
-          Para um <b>tablet Android</b> fixo (na tomada): o app escuta o <b>chamado “Luna” com a tela desligada</b>, abre sozinho quando o tablet liga e mantém a tela acesa. O áudio é analisado no
+          Para um <b>tablet Android</b> fixo (na tomada): o app escuta o <b>chamado “Oi, Luna” com a tela desligada</b>, abre sozinho quando o tablet liga e mantém a tela acesa. O áudio é analisado no
           próprio tablet — nada é enviado até você chamar a Luna.
         </p>
         {apk ? (
@@ -55,7 +55,7 @@ export function AndroidSettings() {
               <li>Abra esta página <b>no próprio tablet</b> e toque em “Baixar”.</li>
               <li>Abra o arquivo baixado. Se o Android pedir, permita “instalar apps desta fonte”.</li>
               <li>No app, informe o endereço da Luna (o mesmo do navegador) e entre com seu usuário.</li>
-              <li>Volte aqui em Configurações › App Android e ligue o chamado “Luna”.</li>
+              <li>Volte aqui em Configurações › App Android e ligue o chamado “Oi, Luna”.</li>
             </ol>
           </>
         ) : (
@@ -99,7 +99,7 @@ export function AndroidSettings() {
         </div>
       )}
       <Row
-        title="Chamado “Luna” com a tela desligada"
+        title="Chamado “Oi, Luna” com a tela desligada"
         hint={
           !st?.wake
             ? 'Desligado'
@@ -110,7 +110,7 @@ export function AndroidSettings() {
               : listening.startsWith('erro')
                 ? listening
                 : listening === 'ouvindo'
-                  ? 'Ouvindo — diga “Luna”'
+                  ? 'Ouvindo — diga “Oi, Luna”'
                   : listening || 'Ligando…'
         }
       >

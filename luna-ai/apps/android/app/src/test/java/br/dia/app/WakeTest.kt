@@ -6,16 +6,17 @@ import org.junit.Test
 
 class WakeTest {
     @Test
-    fun acha_luna_com_confianca() {
-        assertEquals(0.7f, WakeMatch.score("""{"result":[{"conf":0.7,"word":"luna"}],"text":"luna"}"""), 0.001f)
-        // o modelo costuma ouvir “Luna” como “lona”
-        assertEquals(0.6f, WakeMatch.score("""{"result":[{"conf":0.6,"word":"lona"},{"conf":1.0,"word":"[unk]"}]}"""), 0.001f)
+    fun acha_oi_luna_com_confianca() {
+        assertEquals(0.8f, WakeMatch.score("""{"result":[{"conf":0.9,"word":"oi"},{"conf":0.7,"word":"luna"}],"text":"oi luna"}"""), 0.001f)
+        // o modelo às vezes ouve “oi lona”
+        assertEquals(0.6f, WakeMatch.score("""{"result":[{"conf":0.6,"word":"oi"},{"conf":0.6,"word":"lona"}]}"""), 0.001f)
     }
 
     @Test
-    fun ignora_luz_lua_e_vazio() {
-        assertEquals(0f, WakeMatch.score("""{"result":[{"conf":1.0,"word":"acende"},{"conf":1.0,"word":"a"},{"conf":1.0,"word":"luz"}]}"""), 0f)
-        assertEquals(0f, WakeMatch.score("""{"result":[{"conf":1.0,"word":"lua"}]}"""), 0f)
+    fun ignora_luna_sozinha_lua_e_vazio() {
+        assertEquals(0f, WakeMatch.score("""{"result":[{"conf":1.0,"word":"luna"}],"text":"luna"}"""), 0f)
+        assertEquals(0f, WakeMatch.score("""{"result":[{"conf":1.0,"word":"oi"},{"conf":1.0,"word":"lua"}]}"""), 0f)
+        assertEquals(0f, WakeMatch.score("""{"result":[{"conf":1.0,"word":"luna"},{"conf":1.0,"word":"oi"}]}"""), 0f)
         assertEquals(0f, WakeMatch.score("""{"text":""}"""), 0f)
     }
 

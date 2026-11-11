@@ -63,10 +63,10 @@ const DEFERRED = /\b(automac\w*|rotina|cena|quando|sempre que|todo dia|todos os 
 
 const FILLER = /\b(por favor|agora|pra mim|para mim|ai|rapidinho|obrigad[oa])\b/g;
 
-/** Remove o chamado “Luna” (com ou sem saudação antes) e cortesias do início. */
+/** Remove o chamado “Oi, Luna” (com ou sem saudação antes) e cortesias do início. */
 export function stripWake(text: string): string {
   return text
-    // “Luna, …”, “Luna …”, “oi Luna …” — o nome é o chamado; não é palavra comum de comando
+    // “Oi, Luna, …”, “Luna …”, “oi Luna …” — o nome é o chamado; não é palavra comum de comando
     .replace(/^\s*(?:(?:ei|oi|olá|ola|hey|e ai)\s*,?\s*)?luna\b\s*[,!.:?]?\s*/i, '')
     .trim();
 }

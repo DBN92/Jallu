@@ -34,28 +34,31 @@ class AutoGain(private val target: Float = 1200f, private val maxGain: Float = 1
 
 object WakeMatch {
     /**
-     * Frases que o reconhecedor pode escolher. “Luna” sozinha é curta: o modelo em português
-     * muitas vezes ouve “lona”, então as duas valem. As outras são “iscas” para que palavras
-     * parecidas e frequentes em casa (“luz”, “lua”, “uma”, “acende/apaga a luz da sala”) não
-     * virem “Luna”. Escolhidas no teste com vozes sintéticas.
+     * Frases que o reconhecedor pode escolher. O chamado é “oi luna” (o modelo em português às
+     * vezes ouve “oi lona”, então as duas valem). As outras são “iscas”: “luna” sozinha, “oi”,
+     * “lua”, “luz” e “bom dia” não viram chamado. Escolhidas no teste com vozes sintéticas
+     * (80% de acerto com fala normal, nenhum engano nas frases comuns).
      */
-    const val GRAMMAR = "[\"luna\", \"lona\", \"lua\", \"luz\", \"uma\", \"una\", \"lula\", \"bom dia\", \"acende\", \"apaga\", \"a\", \"da\", \"sala\", \"[unk]\"]"
-    private val CALL = setOf("luna", "lona")
+    const val GRAMMAR = "[\"oi luna\", \"oi lona\", \"oi\", \"luna\", \"lua\", \"luz\", \"bom dia\", \"[unk]\"]"
+    private val NAME = setOf("luna", "lona")
 
     /** Confiança mínima por nível de sensibilidade. */
     fun threshold(sensitivity: String): Float = when (sensitivity) {
-        "alta" -> 0.3f
-        "baixa" -> 0.55f
-        else -> 0.4f
+        "alta" -> 0.35f
+        "baixa" -> 0.65f
+        else -> 0.5f
     }
 
-    /** Lê o resultado do Vosk e devolve a confiança do chamado “Luna” (0 se não houver). */
+    /** Lê o resultado do Vosk e devolve a confiança do “oi luna” (0 se não houver). */
     fun score(json: String): Float {
         val words = JSONObject(json).optJSONArray("result") ?: return 0f
         var best = 0f
-        for (k in 0 until words.length()) {
-            val w = words.getJSONObject(k)
-            if (w.optString("word") in CALL) best = max(best, w.optDouble("conf", 0.0).toFloat())
+        for (k in 0 until words.length() - 1) {
+            val a = words.getJSONObject(k)
+            val b = words.getJSONObject(k + 1)
+            if (a.optString("word") == "oi" && b.optString("word") in NAME) {
+                best = max(best, ((a.optDouble("conf", 0.0) + b.optDouble("conf", 0.0)) / 2).toFloat())
+            }
         }
         return best
     }

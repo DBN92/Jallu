@@ -80,7 +80,7 @@ describe('Chamado “Luna” contínuo', () => {
     advance(300);
     for (let i = 1; i <= 3; i++) {
       expect(active()).toHaveLength(1);
-      act(() => active()[0]!.say(`luna pedido ${i}`));
+      act(() => active()[0]!.say(`oi luna pedido ${i}`));
       expect(cmds).toHaveLength(i);
       expect(active()).toHaveLength(0); // microfone liberado para a resposta
       render(true, onCmd); // Luna processando/falando
@@ -92,14 +92,14 @@ describe('Chamado “Luna” contínuo', () => {
     expect(cmds).toEqual(['pedido 1', 'pedido 2', 'pedido 3']);
   });
 
-  it('acorda quando o “luna” está no segundo palpite e registra o que ouviu', async () => {
+  it('acorda quando o “oi luna” está no segundo palpite e registra o que ouviu', async () => {
     const { useWakeLog } = await import('./useWakeWord');
     const cmds: string[] = [];
     render(false, (t) => cmds.push(t));
     advance(300);
-    act(() => active()[0]!.say('lua acende a luz', 'luna acende a luz'));
+    act(() => active()[0]!.say('oi lua acende a luz', 'oi luna acende a luz'));
     expect(cmds).toEqual(['acende a luz']);
-    expect(useWakeLog.getState().heard[0]).toMatchObject({ text: 'lua acende a luz', woke: true });
+    expect(useWakeLog.getState().heard[0]).toMatchObject({ text: 'oi lua acende a luz', woke: true });
     expect(FakeRecognition.instances.at(-1)!.maxAlternatives).toBe(5);
   });
 
@@ -107,10 +107,10 @@ describe('Chamado “Luna” contínuo', () => {
     const cmds: string[] = [];
     render(false, (t) => cmds.push(t));
     advance(300);
-    act(() => active()[0]!.say('luna'));
+    act(() => active()[0]!.say('oi luna'));
     advance(7000);
     expect(active()).toHaveLength(1);
-    act(() => active()[0]!.say('luna de novo'));
+    act(() => active()[0]!.say('oi luna de novo'));
     expect(cmds).toEqual(['', 'de novo']);
   });
 

@@ -35,7 +35,7 @@ Se o navegador mostrar um cursor (setinha), ele também funciona: passe sobre um
 ## Falar com a Luna
 
 A Fire TV não oferece microfone para páginas da web. Fale pelo celular (ou pelo aparelho
-com “Luna”), usando o **mesmo usuário**: a TV mostra o pedido e a resposta por 15 segundos
+com “Oi, Luna”), usando o **mesmo usuário**: a TV mostra o pedido e a resposta por 15 segundos
 e o globo acompanha o estado (pensando, executando…). Pedidos como *“mostre a câmera da garagem”*
 também abrem a câmera na TV.
 

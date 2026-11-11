@@ -34,7 +34,7 @@ Nesse modo há vídeo, mas sem girar/inclinar.
 
 - Aba **Câmeras**: miniaturas que se atualizam; toque para ver **ao vivo** em tela cheia.
 - Tela inicial: painel **Câmeras** — toque para ampliar com vídeo e controles.
-- Por voz: “**Luna, mostre a câmera da garagem**” ou “**quero ver as câmeras**”.
+- Por voz: “**Oi, Luna, mostre a câmera da garagem**” ou “**quero ver as câmeras**”.
 - Controles: segure as setas para **girar/inclinar** (solte para parar), **zoom**, **foto** e **tela cheia**.
 
 Se o vídeo contínuo não iniciar (alguns modelos/firmwares), a Luna mostra automaticamente
@@ -120,5 +120,5 @@ fotos de referência e, quando o estado muda (confirmado em 2 leituras seguidas)
 - portão aberto além do tempo configurado (padrão 10 min) gera aviso, repetido a cada 30 min.
 “Movimento à noite” avisa mudanças grandes na imagem das 18h às 6h (no máximo 1 aviso a cada 3 min).
 
-Por voz: “Luna, o carro está na garagem?”, “o portão está aberto?”, “como está a garagem?”.
+Por voz: “Oi, Luna, o carro está na garagem?”, “o portão está aberto?”, “como está a garagem?”.
 A Luna **não** abre/fecha o portão.

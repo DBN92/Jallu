@@ -155,7 +155,7 @@ export function ModernHome(p: ModernHomeProps) {
             ref={p.inputRef}
             value={p.text}
             onChange={(e) => p.setText(e.target.value)}
-            placeholder={p.micActive ? 'Ouvindo…' : 'Diga “Luna” ou digite…'}
+            placeholder={p.micActive ? 'Ouvindo…' : 'Diga “Oi, Luna” ou digite…'}
             enterKeyHint="send"
             autoComplete="off"
             maxLength={4000}

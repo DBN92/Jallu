@@ -19,7 +19,7 @@
                                └──▶ OpenAI Realtime (token efêmero emitido pelo backend)
 ```
 
-## Fluxo de um comando (“Luna, acenda a luz da sala”)
+## Fluxo de um comando (“Oi, Luna, acenda a luz da sala”)
 
 1. PWA envia `POST /api/chat` (texto ou transcrição de voz).
 2. `ChatService` tenta a **NLU local** (`modules/ai/nlu.ts`): reconhece verbo + alvo.
