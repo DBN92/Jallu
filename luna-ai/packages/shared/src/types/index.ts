@@ -264,7 +264,9 @@ export type ServerEvent =
   /** Resposta da DIA (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
   | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] }
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
-  | { type: 'camera_event'; event: CameraEventDto };
+  | { type: 'camera_event'; event: CameraEventDto }
+  | { type: 'litter_update' }
+  | { type: 'litter_alert'; text: string };
 
 export interface CameraDto {
   entityId: string;
@@ -333,4 +335,55 @@ export interface CameraEventDto {
   title: string;
   photoUrl: string | null;
   createdAt: string;
+}
+
+/** Gato da casa (reconhecido pelo peso na caixa de areia). */
+export interface LitterCatDto {
+  id: string;
+  slot: number;
+  name: string;
+  /** Peso de referência em kg (aprendido ou informado), ou null enquanto não há visitas */
+  weightKg: number | null;
+  weightSet: boolean;
+  todayVisits: number;
+  lastVisitAt: string | null;
+  /** Aviso, ex.: “não usa a caixa há mais de 24 h” */
+  alert: string | null;
+}
+
+export interface LitterVisitDto {
+  id: string;
+  at: string;
+  weightKg: number | null;
+  durationS: number | null;
+  catId: string | null;
+  catName: string | null;
+}
+
+/** Caixa de areia automática (ex.: Smart Life/Tuya “cat litter box”). */
+export interface LitterBoxDto {
+  /** Prefixo das entidades no Home Assistant (identifica a caixa) */
+  id: string;
+  name: string;
+  available: boolean;
+  /** standby | clean | empty | level | sleep | uv | unknown */
+  status: string;
+  statusLabel: string;
+  /** Limpeza automática (null se a caixa não oferece) */
+  autoClean: boolean | null;
+  /** Espera antes de limpar, em segundos (null se não oferece) */
+  delaySeconds: number | null;
+  delayMax: number | null;
+  canClean: boolean;
+  /** Visitas de hoje segundo a própria caixa */
+  todayCount: number | null;
+  lastVisit: LitterVisitDto | null;
+  /** Visitas por dia (7 dias, o último é hoje) registradas pela DIA */
+  week: { date: string; count: number }[];
+  /** Desde quando a DIA registra as visitas (antes disso não há histórico) */
+  historySince: string | null;
+  recent: LitterVisitDto[];
+  cats: LitterCatDto[];
+  /** Comandos por voz autorizados */
+  voiceAllowed: boolean;
 }

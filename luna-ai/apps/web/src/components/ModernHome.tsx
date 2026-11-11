@@ -11,6 +11,7 @@ import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
+import { LitterCard } from './LitterCard';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -396,6 +397,7 @@ export function ModernHome(p: ModernHomeProps) {
           {quick}
           <GarageCard />
           <VacuumCard />
+          <LitterCard />
           {devices}
           {weatherCard}
           {cameraCard}
@@ -417,6 +419,7 @@ export function ModernHome(p: ModernHomeProps) {
             {weatherCard}
             <GarageCard />
           <VacuumCard />
+          <LitterCard />
             {devices}
           </div>
         </div>
@@ -432,6 +435,7 @@ export function ModernHome(p: ModernHomeProps) {
           {quick}
           <GarageCard />
           <VacuumCard />
+          <LitterCard />
           {devices}
           {weatherCard}
           {cameraCard}

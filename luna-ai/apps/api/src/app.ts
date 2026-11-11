@@ -43,6 +43,8 @@ import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
 import { watchRoutes } from './modules/watches/watches.routes';
 import { siriRoutes } from './modules/siri/siri.routes';
+import { LitterService } from './modules/litter/litter.service';
+import { litterRoutes } from './modules/litter/litter.routes';
 import { androidRoutes } from './modules/android/android.routes';
 import { SiriService } from './modules/siri/siri.service';
 import { healthRoutes } from './routes/health.routes';
@@ -108,18 +110,29 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   chat.setCameras(cameras);
   chat.setWatches(watches);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
-  devices.setHiddenProvider(() => (haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>())));
+  // Caixa de areia: entidades com cartão próprio (ficam fora da lista de aparelhos)
+  const litter = new LitterService(db, ha, actionLogs, env.TZ);
+  chat.setLitter(litter);
+  litter.on('update', () => hub.broadcast({ type: 'litter_update' }));
+  litter.on('alert', (text: string) => hub.broadcast({ type: 'litter_alert', text }));
+  devices.setHiddenProvider(async () => {
+    const [ha1, box] = await Promise.all([haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>()), litter.entityIds().catch(() => new Set<string>())]);
+    return new Set([...ha1, ...box]);
+  });
   devices.setRegistryProvider(() => (haWs.connected ? haWs.registry() : Promise.resolve(new Map())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
   devices.on('reload', () => hub.broadcast({ type: 'devices_reload' }));
-  haWs.on('state_changed', (evt) => devices.handleStateChanged(evt));
+  haWs.on('state_changed', (evt) => {
+    devices.handleStateChanged(evt);
+    void litter.handleStateChanged(evt).catch(() => undefined);
+  });
   haWs.on('connected', () => {
     hub.broadcast({ type: 'ha_status', connected: true });
     devices.refresh(true).then(() => hub.broadcast({ type: 'devices_reload' })).catch(() => undefined);
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { litter, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -212,6 +225,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(gestureRoutes);
   await app.register(watchRoutes);
   await app.register(siriRoutes);
+  await app.register(litterRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 
@@ -236,7 +250,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   }
 
   app.addHook('onReady', async () => {
-    if (!deps.disableWatchTimer && env.NODE_ENV !== 'test') app.services.watches.start();
+    if (!deps.disableWatchTimer && env.NODE_ENV !== 'test') {
+      app.services.watches.start();
+      app.services.litter.start();
+    }
     if (!deps.disableHaWs) app.services.haWs.start();
     // Aquece o modelo local em segundo plano (tenta por até ~10 min, enquanto o Ollama sobe)
     if (env.NODE_ENV !== 'test') {
@@ -256,6 +273,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.addHook('onClose', async () => {
     app.services.haWs.stop();
     app.services.watches.stop();
+    app.services.litter.stop();
     await app.services.directCameras.close();
     await db.$disconnect();
   });

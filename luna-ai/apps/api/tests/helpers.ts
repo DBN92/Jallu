@@ -29,6 +29,9 @@ export async function resetDb() {
   await db.conversation.deleteMany();
   await db.memory.deleteMany();
   await db.preference.deleteMany();
+  await db.litterVisit.deleteMany();
+  await db.litterCat.deleteMany();
+  await db.litterBoxPref.deleteMany();
   await db.apiToken.deleteMany();
   await db.session.deleteMany();
   await db.device.deleteMany();

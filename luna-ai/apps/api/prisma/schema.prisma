@@ -234,3 +234,36 @@ model CameraEvent {
 
   @@index([createdAt])
 }
+
+/// Gato da casa (para reconhecer quem usou a caixa de areia pelo peso).
+model LitterCat {
+  id        String        @id @default(cuid())
+  slot      Int           @unique // 1..6 (ordem de exibição)
+  name      String
+  /// Peso de referência (kg). Aprendido sozinho pelas visitas, ou informado pelo usuário.
+  weightKg  Float?
+  /// true quando o usuário digitou o peso (aí a DIA não ajusta sozinha)
+  weightSet Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  visits    LitterVisit[]
+}
+
+/// Uma visita à caixa de areia (registrada pela DIA quando o contador do dia sobe).
+model LitterVisit {
+  id        String     @id @default(cuid())
+  boxId     String // prefixo das entidades da caixa no Home Assistant
+  at        DateTime   @default(now())
+  weightKg  Float?
+  durationS Int?
+  catId     String?
+  cat       LitterCat? @relation(fields: [catId], references: [id], onDelete: SetNull)
+
+  @@index([boxId, at])
+}
+
+/// Preferências de cada caixa de areia.
+model LitterBoxPref {
+  id           String  @id // prefixo das entidades da caixa no Home Assistant
+  /// Comandos de voz (“limpa a caixa”) só com autorização, como os outros aparelhos
+  voiceAllowed Boolean @default(false)
+}

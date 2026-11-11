@@ -15,7 +15,23 @@ export type Intent =
   | { type: 'forget'; content: string }
   | { type: 'show_camera'; target: string }
   | { type: 'watch_status'; query: string }
-  | { type: 'vacuum'; command: VacuumIntentCommand; target: string };
+  | { type: 'vacuum'; command: VacuumIntentCommand; target: string }
+  | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' };
+
+/** Fala sobre a caixa de areia dos gatos? */
+const LITTER_CONTEXT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
+
+/** “limpa a caixa de areia”, “liga a limpeza automática da caixa”, “quantas vezes os gatos usaram a caixa hoje?” */
+function parseLitter(text: string): Intent | null {
+  if (!LITTER_CONTEXT.test(text) || DEFERRED.test(text)) return null;
+  if (/\blimpeza automatica\b/.test(text)) {
+    if (/\b(deslig\w*|desativ\w*|para|pare|tira)\b/.test(text)) return { type: 'litter', command: 'auto_off' };
+    if (/\b(lig\w*|ativ\w*|coloca|bota)\b/.test(text)) return { type: 'litter', command: 'auto_on' };
+    return { type: 'litter', command: 'status' };
+  }
+  if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
+  return { type: 'litter', command: 'status' };
+}
 
 export type VacuumIntentCommand = 'start' | 'pause' | 'stop' | 'return_to_base' | 'locate' | 'status';
 
@@ -75,6 +91,9 @@ export function parseIntent(original: string): Intent | null {
   }
   const forget = raw.match(/^(?:por favor,?\s*)?(?:esque[çc]a|esquece|apague da mem[óo]ria|remova da mem[óo]ria)\s+(?:que\s+|de que\s+|sobre\s+|o que eu disse sobre\s+)?(.{2,})$/i);
   if (forget) return { type: 'forget', content: forget[1]!.trim().replace(/[.!?]+$/, '') };
+
+  const litter = parseLitter(text);
+  if (litter) return litter;
 
   const vacuum = parseVacuum(text, raw);
   if (vacuum) return vacuum;

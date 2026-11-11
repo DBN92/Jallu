@@ -43,6 +43,11 @@ export class ChatService {
     this.cameras = cameras;
   }
 
+  private litter: import('../litter/litter.service').LitterService | null = null;
+  setLitter(l: import('../litter/litter.service').LitterService) {
+    this.litter = l;
+  }
+
   private watches: { statusText: (q: string) => Promise<string> } | null = null;
   setWatches(w: { statusText: (q: string) => Promise<string> }) {
     this.watches = w;
@@ -232,6 +237,26 @@ export class ChatService {
             reply: found.length > 1 ? 'Abrindo suas câmeras.' : `Abrindo a ${/^c[aâ]mera\b/i.test(cam.name) ? cam.name.replace(/^c[aâ]mera/i, 'câmera') : `câmera ${cam.name}`}.`,
             // A tela abre o vídeo ao receber esta ação
             actions: [{ tool: 'show_camera', ok: true, summary: `Câmera: ${cam.name}`, entityIds: found.length > 1 ? found.map((c) => c.entityId) : [cam.entityId] }],
+          };
+        }
+        case 'litter': {
+          if (!this.litter) return null;
+          if (intent.command === 'status') return { reply: await this.litter.statusText(), actions: [] };
+          const box = (await this.litter.list())[0];
+          if (!box) return { reply: 'Não encontrei a caixa de areia no Home Assistant.', actions: [] };
+          this.onState(userId, 'acting', conversationId);
+          if (intent.command === 'clean') {
+            await this.litter.clean(box.id, this.actor(userId));
+            return { reply: 'Pronto! Mandei a caixa de areia fazer a limpeza.', actions: [{ tool: 'litter_clean', ok: true, summary: 'Caixa de areia: limpeza' }] };
+          }
+          const on = intent.command === 'auto_on';
+          // Liga com uma espera segura se estiver muito curta (gato ainda perto)
+          const delay = on && (box.delaySeconds ?? 0) < 60 ? 180 : undefined;
+          const after = await this.litter.setAuto(box.id, on, delay, this.actor(userId));
+          const wait = after.delaySeconds ? ` com espera de ${after.delaySeconds >= 60 ? `${Math.round(after.delaySeconds / 60)} min` : `${after.delaySeconds} s`}` : '';
+          return {
+            reply: on ? `Limpeza automática da caixa de areia ligada${wait}.` : 'Limpeza automática da caixa de areia desligada.',
+            actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
           };
         }
         case 'vacuum': {

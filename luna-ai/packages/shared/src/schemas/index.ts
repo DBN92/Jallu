@@ -42,6 +42,18 @@ export const vacuumExtraSchema = z.object({
   value: z.union([z.string().min(1).max(60), z.boolean()]).optional(),
 });
 
+export const litterAutoSchema = z.object({
+  on: z.boolean(),
+  /** Espera antes de limpar, em segundos (a caixa aceita de 1 a 600) */
+  delaySeconds: z.number().int().min(1).max(3600).optional(),
+});
+
+export const litterCatSchema = z.object({
+  name: z.string().trim().min(1).max(30).optional(),
+  /** Peso de referência em kg; null volta a aprender sozinho */
+  weightKg: z.number().min(0.5).max(15).nullable().optional(),
+});
+
 export const brightnessSchema = z.object({
   /** Brilho em porcentagem (0–100). */
   brightness: z.number().int().min(0).max(100),

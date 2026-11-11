@@ -34,6 +34,14 @@ for (const b of ['start_mop_wash_a_2_6', 'start_dry_a_2_8', 'stop_dry_a_2_9', 's
 for (const [n, v, u] of [['brush_life_level_p_9_2', '99'], ['brush_left_time_p_9_1', '298', 'h'], ['brush_life_level_p_10_2', '66'], ['brush_left_time_p_10_1', '132', 'h'], ['filter_life_level_p_11_1', '99'], ['filter_left_time_p_11_2', '148', 'h'], ['mop_life_level_p_18_1', '60'], ['mop_left_time_p_18_2', '48', 'h'], ['dry_left_time_p_2_5', '219', 'min'], ['cleaning_area_p_4_3', '3'], ['cleaning_time_p_4_2', '2'], ['total_clean_area_p_12_4', '61'], ['total_clean_time_p_12_2', '87'], ['total_clean_times_p_12_3', '4']])
   ra(`sensor.${RITA}_${n}`, v, u ? { unit_of_measurement: u } : {});
 add('vacuum.neatsvor', 'docked', { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] });
+// Caixa de areia (Smart Life / Tuya), como no Home Assistant do usuário
+add('button.smart_cat_litter_box_ti_manual_clean', 'unknown', { friendly_name: 'Smart cat litter box( Ti+) Manual clean' });
+add('number.smart_cat_litter_box_ti_delay_clean_time', '1.0', { friendly_name: 'Smart cat litter box( Ti+) Delay clean time', min: 1, max: 600, step: 1, unit_of_measurement: 's' });
+add('sensor.smart_cat_litter_box_ti_cat_weight', '5.2', { friendly_name: 'Smart cat litter box( Ti+) Cat weight', unit_of_measurement: 'kg', device_class: 'weight' });
+add('sensor.smart_cat_litter_box_ti_excretion_duration', '0', { unit_of_measurement: 's' });
+add('sensor.smart_cat_litter_box_ti_excretion_times_day', '0.0', { unit_of_measurement: 'times' });
+add('sensor.smart_cat_litter_box_ti_status', 'unknown', {});
+add('switch.smart_cat_litter_box_ti_auto_clean', 'off', { friendly_name: 'Smart cat litter box( Ti+) Auto clean' });
 add('camera.portao', 'idle', { friendly_name: 'Portão', supported_features: 0 });
 const fsMod = await import('node:fs');
 const pathMod = await import('node:path');
@@ -68,6 +76,17 @@ const ha = http.createServer(async (req, res) => {
   if (url.pathname === '/__ptz') return send(res, 200, ptzLog);
   if (url.pathname === '/api/') return send(res, 200, { message: 'API running.' });
   if (url.pathname === '/api/states') return send(res, 200, [...states.values()]);
+  // Só no teste: muda um valor e avisa pelo WebSocket, como o Home Assistant faria
+  if (url.pathname === '/__test/set' && req.method === 'POST') {
+    const d = await body(req);
+    const s = states.get(d.entity_id);
+    if (!s) return send(res, 404, {});
+    const old = structuredClone(s);
+    s.state = String(d.state);
+    s.last_changed = new Date().toISOString();
+    broadcast(old, s);
+    return send(res, 200, s);
+  }
   let m = url.pathname.match(/^\/api\/states\/(.+)$/);
   if (m) return states.has(m[1]) ? send(res, 200, states.get(m[1])) : send(res, 404, {});
   m = url.pathname.match(/^\/api\/services\/([^/]+)\/([^/]+)$/);
@@ -78,6 +97,7 @@ const ha = http.createServer(async (req, res) => {
     if (s) {
       const old = structuredClone(s);
       if (m[1] === 'select' && m[2] === 'select_option') s.state = data.option;
+      else if (m[1] === 'number' && m[2] === 'set_value') s.state = String(data.value);
       else if (m[1] === 'button') s.state = new Date().toISOString();
       else if (m[1] === 'vacuum') {
         const next = { start: 'cleaning', pause: 'paused', stop: 'idle', return_to_base: 'returning' };

@@ -15,6 +15,7 @@ import { tvActive, useSettings } from './stores/settings';
 import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
+import { reloadLitter } from './stores/litter';
 import { eventEmoji, useWatches } from './stores/watches';
 import { applyOrientation } from './lib/orientation';
 
@@ -26,6 +27,7 @@ const AutomationsPage = lazy(() => import('./pages/AutomationsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
 const VacuumPage = lazy(() => import('./pages/VacuumPage'));
+const LitterPage = lazy(() => import('./pages/LitterPage'));
 const TvApp = lazy(() => import('./tv/TvApp'));
 
 /** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
@@ -40,6 +42,8 @@ function useRealtimeConnection(enabled: boolean) {
           useVacuumShow.getState().observe(e.device); // animação quando o robô começa ou termina
           useDevices.getState().upsert(e.device);
         } else if (e.type === 'devices_reload') void loadDevices();
+        else if (e.type === 'litter_update') reloadLitter();
+        else if (e.type === 'litter_alert') useGestureToast.getState().show(e.text, false);
         else if (e.type === 'ha_status') useDevices.getState().setHa(e.connected);
         else if (e.type === 'assistant_state') {
           useTv.getState().setRemoteState(e.state);
@@ -133,6 +137,7 @@ export default function App() {
             <Route path="conversas" element={<ConversationsPage />} />
             <Route path="casa" element={<HousePage />} />
             <Route path="aspirador/:entityId" element={<VacuumPage />} />
+            <Route path="caixa-de-areia/:id" element={<LitterPage />} />
             <Route path="cameras" element={<CamerasPage />} />
             <Route path="clima" element={<WeatherPage />} />
             <Route path="memoria" element={<MemoryPage />} />
