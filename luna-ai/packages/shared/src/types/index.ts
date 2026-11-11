@@ -266,7 +266,10 @@ export type ServerEvent =
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
   | { type: 'camera_event'; event: CameraEventDto }
   | { type: 'litter_update' }
-  | { type: 'litter_alert'; text: string };
+  | { type: 'litter_alert'; text: string }
+  | { type: 'washer_update' }
+  /** A lava e seca terminou (ou outro aviso dela). speak = falar no tablet. */
+  | { type: 'washer_done'; text: string; speech: string; speak: boolean };
 
 export interface CameraDto {
   entityId: string;
@@ -385,5 +388,51 @@ export interface LitterBoxDto {
   recent: LitterVisitDto[];
   cats: LitterCatDto[];
   /** Comandos por voz autorizados */
+  voiceAllowed: boolean;
+}
+
+/** Uma etapa da barra de progresso da lava e seca. */
+export interface WasherStepDto {
+  key: 'wash' | 'rinse' | 'spin' | 'dry';
+  label: string;
+  state: 'done' | 'current' | 'todo';
+}
+
+/** Lava e seca (ex.: Midea pela integração Midea AC LAN). */
+export interface WasherDto {
+  /** Prefixo das entidades no Home Assistant (número do aparelho) */
+  id: string;
+  name: string;
+  available: boolean;
+  /** Máquina ligada (painel aceso) */
+  power: boolean;
+  /** idle | standby | start | pause | end | fault | delay | unknown */
+  status: string;
+  /** Lavando, Enxaguando, Pausada, Terminou… */
+  statusLabel: string;
+  /** Lavando agora (ou com início agendado) */
+  running: boolean;
+  paused: boolean;
+  /** Etapa que a máquina informa: wash, rinse, spin, dry… */
+  stage: string;
+  steps: WasherStepDto[];
+  /** Minutos restantes (ou duração do programa escolhido, se ainda não começou) */
+  remainingMin: number | null;
+  /** Previsão de término (só enquanto lava) */
+  endsAt: string | null;
+  /** Quando a Luna viu o ciclo começar (null se começou antes da Luna acompanhar) */
+  startedAt: string | null;
+  program: string;
+  /** Linhas de “Ciclo atual”: só o que a máquina informa */
+  details: { label: string; value: string }[];
+  canPower: boolean;
+  canStart: boolean;
+  /** Ciclos terminados nos últimos 7 dias (contados pela Luna) */
+  weekCycles: number;
+  /** Duração média dos ciclos terminados (min), se a Luna já viu algum do começo ao fim */
+  avgMinutes: number | null;
+  lastDoneAt: string | null;
+  notifyDone: boolean;
+  speak: boolean;
   voiceAllowed: boolean;
 }

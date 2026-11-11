@@ -30,6 +30,8 @@ interface Bridge {
   openAppSettings(): void;
   changeServer(): void;
   update(): void;
+  /** Fala um aviso pelo tablet (app 1.0.4 em diante) */
+  speak?(text: string): void;
 }
 
 export const nativeApp = (): Bridge | null => ((window as unknown as { DiaAndroid?: Bridge }).DiaAndroid ?? null);

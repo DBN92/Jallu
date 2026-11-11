@@ -34,6 +34,18 @@ for (const b of ['start_mop_wash_a_2_6', 'start_dry_a_2_8', 'stop_dry_a_2_9', 's
 for (const [n, v, u] of [['brush_life_level_p_9_2', '99'], ['brush_left_time_p_9_1', '298', 'h'], ['brush_life_level_p_10_2', '66'], ['brush_left_time_p_10_1', '132', 'h'], ['filter_life_level_p_11_1', '99'], ['filter_left_time_p_11_2', '148', 'h'], ['mop_life_level_p_18_1', '60'], ['mop_left_time_p_18_2', '48', 'h'], ['dry_left_time_p_2_5', '219', 'min'], ['cleaning_area_p_4_3', '3'], ['cleaning_time_p_4_2', '2'], ['total_clean_area_p_12_4', '61'], ['total_clean_time_p_12_2', '87'], ['total_clean_times_p_12_3', '4']])
   ra(`sensor.${RITA}_${n}`, v, u ? { unit_of_measurement: u } : {});
 add('vacuum.neatsvor', 'docked', { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] });
+// Lava e seca Midea (Midea AC LAN), como no Home Assistant do usuário
+{
+  const W = '149533581394056';
+  const wa = (k, v, a = {}) => add(`${k.split('.')[0]}.${W}_${k.split('.')[1]}`, v, { friendly_name: `Máquina de lavar ${k}`, ...a });
+  for (const [k, v] of [['dehydration_speed', 'default'], ['dehydration_time', '0'], ['detergent', '0'], ['dirty_degree', '0'], ['mode', 'normal'], ['program', '119'], ['progress', 'wash'], ['softener', '0'], ['stains', '0'], ['status', 'standby'], ['wash_time', '0'], ['water_level', '0']]) wa(`sensor.${k}`, v);
+  wa('sensor.temperature', '60', { unit_of_measurement: '°C', device_class: 'temperature' });
+  wa('sensor.time_remaining', '35', { unit_of_measurement: 'min' });
+  wa('sensor.wash_time_value', '21', { unit_of_measurement: 'min' });
+  wa('sensor.dehydration_time_value', '0', { unit_of_measurement: 'min' });
+  wa('switch.power', 'on');
+  wa('switch.start', 'off');
+}
 // Caixa de areia (Smart Life / Tuya), como no Home Assistant do usuário
 add('button.smart_cat_litter_box_ti_manual_clean', 'unknown', { friendly_name: 'Smart cat litter box( Ti+) Manual clean' });
 add('number.smart_cat_litter_box_ti_delay_clean_time', '1.0', { friendly_name: 'Smart cat litter box( Ti+) Delay clean time', min: 1, max: 600, step: 1, unit_of_measurement: 's' });

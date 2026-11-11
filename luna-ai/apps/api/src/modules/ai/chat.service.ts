@@ -44,6 +44,10 @@ export class ChatService {
   }
 
   private litter: import('../litter/litter.service').LitterService | null = null;
+  private washer: import('../washer/washer.service').WasherService | null = null;
+  setWasher(w: import('../washer/washer.service').WasherService) {
+    this.washer = w;
+  }
   setLitter(l: import('../litter/litter.service').LitterService) {
     this.litter = l;
   }
@@ -257,6 +261,27 @@ export class ChatService {
           return {
             reply: on ? `Limpeza automática da caixa de areia ligada${wait}.` : 'Limpeza automática da caixa de areia desligada.',
             actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
+          };
+        }
+        case 'washer': {
+          if (!this.washer) return null;
+          if (intent.command === 'status') return { reply: await this.washer.statusText(), actions: [] };
+          const w = (await this.washer.list())[0];
+          if (!w) return { reply: 'Não encontrei a lava e seca no Home Assistant.', actions: [] };
+          this.onState(userId, 'acting', conversationId);
+          const actor = this.actor(userId);
+          if (intent.command === 'on' || intent.command === 'off') {
+            await this.washer.setPower(w.id, intent.command === 'on', actor);
+            return {
+              reply: intent.command === 'on' ? 'Liguei a lava e seca. Escolha o programa no painel e me peça para começar.' : 'Desliguei a lava e seca.',
+              actions: [{ tool: 'washer', ok: true, summary: intent.command === 'on' ? 'Lava e seca: ligar' : 'Lava e seca: desligar' }],
+            };
+          }
+          const on = intent.command === 'start';
+          await this.washer.setRunning(w.id, on, actor);
+          return {
+            reply: on ? (w.paused ? 'Pronto, a lava e seca continuou.' : 'Pronto, mandei a lava e seca começar.') : 'Pausei a lava e seca.',
+            actions: [{ tool: 'washer', ok: true, summary: on ? 'Lava e seca: começar' : 'Lava e seca: pausar' }],
           };
         }
         case 'vacuum': {

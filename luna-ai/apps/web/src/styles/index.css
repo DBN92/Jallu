@@ -322,3 +322,12 @@ select option { background: #050c14; }
    Sem espera de “toque duplo” do navegador e sem seleção/menu ao segurar botões. */
 button, a, [role='button'], [role='switch'], label, summary, .m-chip, .m-tile { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button { cursor: pointer; }
+
+/* Lava e seca: água girando na porta e etapa atual pulsando */
+.washer-spin { animation: spin 2.4s linear infinite; }
+.washer-pulse { animation: blink 1.8s ease-in-out infinite; }
+@keyframes washer-pop { 0% { opacity: 0; transform: translateY(24px) scale(.96); } 100% { opacity: 1; transform: none; } }
+@keyframes washer-shirt { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
+.washer-pop { animation: washer-pop .45s cubic-bezier(.2,.9,.3,1.2) both; }
+.washer-shirt { display: inline-block; animation: washer-shirt 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .washer-spin, .washer-pulse, .washer-shirt { animation: none; } .washer-pop { animation-duration: .01s; } }

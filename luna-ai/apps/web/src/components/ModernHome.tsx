@@ -12,6 +12,7 @@ import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
 import { LitterCard } from './LitterCard';
+import { WasherCard } from './WasherCard';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -398,6 +399,7 @@ export function ModernHome(p: ModernHomeProps) {
           <GarageCard />
           <VacuumCard />
           <LitterCard />
+          <WasherCard />
           {devices}
           {weatherCard}
           {cameraCard}
@@ -420,6 +422,7 @@ export function ModernHome(p: ModernHomeProps) {
             <GarageCard />
           <VacuumCard />
           <LitterCard />
+          <WasherCard />
             {devices}
           </div>
         </div>
@@ -436,6 +439,7 @@ export function ModernHome(p: ModernHomeProps) {
           <GarageCard />
           <VacuumCard />
           <LitterCard />
+          <WasherCard />
           {devices}
           {weatherCard}
           {cameraCard}

@@ -137,3 +137,8 @@ export type Coordinates = z.infer<typeof coordinatesSchema>;
 export const ptzSchema = z.object({
   action: z.enum(['up', 'down', 'left', 'right', 'zoom_in', 'zoom_out', 'stop']),
 });
+
+export const washerPrefsSchema = z.object({
+  notifyDone: z.boolean().optional(),
+  speak: z.boolean().optional(),
+});

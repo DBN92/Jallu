@@ -1,5 +1,6 @@
 package br.dia.app
 
+import java.util.Locale
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.view.WindowManager
 import android.webkit.CookieManager
@@ -40,6 +42,10 @@ class MainActivity : Activity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var pendingPermission: PermissionRequest? = null
     @Volatile private var currentUrl: String = ""
+    /** Voz para avisos da Luna (ex.: “A roupa está pronta”); criada só quando o primeiro aviso chega */
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -240,7 +246,26 @@ class MainActivity : Activity() {
         if (w != null && w.canGoBack()) w.goBack() else @Suppress("DEPRECATION") super.onBackPressed()
     }
 
+    private fun speakNotice(text: String) {
+        val t = tts
+        if (t != null && ttsReady) {
+            t.speak(text, TextToSpeech.QUEUE_ADD, null, "aviso")
+            return
+        }
+        pendingSpeech = text
+        if (t != null) return
+        tts = TextToSpeech(this) { st ->
+            if (st == TextToSpeech.SUCCESS) {
+                tts?.language = Locale("pt", "BR")
+                ttsReady = true
+                pendingSpeech?.let { tts?.speak(it, TextToSpeech.QUEUE_ADD, null, "aviso") }
+            }
+            pendingSpeech = null
+        }
+    }
+
     override fun onDestroy() {
+        tts?.shutdown()
         WebEvents.attach(null)
         web?.destroy()
         super.onDestroy()
@@ -321,6 +346,14 @@ class MainActivity : Activity() {
         @JavascriptInterface fun openAppSettings() { if (allowed()) runOnUiThread { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) } }
 
         @JavascriptInterface fun changeServer() { runOnUiThread { showSetup() } }
+
+        /** Aviso falado (ex.: lava e seca terminou). Texto curto, só da própria Luna. */
+        @JavascriptInterface
+        fun speak(text: String) {
+            if (!allowed() || text.isBlank()) return
+            val t = text.take(200)
+            runOnUiThread { speakNotice(t) }
+        }
 
         /**
          * Atualização: baixa o APK novo pela própria Luna (com o login do app) para a pasta Downloads.

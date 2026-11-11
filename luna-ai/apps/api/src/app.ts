@@ -45,6 +45,8 @@ import { watchRoutes } from './modules/watches/watches.routes';
 import { siriRoutes } from './modules/siri/siri.routes';
 import { LitterService } from './modules/litter/litter.service';
 import { litterRoutes } from './modules/litter/litter.routes';
+import { WasherService } from './modules/washer/washer.service';
+import { washerRoutes } from './modules/washer/washer.routes';
 import { androidRoutes } from './modules/android/android.routes';
 import { SiriService } from './modules/siri/siri.service';
 import { healthRoutes } from './routes/health.routes';
@@ -115,9 +117,18 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   chat.setLitter(litter);
   litter.on('update', () => hub.broadcast({ type: 'litter_update' }));
   litter.on('alert', (text: string) => hub.broadcast({ type: 'litter_alert', text }));
+  // Lava e seca: cartão próprio e aviso “Roupa pronta!” em todas as telas
+  const washer = new WasherService(db, ha, actionLogs, env.TZ);
+  chat.setWasher(washer);
+  washer.on('update', () => hub.broadcast({ type: 'washer_update' }));
+  washer.on('done', (e: { text: string; speech: string; speak: boolean }) => hub.broadcast({ type: 'washer_done', ...e }));
   devices.setHiddenProvider(async () => {
-    const [ha1, box] = await Promise.all([haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>()), litter.entityIds().catch(() => new Set<string>())]);
-    return new Set([...ha1, ...box]);
+    const [ha1, box, wash] = await Promise.all([
+      haWs.connected ? haWs.hiddenEntities() : Promise.resolve(new Set<string>()),
+      litter.entityIds().catch(() => new Set<string>()),
+      washer.entityIds().catch(() => new Set<string>()),
+    ]);
+    return new Set([...ha1, ...box, ...wash]);
   });
   devices.setRegistryProvider(() => (haWs.connected ? haWs.registry() : Promise.resolve(new Map())));
   devices.on('state', (device) => hub.broadcast({ type: 'device_state', device }));
@@ -125,6 +136,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   haWs.on('state_changed', (evt) => {
     devices.handleStateChanged(evt);
     void litter.handleStateChanged(evt).catch(() => undefined);
+    void washer.handleStateChanged(evt).catch(() => undefined);
   });
   haWs.on('connected', () => {
     hub.broadcast({ type: 'ha_status', connected: true });
@@ -132,7 +144,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { litter, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -226,6 +238,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(watchRoutes);
   await app.register(siriRoutes);
   await app.register(litterRoutes);
+  await app.register(washerRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 

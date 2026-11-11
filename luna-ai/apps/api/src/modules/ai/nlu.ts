@@ -16,7 +16,8 @@ export type Intent =
   | { type: 'show_camera'; target: string }
   | { type: 'watch_status'; query: string }
   | { type: 'vacuum'; command: VacuumIntentCommand; target: string }
-  | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' };
+  | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' }
+  | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' };
 
 /** Fala sobre a caixa de areia dos gatos? */
 const LITTER_CONTEXT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
@@ -31,6 +32,22 @@ function parseLitter(text: string): Intent | null {
   }
   if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
   return { type: 'litter', command: 'status' };
+}
+
+/** Fala sobre a lava e seca? (“quanto falta para a máquina?”, “a roupa está pronta?”) */
+const WASHER_CONTEXT = /\b(lava e seca|lava-e-seca|lavadora|lava roupas?|maquina de (lavar|roupa)|lavagem)\b|\broupas?\b.*\b(pronta|lavando|secando|maquina)\b|\b(a|na|da) maquina\b(?!\s+de\s+(cafe|gelo|pao|costura))/;
+
+function parseWasher(text: string): Intent | null {
+  if (!WASHER_CONTEXT.test(text)) return null;
+  let command: 'status' | 'start' | 'pause' | 'on' | 'off' = 'status';
+  if (/\b(quanto|quando|falta|terminou|termina|acabou|acaba|pronta|como esta|esta (lavando|secando|ligada))\b/.test(text)) command = 'status';
+  else if (/\bpaus\w*\b/.test(text)) command = 'pause';
+  else if (/\b(continu\w*|retom\w*|comec\w*|inici\w*|bota pra lavar|manda lavar)\b/.test(text)) command = 'start';
+  else if (/\bdeslig\w*\b/.test(text)) command = 'off';
+  else if (/\b(liga|ligar|ligue)\b/.test(text)) command = 'on';
+  // “quando terminar, desliga a máquina” é automação, não comando agora
+  if (command !== 'status' && DEFERRED.test(text)) return null;
+  return { type: 'washer', command };
 }
 
 export type VacuumIntentCommand = 'start' | 'pause' | 'stop' | 'return_to_base' | 'locate' | 'status';
@@ -93,6 +110,9 @@ export function parseIntent(original: string): Intent | null {
 
   const litter = parseLitter(text);
   if (litter) return litter;
+
+  const washer = parseWasher(text);
+  if (washer) return washer;
 
   const vacuum = parseVacuum(text, raw);
   if (vacuum) return vacuum;

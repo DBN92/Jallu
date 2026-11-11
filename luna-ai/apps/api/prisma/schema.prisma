@@ -267,3 +267,28 @@ model LitterBoxPref {
   /// Comandos de voz (“limpa a caixa”) só com autorização, como os outros aparelhos
   voiceAllowed Boolean @default(false)
 }
+
+/// Preferências da lava e seca (id = prefixo das entidades no Home Assistant).
+model WasherPref {
+  id           String  @id
+  /// Comandos de voz (“pausa a máquina”) só com autorização, como os outros aparelhos
+  voiceAllowed Boolean @default(false)
+  /// Avisar quando terminar (celular, tablet e TV)
+  notifyDone   Boolean @default(true)
+  /// Falar no tablet: “A roupa está pronta”
+  speak        Boolean @default(true)
+}
+
+/// Um ciclo da lava e seca acompanhado pela Luna.
+model WasherCycle {
+  id        String    @id @default(cuid())
+  washerId  String
+  /// null quando o ciclo já estava rodando antes da Luna acompanhar
+  startedAt DateTime?
+  endedAt   DateTime?
+  program   String?
+  /// true quando terminou normalmente (false = desligada/cancelada no meio)
+  done      Boolean   @default(false)
+
+  @@index([washerId, endedAt])
+}

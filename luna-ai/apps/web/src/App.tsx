@@ -16,6 +16,8 @@ import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
 import { reloadLitter } from './stores/litter';
+import { reloadWasher } from './stores/washer';
+import { WasherDone, useWasherDone } from './components/WasherDone';
 import { eventEmoji, useWatches } from './stores/watches';
 import { applyOrientation } from './lib/orientation';
 
@@ -28,6 +30,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
 const VacuumPage = lazy(() => import('./pages/VacuumPage'));
 const LitterPage = lazy(() => import('./pages/LitterPage'));
+const WasherPage = lazy(() => import('./pages/WasherPage'));
 const TvApp = lazy(() => import('./tv/TvApp'));
 
 /** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
@@ -44,6 +47,11 @@ function useRealtimeConnection(enabled: boolean) {
         } else if (e.type === 'devices_reload') void loadDevices();
         else if (e.type === 'litter_update') reloadLitter();
         else if (e.type === 'litter_alert') useGestureToast.getState().show(e.text, false);
+        else if (e.type === 'washer_update') reloadWasher();
+        else if (e.type === 'washer_done') {
+          reloadWasher();
+          useWasherDone.getState().show(e.text, e.speech, e.speak);
+        }
         else if (e.type === 'ha_status') useDevices.getState().setHa(e.connected);
         else if (e.type === 'assistant_state') {
           useTv.getState().setRemoteState(e.state);
@@ -117,6 +125,7 @@ export default function App() {
         <TvApp />
         <GestureToast />
         <VacuumCelebration tv />
+        <WasherDone tv />
       </Suspense>
     );
 
@@ -124,6 +133,7 @@ export default function App() {
     <BrowserRouter>
       <GestureToast />
       <VacuumCelebration />
+      <WasherDone />
       <Suspense
         fallback={
           <div className="flex flex-1 items-center justify-center">
@@ -138,6 +148,7 @@ export default function App() {
             <Route path="casa" element={<HousePage />} />
             <Route path="aspirador/:entityId" element={<VacuumPage />} />
             <Route path="caixa-de-areia/:id" element={<LitterPage />} />
+            <Route path="lava-e-seca/:id" element={<WasherPage />} />
             <Route path="cameras" element={<CamerasPage />} />
             <Route path="clima" element={<WeatherPage />} />
             <Route path="memoria" element={<MemoryPage />} />
