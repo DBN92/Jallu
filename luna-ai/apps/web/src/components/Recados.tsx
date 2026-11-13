@@ -291,6 +291,77 @@ export function RecadoButton({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** Aviso grande de recado novo (tela inicial): chama a atenção de quem passa */
+export function RecadoAlert({ big = false }: { big?: boolean }) {
+  const list = useRecados((s) => s.list);
+  const open = useRecados((s) => s.open);
+  const view = useRecados((s) => s.view);
+  const fresh = unseenRecados(list);
+  if (!fresh.length || view) return null;
+  const first = fresh[fresh.length - 1]!;
+  return (
+    <button
+      onClick={() => open('player')}
+      className={`recado-alert flex w-full items-center gap-4 rounded-[var(--card-r,22px)] border-2 border-amber-300/80 bg-amber-400/15 text-left text-amber-50 ${big ? 'px-6 py-5' : 'px-4 py-3.5'}`}
+    >
+      <span className={`recado-alert-icon grid shrink-0 place-items-center rounded-full bg-amber-400 text-black ${big ? 'h-16 w-16' : 'h-12 w-12'}`}>
+        <Video className={big ? 'h-8 w-8' : 'h-6 w-6'} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block font-semibold ${big ? 'text-2xl' : 'text-lg'}`}>
+          {fresh.length === 1 ? `Recado novo de ${first.fromName}` : `${fresh.length} recados novos`}
+        </span>
+        <span className={`block text-amber-100/80 ${big ? 'text-base' : 'text-sm'}`}>
+          {fresh.length === 1 ? `Deixado ${when(first.createdAt)} · toque para assistir` : `De ${[...new Set(fresh.map((r) => r.fromName))].join(', ')} · toque para assistir`}
+        </span>
+      </span>
+      <ChevronRight className="h-6 w-6 shrink-0" />
+    </button>
+  );
+}
+
+/**
+ * Anuncia recados novos pela voz do tablet: quando chega um recado (gravado em outro aparelho) e
+ * quando alguém chega perto da tela (câmera), no máximo a cada 10 minutos.
+ */
+export function useRecadoAnnounce(nearAt: number) {
+  const list = useRecados((s) => s.list);
+  const known = useRef<Set<string> | null>(null);
+  const lastSaid = useRef(0);
+  const say = (text: string) => {
+    const app = nativeApp();
+    try {
+      if (app?.speak) app.speak(text);
+      else if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'pt-BR';
+        window.speechSynthesis.speak(u);
+      }
+      lastSaid.current = Date.now();
+    } catch {
+      /* sem voz neste aparelho */
+    }
+  };
+  const phrase = (rs: { fromName: string }[]) => (rs.length === 1 ? `Tem um recado novo de ${rs[0]!.fromName}.` : `Tem ${rs.length} recados novos.`);
+  // Chegou recado de outro aparelho
+  useEffect(() => {
+    if (!list) return;
+    const ids = new Set(list.map((r) => r.id));
+    if (known.current) {
+      const mine = useRecados.getState().mine;
+      const arrived = list.filter((r) => !r.seen && !known.current!.has(r.id) && !mine.includes(r.id));
+      if (arrived.length) say(phrase(arrived));
+    }
+    known.current = ids;
+  }, [list]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Alguém chegou perto da tela e há recado esperando (não fala para quem acabou de gravar)
+  useEffect(() => {
+    if (!nearAt || Date.now() - lastSaid.current < 10 * 60_000 || useRecados.getState().view) return;
+    const fresh = unseenRecados(useRecados.getState().list).filter((r) => Date.now() - new Date(r.createdAt).getTime() > 2 * 60_000);
+    if (fresh.length) say(phrase(fresh));
+  }, [nearAt]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 /** Telas de recado (montadas uma vez no app) */
 export function RecadosLayer() {
   const view = useRecados((s) => s.view);

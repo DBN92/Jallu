@@ -8,7 +8,7 @@ import type { UiMessage } from '../stores/assistant';
 import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
-import { RecadoButton, RecadosChips } from './Recados';
+import { RecadoAlert, RecadoButton, RecadosChips } from './Recados';
 import { useLists } from '../stores/lists';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
@@ -409,6 +409,7 @@ export function ModernHome(p: ModernHomeProps) {
       <div className="grid h-full min-h-0 gap-3 px-3 pt-2 pb-2" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.15fr)', paddingRight: 'max(env(safe-area-inset-right), 12px)' }}>
         <div className="dock-pad m-scroll flex min-h-0 flex-col gap-2.5 overflow-y-auto pb-1 [&>*]:shrink-0">
           {compactHeader}
+          <RecadoAlert />
           {hero}
         </div>
         <div className="dock-pad m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
@@ -428,6 +429,7 @@ export function ModernHome(p: ModernHomeProps) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-5 px-8 pt-6 pb-3">
         {header}
+        <RecadoAlert big />
         <div className="grid min-h-0 flex-1 gap-5" style={{ gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,1.7fr)' }}>
           <div className="dock-pad m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
             {hero}
@@ -449,6 +451,7 @@ export function ModernHome(p: ModernHomeProps) {
   return (
     <div className="dock-pad m-scroll flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-4 pt-safe pb-4 [&>*]:shrink-0">
       <div className="pt-2">{header}</div>
+      <RecadoAlert />
       {hero}
       {!p.hasChat && (
         <>

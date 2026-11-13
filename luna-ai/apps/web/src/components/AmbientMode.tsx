@@ -225,9 +225,13 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
           )}
         </div>
         {fresh.length > 0 && (
-          <p className="font-hud animate-pulse pb-2 text-center text-base text-amber-200">
-            📹 {fresh.length === 1 ? `Recado de ${fresh[0]!.fromName}` : `${fresh.length} recados novos`} · toque para ver
-          </p>
+          <div className="recado-alert mx-auto mb-3 flex w-full max-w-2xl items-center gap-4 rounded-2xl border-2 border-amber-300/80 bg-amber-400/15 px-6 py-4 text-amber-50">
+            <span className="recado-alert-icon grid h-14 w-14 shrink-0 place-items-center rounded-full bg-amber-400 text-3xl">📹</span>
+            <span>
+              <span className="block text-2xl font-semibold">{fresh.length === 1 ? `Recado novo de ${fresh[0]!.fromName}` : `${fresh.length} recados novos`}</span>
+              <span className="block text-base text-amber-100/80">Toque na tela para assistir</span>
+            </span>
+          </div>
         )}
         <p className="hud-label pb-3 text-center text-[10px] text-cyan-300/50">{hint}</p>
       </div>

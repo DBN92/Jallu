@@ -331,3 +331,10 @@ button { cursor: pointer; }
 .washer-pop { animation: washer-pop .45s cubic-bezier(.2,.9,.3,1.2) both; }
 .washer-shirt { display: inline-block; animation: washer-shirt 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .washer-spin, .washer-pulse, .washer-shirt { animation: none; } .washer-pop { animation-duration: .01s; } }
+
+/* Recado novo: o aviso pulsa (borda e ícone) para chamar a atenção de quem passa */
+@keyframes recado-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); } 50% { box-shadow: 0 0 28px 6px rgba(251, 191, 36, 0.45); } }
+@keyframes recado-ring { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.recado-alert { animation: recado-glow 1.8s ease-in-out infinite; }
+.recado-alert-icon { animation: recado-ring 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .recado-alert, .recado-alert-icon { animation: none; } }

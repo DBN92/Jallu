@@ -12,7 +12,7 @@ import { useCameras } from '../stores/cameras';
 import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
-import { RecadoButton, RecadosChips } from '../components/Recados';
+import { RecadoAlert, RecadoButton, RecadosChips, useRecadoAnnounce } from '../components/Recados';
 import { usePresenceStore } from '../hooks/usePresence';
 import { unseenRecados, useRecados } from '../stores/recados';
 import { VoiceFocus } from '../components/VoiceFocus';
@@ -321,6 +321,7 @@ export default function HomePage() {
   // Câmera do aparelho: alguém chegou perto da tela
   const nearAt = usePresenceStore((s) => s.nearAt);
   const presenceWake = useSettings((s) => s.presenceWake);
+  useRecadoAnnounce(nearAt);
   useEffect(() => {
     if (!nearAt || !presenceWake) return;
     lastUse.current = Date.now();
@@ -505,6 +506,9 @@ export default function HomePage() {
             </div>
           )}
 
+          <div className="mt-3">
+            <RecadoAlert />
+          </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <RecadosChips chipClass="font-hud flex items-center gap-1.5 rounded-sm border border-cyan-300/40 bg-ink-950/70 px-3 py-1.5 text-xs text-cyan-50 [&.act]:border-amber-300/70 [&.act]:bg-amber-400/15" />
             <Link to="/listas" className="font-hud flex items-center gap-1.5 rounded-sm border border-cyan-300/40 bg-ink-950/70 px-3 py-1.5 text-xs text-cyan-50">

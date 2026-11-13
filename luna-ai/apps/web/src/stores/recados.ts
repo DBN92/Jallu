@@ -6,6 +6,8 @@ interface RecadosState {
   list: RecadoDto[] | null;
   /** Tela aberta agora: gravar um recado ou assistir aos recados */
   view: 'recorder' | 'player' | null;
+  /** Recados gravados neste aparelho (não anuncia a chegada para quem acabou de gravar) */
+  mine: string[];
   load: () => Promise<void>;
   upload: (video: Blob) => Promise<string | null>;
   seen: (id: string) => Promise<void>;
@@ -15,9 +17,10 @@ interface RecadosState {
   close: () => void;
 }
 
-export const useRecados = create<RecadosState>((set) => ({
+export const useRecados = create<RecadosState>((set, get) => ({
   list: null,
   view: null,
+  mine: [],
   load: async () => {
     try {
       set({ list: await api<RecadoDto[]>('/api/recados') });
@@ -29,7 +32,9 @@ export const useRecados = create<RecadosState>((set) => ({
     try {
       const form = new FormData();
       form.append('video', video, video.type.includes('mp4') ? 'recado.mp4' : 'recado.webm');
-      set({ list: await api<RecadoDto[]>('/api/recados', { method: 'POST', form }) });
+      const before = new Set((get().list ?? []).map((r) => r.id));
+      const list = await api<RecadoDto[]>('/api/recados', { method: 'POST', form });
+      set({ list, mine: [...get().mine, ...list.filter((r) => !before.has(r.id)).map((r) => r.id)] });
       return null;
     } catch (err) {
       return errorMessage(err);
