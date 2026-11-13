@@ -25,6 +25,8 @@ function sniff(buf: Buffer): Meta['mime'] | null {
  */
 export class RecadosService {
   private readonly dir: string;
+  /** Chamado quando um recado novo é gravado (avisos no celular) */
+  onAdded: (r: RecadoDto, exceptEndpoint?: string) => void = () => {};
   constructor(dataDir: string, private readonly onChange: () => void = () => {}) {
     this.dir = join(dataDir, 'recados');
   }
@@ -61,7 +63,7 @@ export class RecadosService {
     return (await this.metas()).map(({ id, fromName, createdAt, seenAt, saved }) => ({ id, fromName, createdAt, seen: !!seenAt, saved: !!saved }));
   }
 
-  async add(buf: Buffer, from: { id: string; displayName: string }): Promise<RecadoDto[]> {
+  async add(buf: Buffer, from: { id: string; displayName: string }, exceptEndpoint?: string): Promise<RecadoDto[]> {
     if (buf.length < 1000 || buf.length > MAX_BYTES) throw badRequest('O recado precisa ter até 10 MB (uns 30 segundos).');
     const mime = sniff(buf);
     if (!mime) throw badRequest('Formato de vídeo não reconhecido.');
@@ -73,6 +75,7 @@ export class RecadosService {
     const meta: Meta = { id, fromId: from.id, fromName: from.displayName, createdAt: new Date().toISOString(), mime, seenAt: null };
     await writeFile(this.path(id, 'json'), JSON.stringify(meta));
     this.onChange();
+    this.onAdded({ id, fromName: meta.fromName, createdAt: meta.createdAt, seen: false, saved: false }, exceptEndpoint);
     return this.list();
   }
 

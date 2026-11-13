@@ -51,6 +51,8 @@ import { houseRoutes } from './modules/house/house.routes';
 import { photosRoutes } from './modules/photos/photos.routes';
 import { recadosRoutes } from './modules/recados/recados.routes';
 import { listsRoutes } from './modules/lists/lists.routes';
+import { pushRoutes } from './modules/push/push.routes';
+import { PushService } from './modules/push/push.service';
 import { ListsService } from './modules/lists/lists.service';
 import { RecadosService } from './modules/recados/recados.service';
 import { PhotoAlbum } from './modules/photos/photos.service';
@@ -75,6 +77,8 @@ export interface AppDeps {
   watchFfmpeg?: string | null;
   /** Não iniciar as leituras periódicas (testes chamam tick() direto) */
   disableWatchTimer?: boolean;
+  /** Testes: envio das notificações push (no lugar do serviço do celular) */
+  pushSender?: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string) => Promise<unknown>;
 }
 
 function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['log']) {
@@ -120,7 +124,11 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   chat.setWatches(watches);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   // Recados em vídeo (gravados na tela; a voz avisa e abre)
+  const push = new PushService(db, dataDir, deps.pushSender);
   const recados = new RecadosService(dataDir, () => hub.broadcast({ type: 'recados_update' }));
+  // Recado novo: aviso no celular de todos da casa (menos no aparelho que gravou)
+  recados.onAdded = (r, exceptEndpoint) =>
+    void push.broadcast({ title: 'Recado novo', body: `${r.fromName} deixou um recado em vídeo.`, url: `/?recado=${r.id}`, tag: `recado-${r.id}` }, { exceptEndpoint }).catch(() => undefined);
   chat.setRecados(recados);
   // Lista da casa (em casa / comprar) e notas
   const lists = new ListsService(db, () => hub.broadcast({ type: 'lists_update' }));
@@ -157,7 +165,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -256,6 +264,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(photosRoutes);
   await app.register(recadosRoutes);
   await app.register(listsRoutes);
+  await app.register(pushRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 

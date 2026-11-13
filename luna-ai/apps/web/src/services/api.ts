@@ -22,9 +22,9 @@ export const onUnauthorized = (fn: Listener) => {
   };
 };
 
-export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; form?: FormData; signal?: AbortSignal } = {}): Promise<T> {
+export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; form?: FormData; signal?: AbortSignal; headers?: Record<string, string> } = {}): Promise<T> {
   const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...opts.headers };
   if (method !== 'GET') headers['x-csrf-token'] = csrfToken();
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   let res: Response;

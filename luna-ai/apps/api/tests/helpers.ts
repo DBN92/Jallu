@@ -12,6 +12,8 @@ export interface TestCtx {
   cookies: string;
   csrf: string;
   inject: (method: string, url: string, body?: unknown) => Promise<{ status: number; json: any }>;
+  /** Notificações push “enviadas” (endpoint + conteúdo) */
+  pushed: { endpoint: string; payload: any }[];
 }
 
 const db = createDb(testDbUrl());
@@ -19,6 +21,7 @@ const db = createDb(testDbUrl());
 export async function resetDb() {
   // Ordem respeita chaves estrangeiras
   await db.actionLog.deleteMany();
+  await db.pushSubscription.deleteMany();
   await db.directCamera.deleteMany();
   await db.gestureRule.deleteMany();
   await db.visualRef.deleteMany();
@@ -59,7 +62,12 @@ export async function makeApp(envOverrides: Record<string, string> = {}, opts: {
     LUNA_WEB_DIST: '/nonexistent',
     ...envOverrides,
   });
+  const pushed: { endpoint: string; payload: any }[] = [];
   const app = await buildApp({
+    pushSender: async (sub, payload) => {
+      if (sub.endpoint.includes('vencido')) throw Object.assign(new Error('gone'), { statusCode: 410 });
+      pushed.push({ endpoint: sub.endpoint, payload: JSON.parse(payload) });
+    },
     env,
     db: createDb(testDbUrl()),
     fetch: { ha: ha.fetch, ollama: llm.ollamaFetch, openai: llm.openaiFetch, weather: weather.fetch },
@@ -73,6 +81,7 @@ export async function makeApp(envOverrides: Record<string, string> = {}, opts: {
     ha,
     llm,
     weather,
+    pushed,
     cookies: '',
     csrf: '',
     inject: async (method, url, body) => {

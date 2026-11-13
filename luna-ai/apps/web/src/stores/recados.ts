@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { RecadoDto } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
+import { currentEndpoint } from '../lib/push';
 
 interface RecadosState {
   list: RecadoDto[] | null;
@@ -33,7 +34,9 @@ export const useRecados = create<RecadosState>((set, get) => ({
       const form = new FormData();
       form.append('video', video, video.type.includes('mp4') ? 'recado.mp4' : 'recado.webm');
       const before = new Set((get().list ?? []).map((r) => r.id));
-      const list = await api<RecadoDto[]>('/api/recados', { method: 'POST', form });
+      // Este aparelho não recebe o aviso do próprio recado
+      const me = await currentEndpoint();
+      const list = await api<RecadoDto[]>('/api/recados', { method: 'POST', form, ...(me ? { headers: { 'x-push-endpoint': me } } : {}) });
       set({ list, mine: [...get().mine, ...list.filter((r) => !before.has(r.id)).map((r) => r.id)] });
       return null;
     } catch (err) {

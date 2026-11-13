@@ -123,7 +123,23 @@ export default function App() {
   useGestureWatcher(status === 'ready');
   usePresence(status === 'ready');
   useEffect(() => {
-    if (status === 'ready') void useRecados.getState().load();
+    if (status !== 'ready') return;
+    // Aberto pelo aviso do celular (“/?recado=…”): mostra o recado
+    const openFrom = async (search: string) => {
+      if (!new URLSearchParams(search).get('recado')) return;
+      await useRecados.getState().load();
+      useRecados.getState().open('player');
+    };
+    const first = location.search;
+    void useRecados.getState().load().then(() => openFrom(first));
+    if (new URLSearchParams(first).has('recado')) history.replaceState(null, '', location.pathname);
+    // App já aberto quando tocou no aviso
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { type?: string; url?: string } | null;
+      if (d?.type === 'luna-open' && d.url) void openFrom(new URL(d.url, location.origin).search);
+    };
+    navigator.serviceWorker?.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMsg);
   }, [status]);
 
   // Orientação da tela (app instalado): reaplica ao abrir e ao voltar do segundo plano

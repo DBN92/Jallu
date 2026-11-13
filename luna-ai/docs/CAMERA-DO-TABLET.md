@@ -42,3 +42,15 @@ Na aba **Listas**: **Comprar** (✓ = comprei, o item vai para “Em casa”), *
 para a lista de compras) e **Notas**. Pela voz: “põe leite e pão na lista”, “acabou o café”, “preciso
 comprar sabão”, “comprei o leite”, “o que falta comprar?”, “tem arroz em casa?”, “cria uma nota: …”,
 “lê minhas notas”.
+
+## Avisos no celular (push)
+
+Em **Ajustes › Avisos neste celular**, ligue para receber uma notificação quando alguém deixar um recado.
+Tocar no aviso abre o recado.
+
+- **iPhone**: precisa do iOS 16.4 ou mais novo e da Luna **instalada na tela de início** a partir do
+  endereço **https** (Cloudflare). Pelo endereço `http://192.168.15.6:8787` o iPhone não permite avisos.
+- **Android (celular)**: funciona no Chrome ou com a Luna instalada, também pelo endereço https.
+- O aparelho que gravou o recado não recebe o aviso dele.
+- As chaves dos avisos ficam em `dados/vapid.json`. O aviso passa pelo serviço gratuito de notificação
+  do próprio celular (Apple ou Google), só com o texto curto “Fulano deixou um recado em vídeo”.

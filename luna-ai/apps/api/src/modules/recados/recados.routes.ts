@@ -24,7 +24,9 @@ export async function recadosRoutes(app: FastifyInstance) {
   app.post('/api/recados', { preHandler: requireAuth, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) => {
     const file = await req.file();
     if (!file) throw new AppError(400, 'Nenhum vídeo enviado.', 'no_video');
-    return recados.add(await file.toBuffer(), req.user!);
+    // O aparelho que gravou não recebe o aviso do próprio recado
+    const except = typeof req.headers['x-push-endpoint'] === 'string' ? req.headers['x-push-endpoint'].slice(0, 1000) : undefined;
+    return recados.add(await file.toBuffer(), req.user!, except);
   });
 
   app.post('/api/recados/:id/seen', { preHandler: requireAuth }, async (req) => recados.markSeen(params.parse(req.params).id));
