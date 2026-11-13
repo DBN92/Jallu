@@ -5,9 +5,12 @@ import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import { AnimatedBackground } from './AnimatedBackground';
 import { LunaOrb } from './LunaOrb';
+import { HouseShow } from './HouseShow';
 import { WeatherIcon } from './WeatherIcon';
 
 const SLIDE_MS = 10_000;
+/** A casa em 3D fica mais tempo na tela (dá uma volta devagar) */
+const HOUSE_MS = 30_000;
 const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, vacuum: Disc3, other: Box };
 
 function WeatherSlide({ w }: { w: WeatherDto }) {
@@ -99,14 +102,15 @@ function HomeSlide() {
  * entre previsão do tempo e controle da casa. Qualquer toque (ou “Oi, Luna”) volta ao normal.
  */
 export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
-  const slides = useMemo(() => [...(weather ? (['weather'] as const) : []), 'home' as const], [weather]);
+  const slides = useMemo(() => [...(weather ? (['weather'] as const) : []), 'home' as const, 'house3d' as const], [weather]);
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (slides.length < 2) return;
-    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), SLIDE_MS);
-    return () => clearInterval(t);
-  }, [slides.length]);
+    const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index % slides.length] === 'house3d' ? HOUSE_MS : SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [slides, index]);
   const current = slides[index % slides.length];
+  const on = useDevices((s) => Object.values(s.devices).filter((d) => !d.hidden && d.controllable && d.isOn).length);
 
   return createPortal(
     <div
@@ -134,14 +138,23 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
 
           {/* Painel que alterna */}
           <div className="hud-panel w-full max-w-2xl p-6 md:p-8">
-            <div key={`${current}-${index}`} className="ambient-slide">
-              {current === 'weather' && weather ? <WeatherSlide w={weather} /> : <HomeSlide />}
+            {current !== 'house3d' && (
+              <div key={`${current}-${index}`} className="ambient-slide">
+                {current === 'weather' && weather ? <WeatherSlide w={weather} /> : <HomeSlide />}
+              </div>
+            )}
+            {/* A maquete fica carregada o tempo todo (escondida e pausada fora da vez dela) */}
+            <div className={current === 'house3d' ? 'ambient-slide' : 'hidden'}>
+              <p className="hud-label">Minha casa · {on} {on === 1 ? 'ligado' : 'ligados'}</p>
+              <div className="mt-2 h-[min(40vh,520px)] sm:h-[min(58vh,520px)]">
+                <HouseShow active={current === 'house3d'} />
+              </div>
             </div>
             {slides.length > 1 && (
               <div className="mt-6 flex gap-2">
                 {slides.map((s, i) => (
                   <div key={s} className="h-1 flex-1 overflow-hidden bg-cyan-300/15">
-                    {i === index % slides.length && <div key={index} className="ambient-progress h-full bg-cyan-300 shadow-[0_0_8px_#00e5ff]" style={{ animationDuration: `${SLIDE_MS}ms` }} />}
+                    {i === index % slides.length && <div key={index} className="ambient-progress h-full bg-cyan-300 shadow-[0_0_8px_#00e5ff]" style={{ animationDuration: `${s === 'house3d' ? HOUSE_MS : SLIDE_MS}ms` }} />}
                   </div>
                 ))}
               </div>

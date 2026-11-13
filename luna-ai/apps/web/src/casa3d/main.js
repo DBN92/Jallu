@@ -11,6 +11,9 @@ const WALL_H = 2.6, T = 0.1, DOOR_H = 2.1;
 // Andar mostrado: #terreo ou #superior (lembrado no aparelho)
 let FLOOR = location.hash === '#terreo' ? 'terreo' : location.hash === '#superior' ? 'superior' : (() => { try { return localStorage.getItem('luna.casa3d.andar') || 'superior'; } catch { return 'superior'; } })();
 if (FLOOR !== 'terreo') FLOOR = 'superior';
+// Modo vitrine (descanso de tela da Luna): sem menus, fundo transparente e a casa girando devagar
+const SHOW = new URLSearchParams(location.search).has('show');
+if (SHOW) { document.body.classList.add('show'); document.documentElement.classList.add('show'); }
 const UP = {};
 UP.ROOMS = [
   { id: 'suite', name: 'Suíte', kind: 'Quarto de casal com TV', floor: 'wood', rects: [[-1.52, -7.56, 1.52, -3.78], [-1.52, -3.78, -0.19, -1.92]], view: { dir: [-0.62, 0.78, 0.06], at: [0.1, -5.2] }, label: [0.2, -5.6], stand: [-0.85, -2.6], look: [0.4, -6.2] },
@@ -94,7 +97,7 @@ const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.85;
-scene.background = new THREE.Color('#8c8c8e');
+scene.background = SHOW ? null : new THREE.Color('#8c8c8e');
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 200);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.autoRotateSpeed = 0.7;
@@ -238,7 +241,7 @@ for (const r of ROOMS) {
 }
 // Laje por baixo e chão de concreto em volta (como na maquete de referência)
 { const z1 = Math.min(...ROOMS.flatMap((r) => r.rects.map((q) => q[1]))), z2 = Math.max(...ROOMS.flatMap((r) => r.rects.map((q) => q[3]))); box(3.34, 0.2, z2 - z1 + 0.2, M({ color: '#f2efe9' }), 0, -0.15, (z1 + z2) / 2); }
-{ const t = concreteTex.clone(); t.needsUpdate = true; t.repeat.set(16, 16); const g = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), M({ map: t, roughness: 1 })); g.rotation.x = -Math.PI / 2; g.position.y = -0.25; g.receiveShadow = true; scene.add(g); }
+{ const t = concreteTex.clone(); t.needsUpdate = true; t.repeat.set(16, 16); const g = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), M({ map: t, roughness: 1 })); g.rotation.x = -Math.PI / 2; g.position.y = -0.25; g.visible = !SHOW; g.receiveShadow = true; scene.add(g); }
 // Sombra de contato (manchas suaves embaixo dos móveis e na base das paredes)
 function blob(parent, w, d, x = 0, z = 0, o = 1) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: o })); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.004, z); m.renderOrder = 1; parent.add(m); return m; }
 
@@ -1242,10 +1245,38 @@ const v = new THREE.Vector3(), ease = (x) => 1 - Math.pow(1 - x, 3);
 home(); anim.t = 1; camera.position.copy(anim.to.p); controls.target.copy(anim.to.t);
 addEventListener('resize', () => setTimeout(() => (sel ? focusRoom(sel) : home()), 50));
 let lastT = performance.now(), slow = 0, lite = false;
+let showActive = true, lastShow = 0;
+if (SHOW) {
+  controls.enabled = false; renderer.setPixelRatio(1);
+  addEventListener('message', (e) => { if (e.origin === location.origin && e.source === window.parent && e.data?.type === 'casa3d-show') showActive = !!e.data.active; });
+}
 sun.shadow.needsUpdate = true;
 renderer.setAnimationLoop((now) => {
   const dtt = Math.min(1000, now - lastT); lastT = now;
   if (applyLamps(dtt)) invalidate();
+  if (SHOW) {
+    // gira pelo relógio (os dois andares ficam sempre no mesmo ângulo), a ~30 quadros por segundo
+    if (!showActive || now - lastShow < 33 || !innerWidth || !innerHeight) return;
+    lastShow = now;
+    for (const f of FANS) f(33);
+    // distância calculada a cada quadro para a casa caber inteira, em qualquer ângulo
+    const az = (Date.now() / 1000) * 0.1, el = 0.85, H = 2.8, cy = H / 2;
+    const tv = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), th = tv * camera.aspect;
+    const fx = Math.sin(az) * Math.cos(el), fy = Math.sin(el), fz = Math.cos(az) * Math.cos(el); // do centro para a câmera
+    const rx = Math.cos(az), rz = -Math.sin(az); // direita da câmera
+    const ux = -fy * rz, uy = fz * rx - fx * rz, uz = fy * rx; // cima da câmera (direita × frente)
+    let d = 0;
+    for (let i = 0; i < 8; i++) {
+      const x = (i & 1 ? 1 : -1) * SIZE.x / 2, y = (i & 2 ? 1 : -1) * H / 2, z = (i & 4 ? 1 : -1) * SIZE.z / 2;
+      const s = x * fx + y * fy + z * fz;
+      d = Math.max(d, s + Math.abs(x * rx + z * rz) / th, s + Math.abs(x * ux + y * uy + z * uz) / tv);
+    }
+    d *= 1.05;
+    camera.position.set(fx * d, cy + fy * d, CZ + fz * d);
+    camera.lookAt(0, cy, CZ);
+    renderer.render(scene, camera);
+    return;
+  }
   let fanOn = false; for (const f of FANS) fanOn = f(Math.min(dtt, 50)) || fanOn;
   if (fanOn || controls.autoRotate) invalidate();
   if (anim.t < 1) { anim.t = Math.min(1, (now - anim.start) / anim.ms); const k = ease(anim.t); camera.position.lerpVectors(anim.from.p, anim.to.p, k); controls.target.lerpVectors(anim.from.t, anim.to.t, k); invalidate(); }

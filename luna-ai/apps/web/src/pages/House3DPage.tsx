@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { HOUSE_AUTOMATIONS, type DeviceDto, type HouseAutomationId, type HouseLinksDto } from '@luna/shared';
@@ -6,6 +6,7 @@ import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
 import { useDevices } from '../stores/devices';
 import { normalizeName, resolveHouseLinks } from '../lib/houseLinks';
+import { useHouseState } from '../hooks/useHouseState';
 
 interface Cmd {
   type: 'casa3d-cmd';
@@ -29,37 +30,18 @@ const rgbOf = (hex: string): [number, number, number] | null => {
 export default function House3DPage() {
   const navigate = useNavigate();
   const frame = useRef<HTMLIFrameElement>(null);
-  const devices = useDevices((s) => s.devices);
-  const loadDevices = useDevices((s) => s.load);
+  const { devices, links, setLinks, resolved, state } = useHouseState();
   const upsert = useDevices((s) => s.upsert);
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
-  const [links, setLinks] = useState<HouseLinksDto | null>(null);
   const [editing, setEditing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!Object.keys(devices).length) void loadDevices(true);
-    api<HouseLinksDto>('/api/house/links').then(setLinks).catch(() => setLinks({}));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   useEffect(() => {
     if (!msg) return;
     const t = setTimeout(() => setMsg(null), 4000);
     return () => clearTimeout(t);
   }, [msg]);
 
-  // Vínculo de cada item: o escolhido pelo administrador ou, sem escolha, o aparelho de mesmo nome
-  const resolved = useMemo(() => resolveHouseLinks(links ?? {}, Object.values(devices)), [links, devices]);
-
-  const state = useMemo(() => {
-    const autos: Record<string, unknown> = {};
-    for (const a of HOUSE_AUTOMATIONS) {
-      const d = resolved[a.id]?.device;
-      if (!d) continue;
-      autos[a.id] = { on: d.isOn === true, available: d.available, dim: d.supportsBrightness, color: d.supportsColor, level: d.isOn && d.brightness ? d.brightness : null, rgb: d.rgb };
-    }
-    return { type: 'casa3d-state', autos };
-  }, [resolved]);
   const stateRef = useRef(state);
   stateRef.current = state;
   const post = useCallback(() => frame.current?.contentWindow?.postMessage(stateRef.current, location.origin), []);
