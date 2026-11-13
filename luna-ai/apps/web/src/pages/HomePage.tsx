@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { AudioLines, Mic, MicOff, SendHorizontal, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { AudioLines, Mic, MicOff, SendHorizontal, ShoppingCart, Square, Volume2, VolumeX, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { LunaOrb } from '../components/LunaOrb';
 import { ModernHome } from '../components/ModernHome';
 import { nativeApp, type NativeVoiceEvent } from '../lib/native';
@@ -11,7 +12,7 @@ import { useCameras } from '../stores/cameras';
 import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
-import { RecadosChips } from '../components/Recados';
+import { RecadoButton, RecadosChips } from '../components/Recados';
 import { usePresenceStore } from '../hooks/usePresence';
 import { unseenRecados, useRecados } from '../stores/recados';
 import { VoiceFocus } from '../components/VoiceFocus';
@@ -503,6 +504,9 @@ export default function HomePage() {
 
           <div className="mt-3 flex flex-wrap gap-2">
             <RecadosChips chipClass="font-hud flex items-center gap-1.5 rounded-sm border border-cyan-300/40 bg-ink-950/70 px-3 py-1.5 text-xs text-cyan-50 [&.act]:border-amber-300/70 [&.act]:bg-amber-400/15" />
+            <Link to="/listas" className="font-hud flex items-center gap-1.5 rounded-sm border border-cyan-300/40 bg-ink-950/70 px-3 py-1.5 text-xs text-cyan-50">
+              <ShoppingCart className="h-4 w-4" /> Listas
+            </Link>
           </div>
           <form onSubmit={onSubmit} className="hud-panel mt-3 flex items-center gap-2 p-2">
             <span className="hud-label pl-2 text-cyan-300/60">›</span>
@@ -569,6 +573,7 @@ export default function HomePage() {
         }}
       />
 
+      {!ambient && !voiceFocus && !hasChat && <RecadoButton />}
       {ambient && (
         <AmbientMode
           now={now}

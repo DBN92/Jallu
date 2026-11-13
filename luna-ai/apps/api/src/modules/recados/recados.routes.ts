@@ -28,5 +28,6 @@ export async function recadosRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/recados/:id/seen', { preHandler: requireAuth }, async (req) => recados.markSeen(params.parse(req.params).id));
+  app.post('/api/recados/:id/save', { preHandler: requireAuth }, async (req) => recados.save(params.parse(req.params).id));
   app.delete('/api/recados/:id', { preHandler: requireAuth }, async (req) => recados.remove(params.parse(req.params).id));
 }

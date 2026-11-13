@@ -44,6 +44,10 @@ export class ChatService {
   }
 
   private litter: import('../litter/litter.service').LitterService | null = null;
+  private lists: import('../lists/lists.service').ListsService | null = null;
+  setLists(l: import('../lists/lists.service').ListsService) {
+    this.lists = l;
+  }
   private recados: import('../recados/recados.service').RecadosService | null = null;
   setRecados(r: import('../recados/recados.service').RecadosService) {
     this.recados = r;
@@ -267,6 +271,10 @@ export class ChatService {
             reply: on ? `Limpeza automática da caixa de areia ligada${wait}.` : 'Limpeza automática da caixa de areia desligada.',
             actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
           };
+        }
+        case 'lists': {
+          if (!this.lists) return null;
+          return { reply: await this.lists.voice(intent), actions: [{ tool: 'lists', ok: true, summary: 'Lista da casa' }] };
         }
         case 'recado': {
           if (!this.recados) return null;

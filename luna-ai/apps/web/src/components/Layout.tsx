@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Bot, Brain, Cctv, CloudSun, Home, MessagesSquare, Settings, Workflow } from 'lucide-react';
+import { Bot, Brain, Cctv, CloudSun, Home, ListChecks, MessagesSquare, Settings, Workflow } from 'lucide-react';
 import { useAssistant } from '../stores/assistant';
 import { useKioskMode } from '../hooks/useKioskMode';
 import { AnimatedBackground } from './AnimatedBackground';
@@ -12,6 +12,7 @@ export const NAV = [
   { to: '/', label: 'Início', icon: Bot, end: true },
   { to: '/conversas', label: 'Conversas', icon: MessagesSquare },
   { to: '/casa', label: 'Casa', icon: Home },
+  { to: '/listas', label: 'Listas', icon: ListChecks },
   { to: '/cameras', label: 'Câmeras', icon: Cctv },
   { to: '/clima', label: 'Clima', icon: CloudSun },
   { to: '/memoria', label: 'Memória', icon: Brain },

@@ -37,6 +37,7 @@ describe('Recados em vídeo', () => {
     expect(said.json.actions[0].tool).toBe('show_recados');
 
     expect(((await ctx.inject('POST', `/api/recados/${rec!.id}/seen`)).json as { seen: boolean }[])[0]!.seen).toBe(true);
+    expect(((await ctx.inject('POST', `/api/recados/${rec!.id}/save`)).json as { saved: boolean }[])[0]!.saved).toBe(true);
     expect((await ctx.inject('POST', '/api/chat', { message: 'tem recado?' })).json.reply).toBe('Não há recados novos.');
     expect((await upload(Buffer.alloc(4000, 1))).statusCode).toBe(400);
     expect((await ctx.app.inject({ method: 'GET', url: '/api/recados' })).statusCode).toBe(401);

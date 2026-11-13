@@ -29,3 +29,16 @@ O app abre a Luna por `http://127.0.0.1:8788`, uma ponte que roda só dentro do 
 para o endereço da Luna configurado. Para o Android, 127.0.0.1 é um endereço seguro, então a câmera
 fica disponível. Na primeira abertura depois da atualização, o login e as preferências da tela são
 levados junto automaticamente.
+
+### Salvar ou descartar
+
+Depois de assistir, escolha **Salvar** (o recado fica guardado e não some) ou **Descartar** (apaga na hora).
+Sem escolher, ele some sozinho depois de 7 dias. O botão redondo com a câmera, no canto da tela inicial,
+grava um recado novo (ou abre os recados novos, quando houver).
+
+## Listas da casa
+
+Na aba **Listas**: **Comprar** (✓ = comprei, o item vai para “Em casa”), **Em casa** (↺ = acabou, volta
+para a lista de compras) e **Notas**. Pela voz: “põe leite e pão na lista”, “acabou o café”, “preciso
+comprar sabão”, “comprei o leite”, “o que falta comprar?”, “tem arroz em casa?”, “cria uma nota: …”,
+“lê minhas notas”.

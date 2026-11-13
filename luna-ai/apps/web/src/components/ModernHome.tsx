@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Power, SendHorizontal, Sparkles, Sun, Thermometer, Volume2, VolumeX, X } from 'lucide-react';
+import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Power, SendHorizontal, ShoppingCart, Sparkles, Sun, Thermometer, Volume2, VolumeX, X } from 'lucide-react';
 import type { AssistantState, CameraDto, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import { useCameras } from '../stores/cameras';
@@ -9,6 +9,7 @@ import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
 import { RecadosChips } from './Recados';
+import { useLists } from '../stores/lists';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
@@ -65,6 +66,10 @@ export function ModernHome(p: ModernHomeProps) {
   const devicesMap = useDevices((s) => s.devices);
   const busy = useDevices((s) => s.busy);
   const openCameras = useCameras((s) => s.open);
+  const toBuy = useLists((s) => s.items?.filter((i) => i.status === 'buy').length ?? 0);
+  useEffect(() => {
+    if (!useLists.getState().items) void useLists.getState().load();
+  }, []);
   const [filter, setFilter] = useState<Filter>('all');
   const trackRef = useRef<HTMLDivElement>(null);
   const [slide, setSlide] = useState(0);
@@ -265,6 +270,9 @@ export function ModernHome(p: ModernHomeProps) {
   const quick = (
     <div className="m-scroll -mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-1">
       <RecadosChips />
+      <button className="m-chip" onClick={() => navigate('/listas')}>
+        <ShoppingCart className="h-4 w-4" /> Compras{toBuy ? ` (${toBuy})` : ''}
+      </button>
       {lights.length > 0 && (
         <>
           <button className="m-chip" onClick={() => void allLights(false)}>

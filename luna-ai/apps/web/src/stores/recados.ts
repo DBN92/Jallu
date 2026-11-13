@@ -9,6 +9,7 @@ interface RecadosState {
   load: () => Promise<void>;
   upload: (video: Blob) => Promise<string | null>;
   seen: (id: string) => Promise<void>;
+  save: (id: string) => Promise<string | null>;
   remove: (id: string) => Promise<string | null>;
   open: (view: 'recorder' | 'player') => void;
   close: () => void;
@@ -39,6 +40,14 @@ export const useRecados = create<RecadosState>((set) => ({
       set({ list: await api<RecadoDto[]>(`/api/recados/${id}/seen`, { method: 'POST' }) });
     } catch {
       /* tenta de novo na próxima vez */
+    }
+  },
+  save: async (id) => {
+    try {
+      set({ list: await api<RecadoDto[]>(`/api/recados/${id}/save`, { method: 'POST' }) });
+      return null;
+    } catch (err) {
+      return errorMessage(err);
     }
   },
   remove: async (id) => {

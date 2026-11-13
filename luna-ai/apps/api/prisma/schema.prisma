@@ -299,3 +299,24 @@ model HouseLink {
   /// null = o administrador escolheu “nenhuma”
   entityId String?
 }
+
+/// Lista da casa: o que tem em casa (have) e o que falta comprar (buy)
+model PantryItem {
+  id        String   @id @default(cuid())
+  name      String
+  /// nome sem acento e em minúsculas (evita “Leite” e “leite” repetidos)
+  key       String   @unique
+  status    String // have | buy
+  quantity  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Notas da casa (texto livre)
+model Note {
+  id        String   @id @default(cuid())
+  text      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

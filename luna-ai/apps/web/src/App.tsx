@@ -14,6 +14,7 @@ import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
+import { useLists } from './stores/lists';
 import { RecadosLayer } from './components/Recados';
 import { DimOverlay } from './components/DimOverlay';
 import { usePresence } from './hooks/usePresence';
@@ -30,6 +31,7 @@ const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
 const HousePage = lazy(() => import('./pages/HousePage'));
 const WeatherPage = lazy(() => import('./pages/WeatherPage'));
 const MemoryPage = lazy(() => import('./pages/MemoryPage'));
+const ListsPage = lazy(() => import('./pages/ListsPage'));
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
@@ -62,6 +64,7 @@ function useRealtimeConnection(enabled: boolean) {
         else if (e.type === 'litter_update') reloadLitter();
         else if (e.type === 'litter_alert') useGestureToast.getState().show(e.text, false);
         else if (e.type === 'recados_update') void useRecados.getState().load();
+        else if (e.type === 'lists_update') void useLists.getState().load();
         else if (e.type === 'washer_update') reloadWasher();
         else if (e.type === 'washer_done') {
           reloadWasher();
@@ -182,6 +185,7 @@ export default function App() {
             <Route path="clima" element={<WeatherPage />} />
             <Route path="memoria" element={<MemoryPage />} />
             <Route path="automacoes" element={<AutomationsPage />} />
+            <Route path="listas" element={<ListsPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

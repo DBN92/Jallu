@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, Circle, RotateCcw, Send, Square, Trash2, Video, X } from 'lucide-react';
+import { BookmarkCheck, ChevronRight, Circle, RotateCcw, Send, Square, Trash2, Video, X } from 'lucide-react';
 import { acquireCamera, cameraTrack, releaseCamera } from '../lib/deviceCamera';
 import { nativeApp } from '../lib/native';
 import { errorMessage } from '../services/api';
@@ -163,7 +163,8 @@ function Recorder() {
 
 /** Assistir aos recados (os novos primeiro). Ver um recado marca como visto. */
 function Player() {
-  const { list, close, seen, remove } = useRecados();
+  const { list, close, seen, save, remove } = useRecados();
+  const [ended, setEnded] = useState(false);
   const fresh = unseenRecados(list);
   const [order] = useState(() => [...fresh, ...(list ?? []).filter((r) => r.seen)].map((r) => r.id));
   const [i, setI] = useState(0);
@@ -184,32 +185,80 @@ function Player() {
         </button>
       </Shell>
     );
+  // Depois de ouvir: salvar (fica guardado) ou descartar (apaga). Depois segue para o próximo.
+  const decide = async (keep: boolean) => {
+    setError(null);
+    const err = keep ? await save(cur.id) : await remove(cur.id);
+    if (err) return setError(err);
+    setEnded(false);
+    const left = items.filter((r) => r.id !== cur.id || keep);
+    if (keep && i < items.length - 1) setI(i + 1);
+    else if (!keep && left.length && i < left.length) setI(i);
+    else close();
+  };
   return (
-    <Shell title={`Recado de ${cur.fromName} · ${when(cur.createdAt)}`} onClose={close}>
-      <video key={cur.id} src={`/api/recados/${cur.id}/video`} controls autoPlay playsInline className="aspect-video w-full rounded-sm bg-black object-contain" />
+    <Shell title={`Recado de ${cur.fromName} · ${when(cur.createdAt)}${cur.saved ? ' · salvo' : ''}`} onClose={close}>
+      <video key={cur.id} src={`/api/recados/${cur.id}/video`} controls autoPlay playsInline onEnded={() => setEnded(true)} onPlay={() => setEnded(false)} className="aspect-video w-full rounded-sm bg-black object-contain" />
       {error && <p className="text-sm text-rose-200">{error}</p>}
+      {!cur.saved && (
+        <div className={`flex w-full flex-col items-center gap-2 rounded-sm p-3 ${ended ? 'border border-cyan-300/40 bg-cyan-400/10' : ''}`}>
+          {ended && <p className="text-sm text-cyan-50">O que fazer com este recado?</p>}
+          <div className="flex flex-wrap justify-center gap-2">
+            <button className="m-chip act" style={{ padding: '12px 22px', fontSize: 16 }} onClick={() => void decide(true)}>
+              <BookmarkCheck className="h-4 w-4" /> Salvar
+            </button>
+            <button className="m-chip" style={{ padding: '12px 22px', fontSize: 16 }} onClick={() => void decide(false)}>
+              <Trash2 className="h-4 w-4" /> Descartar
+            </button>
+          </div>
+          {!ended && <p className="text-xs text-white/45">Sem escolher, o recado some sozinho depois de 7 dias.</p>}
+        </div>
+      )}
       <div className="flex flex-wrap justify-center gap-2">
         {i < items.length - 1 && (
-          <button className="m-chip act" onClick={() => setI(i + 1)}>
+          <button className="m-chip" onClick={() => { setEnded(false); setI(i + 1); }}>
             Próximo ({items.length - i - 1}) <ChevronRight className="h-4 w-4" />
           </button>
         )}
-        <button
-          className="m-chip"
-          onClick={async () => {
-            if (!window.confirm(`Apagar o recado de ${cur.fromName}?`)) return;
-            const err = await remove(cur.id);
-            if (err) setError(err);
-            else if (items.length <= 1) close();
-          }}
-        >
-          <Trash2 className="h-4 w-4" /> Apagar
-        </button>
+        {cur.saved && (
+          <button
+            className="m-chip"
+            onClick={async () => {
+              if (window.confirm(`Apagar o recado salvo de ${cur.fromName}?`)) await decide(false);
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Apagar
+          </button>
+        )}
         <button className="m-chip" onClick={() => useRecados.getState().open('recorder')}>
           <Video className="h-4 w-4" /> Responder com recado
         </button>
       </div>
     </Shell>
+  );
+}
+
+/** Botão fixo na tela inicial para deixar um recado (com o número de recados novos) */
+export function RecadoButton() {
+  const list = useRecados((s) => s.list);
+  const open = useRecados((s) => s.open);
+  const fresh = unseenRecados(list).length;
+  const view = useRecados((s) => s.view);
+  if (view) return null;
+  return createPortal(
+    <button
+      onClick={() => open(fresh ? 'player' : 'recorder')}
+      className="recado-fab fixed right-4 z-[45] flex items-center gap-2 rounded-full border border-cyan-300/50 bg-ink-950/85 p-3.5 sm:px-4 sm:py-3 text-sm font-semibold text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.35)] backdrop-blur md:right-6"
+      style={{ bottom: 'calc(var(--dock-h, 88px) + 14px)' }}
+      aria-label={fresh ? `Ver ${fresh} recado(s) novo(s)` : 'Deixar recado'}
+    >
+      <span className="relative">
+        <Video className="h-5 w-5" />
+        {fresh > 0 && <span className="absolute -top-2 -right-2 grid h-4 min-w-4 place-items-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-black">{fresh}</span>}
+      </span>
+      <span className="max-sm:sr-only">{fresh ? (fresh === 1 ? 'Ver recado' : 'Ver recados') : 'Deixar recado'}</span>
+    </button>,
+    document.body,
   );
 }
 
@@ -221,7 +270,7 @@ export function RecadosLayer() {
   return null;
 }
 
-/** Botões da tela inicial: gravar recado e, quando houver, ver os recados novos */
+/** Atalhos da tela inicial para ver os recados (gravar fica no botão fixo) */
 export function RecadosChips({ chipClass = 'm-chip' }: { chipClass?: string }) {
   const list = useRecados((s) => s.list);
   const open = useRecados((s) => s.open);
@@ -233,9 +282,6 @@ export function RecadosChips({ chipClass = 'm-chip' }: { chipClass?: string }) {
           <Video className="h-4 w-4" /> {fresh.length === 1 ? `Recado de ${fresh[0]!.fromName}` : `${fresh.length} recados novos`}
         </button>
       )}
-      <button className={chipClass} onClick={() => open('recorder')}>
-        <Video className="h-4 w-4" /> Deixar recado
-      </button>
       {fresh.length === 0 && !!list?.length && (
         <button className={chipClass} onClick={() => open('player')}>
           Recados ({list.length})

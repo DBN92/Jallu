@@ -18,7 +18,8 @@ export type Intent =
   | { type: 'vacuum'; command: VacuumIntentCommand; target: string }
   | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' }
   | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' }
-  | { type: 'recado'; command: 'record' | 'play' };
+  | { type: 'recado'; command: 'record' | 'play' }
+  | { type: 'lists'; command: 'buy' | 'bought' | 'list_buy' | 'has' | 'note' | 'list_notes'; text: string };
 
 /** Fala sobre a caixa de areia dos gatos? */
 const LITTER_CONTEXT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
@@ -33,6 +34,34 @@ function parseLitter(text: string): Intent | null {
   }
   if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
   return { type: 'litter', command: 'status' };
+}
+
+/**
+ * Lista da casa e notas: “põe leite e pão na lista”, “acabou o café”, “comprei o leite”,
+ * “o que falta comprar?”, “tem arroz em casa?”, “cria uma nota: …”, “lê minhas notas”.
+ * Usa o texto original (com acentos) para guardar os nomes dos itens.
+ */
+function parseLists(raw: string): Intent | null {
+  const r = raw.trim().replace(/[.!]+$/, '');
+  const t = normalize(r);
+  const tail = (re: RegExp) => r.match(re)?.[1]?.trim() ?? null;
+  // anotações
+  const note = tail(/^(?:por favor,?\s*)?(?:cri[ae]|criar|fa[çz]a|faz|adicion[ae]|escrev[ae])\s+(?:uma\s+)?(?:nova\s+)?nota\s*(?:dizendo|que diz|com|:)?\s*(?:que\s+)?(.{2,})$/i) ?? tail(/^nota\s*:\s*(.{2,})$/i);
+  if (note) return { type: 'lists', command: 'note', text: note };
+  if (/\bnotas\b/.test(t) && /\b(le|ler|leia|quais|mostr\w*|minhas|tem|tenho|ha)\b/.test(t)) return { type: 'lists', command: 'list_notes', text: '' };
+  // pôr na lista de compras
+  const add = tail(/^(?:por favor,?\s*)?(?:adicion[ae]r?|coloc[ae]r?|p[õo]e|p[ôo]r|bot[ae]r?|inclu[aií]r?|anot[ae])\s+(.+?)\s+(?:na|[àa])\s+lista(?:\s+de\s+compras?|\s+do mercado)?$/i);
+  if (add) return { type: 'lists', command: 'buy', text: add };
+  const need = tail(/^(?:a gente\s+|n[óo]s\s+)?(?:precis[ao]\w*|tem(?:os)? que|temos de)\s+comprar\s+(.+)$/i);
+  if (need) return { type: 'lists', command: 'buy', text: need };
+  const out = tail(/^(?:j[áa]\s+)?(?:acab(?:ou|aram)|termin(?:ou|aram))\s+(?:o|a|os|as)\s+(.+)$/i) ?? tail(/^(?:est[áa]\s+)?falt(?:a|ando|am)\s+(.+?)(?:\s+em casa)?$/i);
+  if (out && !/\b(luz|energia|internet|bateria|limpeza|ciclo|lavagem|quanto|quantos|tempo|minutos?|horas?|pouco|roupa|maquina)\b/.test(normalize(out))) return { type: 'lists', command: 'buy', text: out };
+  const bought = tail(/^(?:eu\s+|j[áa]\s+)?comprei\s+(.+)$/i);
+  if (bought) return { type: 'lists', command: 'bought', text: bought };
+  if (/\b(o que|que|oque)\s+(?:falta|precis\w+|tem que|temos que)\s+comprar\b/.test(t) || (/\blista de compras?\b/.test(t) && !/\b(adicion|coloc|poe|por|bot|inclu|anot)/.test(t))) return { type: 'lists', command: 'list_buy', text: '' };
+  const has = tail(/^(?:a gente\s+|n[óo]s\s+)?(?:ainda\s+)?tem\s+(.+?)\s+(?:em casa|na despensa|na geladeira|no armario|no armário)\??$/i);
+  if (has && !/\b(luz|luzes|lampada|ligad\w*|aces\w*|alguem|gente|pessoa)\b/.test(normalize(has))) return { type: 'lists', command: 'has', text: has };
+  return null;
 }
 
 /** Fala sobre a lava e seca? (“quanto falta para a máquina?”, “a roupa está pronta?”) */
@@ -123,6 +152,9 @@ export function parseIntent(original: string): Intent | null {
 
   const vacuum = parseVacuum(text, raw);
   if (vacuum) return vacuum;
+
+  const lists = parseLists(raw);
+  if (lists) return lists;
 
   // Câmeras: “mostre a câmera da garagem”, “abrir câmera”, “ver as câmeras”
   const cam = text.match(/\b(?:mostr\w*|abr\w*|ver|veja|exib\w*|quero ver|me mostra)\b.*?\bcameras?\b\s*(.*)$/);

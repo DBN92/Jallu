@@ -69,8 +69,11 @@ export function Button({
   type = 'button',
   className = '',
   busy,
+  label,
 }: {
   children: ReactNode;
+  /** Nome para leitores de tela quando o botão só tem ícone */
+  label?: string;
   onClick?: () => void;
   variant?: 'primary' | 'ghost' | 'danger';
   disabled?: boolean;
@@ -87,6 +90,7 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
+      aria-label={label}
       disabled={disabled || busy}
       className={`font-hud inline-flex items-center justify-center gap-2 rounded-sm px-4 py-2.5 text-sm font-semibold tracking-wider uppercase transition active:scale-[0.98] disabled:opacity-50 ${styles} ${className}`}
     >

@@ -10,7 +10,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
 export const RECADO_TTL_MS = 7 * 24 * 3600_000;
 const MAX_RECADOS = 50;
 
-type Meta = { id: string; fromId: string; fromName: string; createdAt: string; mime: 'video/webm' | 'video/mp4'; seenAt: string | null };
+type Meta = { id: string; fromId: string; fromName: string; createdAt: string; mime: 'video/webm' | 'video/mp4'; seenAt: string | null; saved?: boolean };
 
 /** Começo do arquivo: WebM (Android/Chrome) ou MP4 (iPhone) */
 function sniff(buf: Buffer): Meta['mime'] | null {
@@ -47,7 +47,8 @@ export class RecadosService {
       if (!f.endsWith('.json') || !ID_RE.test(id)) continue;
       try {
         const m = JSON.parse(await readFile(this.path(id, 'json'), 'utf8')) as Meta;
-        if (Date.now() - new Date(m.createdAt).getTime() > RECADO_TTL_MS) await this.drop(id);
+        // Recado salvo por quem assistiu fica; os outros somem depois de 7 dias
+        if (!m.saved && Date.now() - new Date(m.createdAt).getTime() > RECADO_TTL_MS) await this.drop(id);
         else out.push(m);
       } catch {
         /* arquivo pela metade: ignora */
@@ -57,7 +58,7 @@ export class RecadosService {
   }
 
   async list(): Promise<RecadoDto[]> {
-    return (await this.metas()).map(({ id, fromName, createdAt, seenAt }) => ({ id, fromName, createdAt, seen: !!seenAt }));
+    return (await this.metas()).map(({ id, fromName, createdAt, seenAt, saved }) => ({ id, fromName, createdAt, seen: !!seenAt, saved: !!saved }));
   }
 
   async add(buf: Buffer, from: { id: string; displayName: string }): Promise<RecadoDto[]> {
@@ -115,6 +116,16 @@ export class RecadosService {
       await writeFile(this.path(id, 'json'), JSON.stringify(m));
       this.onChange();
     }
+    return this.list();
+  }
+
+  /** Salvar depois de ouvir: o recado não some mais sozinho */
+  async save(id: string) {
+    const m = await this.meta(id);
+    m.saved = true;
+    m.seenAt ??= new Date().toISOString();
+    await writeFile(this.path(id, 'json'), JSON.stringify(m));
+    this.onChange();
     return this.list();
   }
 

@@ -270,6 +270,8 @@ export type ServerEvent =
   | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[]; open?: 'recorder' | 'recados' }
   /** Algum recado em vídeo foi gravado, visto ou apagado */
   | { type: 'recados_update' }
+  /** Lista de compras, itens de casa ou notas mudaram */
+  | { type: 'lists_update' }
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
   | { type: 'camera_event'; event: CameraEventDto }
   | { type: 'litter_update' }
@@ -278,12 +280,31 @@ export type ServerEvent =
   /** A lava e seca terminou (ou outro aviso dela). speak = falar no tablet. */
   | { type: 'washer_done'; text: string; speech: string; speak: boolean };
 
+/** Item da casa: tem em casa (have) ou falta comprar (buy) */
+export interface PantryItemDto {
+  id: string;
+  name: string;
+  status: 'have' | 'buy';
+  quantity: string | null;
+  updatedAt: string;
+}
+
+export interface NoteDto {
+  id: string;
+  text: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Recado em vídeo deixado na tela */
 export interface RecadoDto {
   id: string;
   fromName: string;
   createdAt: string;
   seen: boolean;
+  /** Salvo depois de ouvir (não some sozinho depois de 7 dias) */
+  saved: boolean;
 }
 
 export interface CameraDto {
