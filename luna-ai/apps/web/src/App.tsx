@@ -12,6 +12,7 @@ import { useAssistant } from './stores/assistant';
 import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
+import { useCameras } from './stores/cameras';
 import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
@@ -37,6 +38,14 @@ const TvApp = lazy(() => import('./tv/TvApp'));
 /** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
 const loadDevices = () => useDevices.getState().load(true).then(() => useVacuumShow.getState().seed(Object.values(useDevices.getState().devices)));
 
+/** Quando o app Android ouviu um pedido por voz neste aparelho pela última vez */
+let nativeVoiceAt = 0;
+if (typeof window !== 'undefined') {
+  window.addEventListener('dia-native-voice', (e) => {
+    if ((e as CustomEvent<{ state: string }>).detail?.state !== 'idle') nativeVoiceAt = Date.now();
+  });
+}
+
 function useRealtimeConnection(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -57,7 +66,12 @@ function useRealtimeConnection(enabled: boolean) {
         else if (e.type === 'assistant_state') {
           useTv.getState().setRemoteState(e.state);
           if (e.state === 'acting') useAssistant.getState().setState('acting');
-        } else if (e.type === 'assistant_reply') useTv.getState().pushReply(e);
+        } else if (e.type === 'assistant_reply') {
+          useTv.getState().pushReply(e);
+          // Pedido feito pelo “Oi, Luna” do app Android: a resposta chega ao app só em texto, então é
+          // por aqui que a tela fica sabendo que deve abrir a câmera (só no aparelho que ouviu o pedido).
+          if (e.cameraIds.length && Date.now() - nativeVoiceAt < 120_000) useCameras.getState().open(e.cameraIds);
+        }
         else if (e.type === 'camera_event') {
           // Garagem: aviso em todas as telas abertas (celular, tablet, TV)
           useWatches.getState().push(e.event);
