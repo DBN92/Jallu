@@ -12,6 +12,8 @@ export interface NativeStatus {
   overlay: boolean;
   battery: boolean;
   keepOn: boolean;
+  /** Tela cheia, sem as barras do Android (app 1.0.5 em diante) */
+  fullscreen?: boolean;
   sensitivity: 'alta' | 'normal' | 'baixa';
 }
 
@@ -24,6 +26,7 @@ interface Bridge {
   setSensitivity(s: string): void;
   setAutostart(on: boolean): void;
   setKeepOn(on: boolean): void;
+  setFullscreen?(on: boolean): void;
   listen(): void;
   openBattery(): void;
   openOverlay(): void;

@@ -14,6 +14,9 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.view.Gravity
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.View
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -63,6 +66,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         applyKeepOn()
+        applyFullscreen()
         // App em primeiro plano: o Android permite (re)ligar o microfone em segundo plano a partir daqui
         if (prefs.wake && hasMic()) ListenService.send(this, ListenService.ACTION_START)
     }
@@ -96,6 +100,33 @@ class MainActivity : Activity() {
         if (prefs.wake && hasMic()) ListenService.send(this, ListenService.ACTION_START)
     }
 
+    /** Voltou o foco (fechou a cortina, um aviso, o teclado): esconde as barras de novo */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyFullscreen()
+    }
+
+    /** Tela cheia: só a Luna, sem a barra de status nem os botões do Android (deslizar da borda mostra por um instante). */
+    @Suppress("DEPRECATION")
+    private fun applyFullscreen() {
+        val on = prefs.fullscreen && web != null
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.attributes = window.attributes.also {
+                it.layoutInDisplayCutoutMode = if (on) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+            }
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            val c = window.insetsController ?: return
+            if (on) {
+                c.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                c.hide(WindowInsets.Type.systemBars())
+            } else c.show(WindowInsets.Type.systemBars())
+        } else {
+            window.decorView.systemUiVisibility = if (on) (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION) else View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
+
     private fun applyKeepOn() {
         if (prefs.keepOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -107,6 +138,7 @@ class MainActivity : Activity() {
         web?.destroy()
         web = null
         WebEvents.attach(null)
+        applyFullscreen()
         val pad = (24 * resources.displayMetrics.density).toInt()
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -217,6 +249,7 @@ class MainActivity : Activity() {
         }
         w.loadUrl(prefs.url)
         setContentView(w)
+        applyFullscreen()
         applyKeepOn()
     }
 
@@ -297,6 +330,7 @@ class MainActivity : Activity() {
                 .put("overlay", Settings.canDrawOverlays(this@MainActivity))
                 .put("battery", pm.isIgnoringBatteryOptimizations(packageName))
                 .put("keepOn", prefs.keepOn)
+                .put("fullscreen", prefs.fullscreen)
                 .put("sensitivity", prefs.sensitivity)
                 .toString()
         }
@@ -322,6 +356,7 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface fun setAutostart(on: Boolean) { if (allowed()) prefs.autostart = on }
+        @JavascriptInterface fun setFullscreen(on: Boolean) { if (allowed()) { prefs.fullscreen = on; runOnUiThread { applyFullscreen() } } }
         @JavascriptInterface fun setKeepOn(on: Boolean) { if (allowed()) { prefs.keepOn = on; runOnUiThread { applyKeepOn() } } }
 
         /** Botão de microfone da tela: ouve o pedido pelo app (o WebView não reconhece fala). */

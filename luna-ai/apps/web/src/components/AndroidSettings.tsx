@@ -159,6 +159,11 @@ export function AndroidSettings() {
       <Row title="Tela sempre acesa (com a Luna aberta)">
         <Toggle label="Tela sempre acesa" checked={!!st?.keepOn} onChange={(v) => { bridge.setKeepOn(v); setTimeout(() => setSt(nativeStatus()), 200); }} />
       </Row>
+      {bridge.setFullscreen && (
+        <Row title="Tela cheia" hint="Só a Luna, sem a barra de status nem os botões do Android. Deslize da borda para vê-los por um instante.">
+          <Toggle label="Tela cheia" checked={st?.fullscreen !== false} onChange={(v) => { bridge.setFullscreen?.(v); setTimeout(() => setSt(nativeStatus()), 200); }} />
+        </Row>
+      )}
       <p className="mt-3 text-xs text-white/50">
         Dica: na cortina de atalhos do Android (deslize de cima duas vezes → editar), adicione o botão <b>“Falar com a Luna”</b>. App versão {st?.version ?? bridge.version()}.{' '}
         <button className="underline" onClick={() => bridge.changeServer()}>

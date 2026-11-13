@@ -29,6 +29,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("keepOn", true)
         set(v) = p.edit().putBoolean("keepOn", v).apply()
 
+    /** Tela cheia: esconde a barra de status e os botões do Android */
+    var fullscreen: Boolean
+        get() = p.getBoolean("fullscreen", true)
+        set(v) = p.edit().putBoolean("fullscreen", v).apply()
+
     /** alta | normal | baixa */
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"
