@@ -10,7 +10,9 @@ export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
 /** Modo TV: automático (Fire TV/Android TV), sempre ou nunca. */
 export type TvModePref = 'auto' | 'on' | 'off';
 /** O que o descanso de tela pode mostrar, além do relógio */
-export const AMBIENT_SLIDES = ['weather', 'home', 'house3d'] as const;
+export const AMBIENT_SLIDES = ['weather', 'home', 'house3d', 'cameras'] as const;
+/** As câmeras só entram no descanso de tela se forem escolhidas nos ajustes */
+const AMBIENT_DEFAULT: AmbientSlide[] = ['weather', 'home', 'house3d'];
 export type AmbientSlide = (typeof AMBIENT_SLIDES)[number];
 /** Tempos de espera (em segundos) oferecidos para o descanso de tela começar */
 export const AMBIENT_DELAYS = [45, 120, 300, 600] as const;
@@ -76,7 +78,7 @@ export const useSettings = create<SettingsState>((set) => ({
   kioskMode: readLocal<boolean>('luna.kioskMode', false),
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
-  ambientSlides: ((v) => (Array.isArray(v) ? AMBIENT_SLIDES.filter((s) => v.includes(s)) : [...AMBIENT_SLIDES]))(readLocal<unknown>('luna.ambientSlides', null)),
+  ambientSlides: ((v) => (Array.isArray(v) ? AMBIENT_SLIDES.filter((s) => v.includes(s)) : AMBIENT_DEFAULT))(readLocal<unknown>('luna.ambientSlides', null)),
   ambientDelay: ((v) => ((AMBIENT_DELAYS as readonly number[]).includes(v) ? v : 45))(readLocal<number>('luna.ambientDelay', 45)),
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),

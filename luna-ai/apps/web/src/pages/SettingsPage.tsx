@@ -510,12 +510,13 @@ export default function SettingsPage() {
         {ambientMode && (
           <div className="px-4 py-3">
             <p className="mb-2 text-sm">Mostrar no descanso de tela</p>
-            <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 rounded-sm bg-white/5 p-1">
               {(
                 [
                   ['weather', 'Previsão do tempo'],
                   ['home', 'Aparelhos'],
                   ['house3d', 'Casa em 3D'],
+                  ['cameras', 'Câmeras'],
                 ] as [AmbientSlide, string][]
               ).map(([v, label]) => {
                 const on = ambientSlides.includes(v);

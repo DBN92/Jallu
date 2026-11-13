@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box, Disc3 } from 'lucide-react';
 import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
+import { useCameras } from '../stores/cameras';
 import { useDevices } from '../stores/devices';
+import { CameraThumb } from './CameraPlayer';
 import { useSettings } from '../stores/settings';
 import { AnimatedBackground } from './AnimatedBackground';
 import { LunaOrb } from './LunaOrb';
@@ -12,6 +14,9 @@ import { WeatherIcon } from './WeatherIcon';
 const SLIDE_MS = 10_000;
 /** A casa em 3D fica mais tempo na tela (dá uma volta devagar) */
 const HOUSE_MS = 30_000;
+/** As câmeras também ficam mais tempo; a imagem de cada uma se renova a cada 5 s */
+const CAMERAS_MS = 20_000;
+const slideMs = (s: string) => (s === 'house3d' ? HOUSE_MS : s === 'cameras' ? CAMERAS_MS : SLIDE_MS);
 const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, vacuum: Disc3, other: Box };
 
 function WeatherSlide({ w }: { w: WeatherDto }) {
@@ -43,6 +48,25 @@ function WeatherSlide({ w }: { w: WeatherDto }) {
             <WeatherIcon code={h.weatherCode} className="h-5 w-5" />
             <span className="hud-title text-sm font-bold text-cyan-50">{Math.round(h.temperature)}°</span>
             <span className={`font-hud text-[10px] ${h.precipitationProbability >= 40 ? 'text-sky-300' : 'text-cyan-100/35'}`}>{h.precipitationProbability}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Imagens das câmeras (fotos renovadas de tempos em tempos, sem vídeo ao vivo para não pesar o aparelho). */
+function CamerasSlide() {
+  const cameras = useCameras((s) => s.cameras);
+  const list = (cameras ?? []).filter((c) => c.available).slice(0, 4);
+  return (
+    <div>
+      <p className="hud-label">Câmeras</p>
+      <div className={`mt-3 grid gap-2 ${list.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {list.map((c) => (
+          <div key={c.entityId} className="relative overflow-hidden rounded-sm border border-cyan-300/15">
+            <CameraThumb camera={c} everyMs={5000} className="aspect-video w-full" />
+            <span className="font-hud absolute bottom-1 left-1.5 rounded-sm bg-black/55 px-1.5 py-0.5 text-[11px] text-cyan-50">{c.name}</span>
           </div>
         ))}
       </div>
@@ -100,15 +124,20 @@ function HomeSlide() {
 
 /**
  * Modo ambiente: tela cheia exibida quando a Luna fica sem uso. Alterna automaticamente
- * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D). Qualquer toque (ou “Oi, Luna”) volta ao normal.
+ * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D, câmeras). Qualquer toque (ou “Oi, Luna”) volta ao normal.
  */
 export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
   const chosen = useSettings((s) => s.ambientSlides);
-  const slides = useMemo(() => chosen.filter((s) => s !== 'weather' || weather), [chosen, weather]);
+  const cameras = useCameras((s) => s.cameras);
+  const hasCameras = !!cameras?.some((c) => c.available);
+  useEffect(() => {
+    if (chosen.includes('cameras') && !useCameras.getState().cameras) void useCameras.getState().load();
+  }, [chosen]);
+  const slides = useMemo(() => chosen.filter((s) => (s !== 'weather' || weather) && (s !== 'cameras' || hasCameras)), [chosen, weather, hasCameras]);
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (slides.length < 2) return;
-    const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index % slides.length] === 'house3d' ? HOUSE_MS : SLIDE_MS);
+    const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slideMs(slides[index % slides.length]!));
     return () => clearTimeout(t);
   }, [slides, index]);
   const current = slides.length ? slides[index % slides.length] : null;
@@ -143,7 +172,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
           <div className="hud-panel w-full max-w-2xl p-6 md:p-8">
             {current !== 'house3d' && (
               <div key={`${current}-${index}`} className="ambient-slide">
-                {current === 'weather' && weather ? <WeatherSlide w={weather} /> : <HomeSlide />}
+                {current === 'weather' && weather ? <WeatherSlide w={weather} /> : current === 'cameras' ? <CamerasSlide /> : <HomeSlide />}
               </div>
             )}
             {/* A maquete fica carregada o tempo todo (escondida e pausada fora da vez dela) */}
@@ -159,7 +188,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
               <div className="mt-6 flex gap-2">
                 {slides.map((s, i) => (
                   <div key={s} className="h-1 flex-1 overflow-hidden bg-cyan-300/15">
-                    {i === index % slides.length && <div key={index} className="ambient-progress h-full bg-cyan-300 shadow-[0_0_8px_#00e5ff]" style={{ animationDuration: `${s === 'house3d' ? HOUSE_MS : SLIDE_MS}ms` }} />}
+                    {i === index % slides.length && <div key={index} className="ambient-progress h-full bg-cyan-300 shadow-[0_0_8px_#00e5ff]" style={{ animationDuration: `${slideMs(s)}ms` }} />}
                   </div>
                 ))}
               </div>
