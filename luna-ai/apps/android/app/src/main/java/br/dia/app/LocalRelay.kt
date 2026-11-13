@@ -18,17 +18,23 @@ import kotlin.concurrent.thread
 object LocalRelay {
     const val PORT = 8788
     const val ORIGIN = "http://127.0.0.1:$PORT"
+    /** 127.0.0.1 escrito por extenso: no Android, getLoopbackAddress() devolve ::1 (IPv6) e a página não acha a ponte */
+    val LOOPBACK: InetAddress = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
     @Volatile private var server: ServerSocket? = null
     @Volatile private var target: String = ""
 
     /** Liga a ponte para este endereço (http). Devolve false se não deu (aí o app abre o endereço direto). */
+    /** A ponte falhou nesta abertura do app: usa o endereço direto (sem câmera) até reabrir */
+    @Volatile var broken = false
+
     @Synchronized
     fun start(url: String): Boolean {
+        if (broken) return false
         if (!url.startsWith("http://")) return false
         target = url
         if (server != null) return true
         return try {
-            val s = ServerSocket(PORT, 50, InetAddress.getLoopbackAddress())
+            val s = ServerSocket(PORT, 50, LOOPBACK)
             server = s
             thread(name = "luna-ponte", isDaemon = true) {
                 while (!s.isClosed) {

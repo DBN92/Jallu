@@ -237,7 +237,15 @@ class MainActivity : Activity() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { currentUrl = url }
             override fun onPageFinished(view: WebView, url: String) { if (moving) moveStep(view, url) }
             override fun onReceivedError(view: WebView, req: WebResourceRequest, err: android.webkit.WebResourceError) {
-                if (req.isForMainFrame) view.loadDataWithBaseURL(null, offlinePage(), "text/html", "utf-8", null)
+                if (!req.isForMainFrame) return
+                // A ponte local não respondeu: abre a Luna pelo endereço direto (só a câmera fica indisponível)
+                if (req.url.host == "127.0.0.1" && !LocalRelay.broken && prefs.url.startsWith("http://")) {
+                    LocalRelay.broken = true
+                    moving = false
+                    view.loadUrl(prefs.url)
+                    return
+                }
+                view.loadDataWithBaseURL(null, offlinePage(), "text/html", "utf-8", null)
             }
         }
         w.webChromeClient = object : WebChromeClient() {
@@ -282,7 +290,7 @@ class MainActivity : Activity() {
 
     private fun offlinePage() = """<html><body style="background:#06070d;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
         <h2 style="color:#22d3ee">Sem conexão com a Luna</h2><p>Confira se o servidor está ligado e o tablet no Wi-Fi de casa.</p>
-        <p><button style="font-size:18px;padding:12px 24px;border-radius:24px;border:0" onclick="location.href='${if (prefs.localMoved && prefs.url.startsWith("http://")) LocalRelay.ORIGIN else prefs.url}'">Tentar de novo</button></p>
+        <p><button style="font-size:18px;padding:12px 24px;border-radius:24px;border:0" onclick="location.href='${if (prefs.localMoved && prefs.url.startsWith("http://") && !LocalRelay.broken) LocalRelay.ORIGIN else prefs.url}'">Tentar de novo</button></p>
         <p><button style="font-size:14px;padding:8px 16px;border-radius:16px;border:0;opacity:.7" onclick="DiaAndroid.changeServer()">Trocar endereço</button></p></body></html>"""
 
     private fun sameOrigin(url: String): Boolean {
@@ -466,7 +474,8 @@ class MainActivity : Activity() {
             runOnUiThread {
                 val url = "${prefs.url}/api/android/apk"
                 val req = android.app.DownloadManager.Request(Uri.parse(url))
-                    .addRequestHeader("Cookie", CookieManager.getInstance().getCookie(url) ?: "")
+                    // O login pode estar na ponte local (127.0.0.1) ou no endereço direto
+                    .addRequestHeader("Cookie", CookieManager.getInstance().let { it.getCookie(LocalRelay.ORIGIN) ?: it.getCookie(url) } ?: "")
                     .setMimeType("application/vnd.android.package-archive")
                     .setTitle("Luna — atualização")
                     .setDescription("Toque para instalar a nova versão")

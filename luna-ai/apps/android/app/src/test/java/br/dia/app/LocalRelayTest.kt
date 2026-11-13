@@ -36,7 +36,8 @@ class LocalRelayTest {
                 assertEquals("ok:GET /api/health$i HTTP/1.1", resp.substringAfter("\r\n\r\n"))
             }
         }
-        // a ponte só escuta no próprio aparelho
-        assertTrue(InetAddress.getByName("127.0.0.1").isLoopbackAddress)
+        // a ponte escuta em 127.0.0.1 de verdade (IPv4), no próprio aparelho
+        assertEquals("127.0.0.1", LocalRelay.LOOPBACK.hostAddress)
+        assertTrue(LocalRelay.LOOPBACK.isLoopbackAddress)
     }
 }
