@@ -19,6 +19,28 @@ function pickMime() {
   return opts.find((m) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) ?? '';
 }
 
+/** Abre o microfone tentando de novo por até ~6 s enquanto outro uso (a escuta do “Oi, Luna”) o solta */
+async function openMic(alive: () => boolean): Promise<MediaStream> {
+  let last: unknown;
+  for (let i = 0; i < 15 && alive(); i++) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+    } catch (err) {
+      last = err;
+      const name = (err as DOMException)?.name;
+      // Permissão negada não melhora esperando
+      if (name === 'NotAllowedError' || name === 'SecurityError') break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  const name = (last as DOMException)?.name;
+  throw new Error(
+    name === 'NotAllowedError'
+      ? 'O microfone não foi permitido para a Luna. Libere nas permissões do app.'
+      : 'O microfone está ocupado por outro app. Feche-o (ou pause a escuta do “Oi, Luna”) e tente de novo.',
+  );
+}
+
 function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return createPortal(
     <div className="overlay-full z-[80] flex flex-col items-center justify-center bg-ink-950/96 px-4 pt-safe pb-safe">
@@ -41,6 +63,7 @@ function Recorder() {
   const [phase, setPhase] = useState<'opening' | 'ready' | 'recording' | 'review' | 'sending'>('opening');
   const [error, setError] = useState<string | null>(null);
   const [secs, setSecs] = useState(0);
+  const [camOn, setCamOn] = useState(false);
   const [clip, setClip] = useState<{ blob: Blob; url: string } | null>(null);
   const mic = useRef<MediaStream | null>(null);
   const rec = useRef<MediaRecorder | null>(null);
@@ -52,17 +75,18 @@ function Recorder() {
       try {
         await acquireCamera();
         haveCam = true;
-        // O “Oi, Luna” do app usa o microfone: pausa enquanto grava
-        nativeApp()?.pauseWake?.(true);
-        await new Promise((r) => setTimeout(r, nativeApp()?.pauseWake ? 500 : 0));
-        const a = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
-        if (!alive) return a.getTracks().forEach((t) => t.stop());
-        mic.current = a;
+        // Mostra a câmera logo, enquanto o microfone é liberado
         const track = cameraTrack();
         if (live.current && track) {
           live.current.srcObject = new MediaStream([track]);
           await live.current.play().catch(() => undefined);
+          setCamOn(true);
         }
+        // O “Oi, Luna” do app usa o microfone: pausa e espera ele soltar (pode levar uns segundos)
+        nativeApp()?.pauseWake?.(true);
+        const a = await openMic(() => alive);
+        if (!alive) return a.getTracks().forEach((t) => t.stop());
+        mic.current = a;
         setPhase('ready');
       } catch (err) {
         if (alive) setError(errorMessage(err));
@@ -131,7 +155,9 @@ function Recorder() {
             <Circle className="h-3 w-3 animate-pulse fill-rose-500 text-rose-500" /> {secs}s de {MAX_S}s
           </span>
         )}
-        {phase === 'opening' && !error && <p className="font-hud absolute inset-0 grid place-items-center text-sm text-cyan-100/60">abrindo a câmera…</p>}
+        {phase === 'opening' && !error && (
+          <p className={`font-hud absolute ${camOn ? 'bottom-2 left-2 rounded-sm bg-black/60 px-2 py-1' : 'inset-0 grid place-items-center'} text-sm text-cyan-100/80`}>{camOn ? 'liberando o microfone…' : 'abrindo a câmera…'}</p>
+        )}
       </div>
       {error && <p className="text-center text-sm text-rose-200">{error}</p>}
       <div className="flex flex-wrap justify-center gap-2">
