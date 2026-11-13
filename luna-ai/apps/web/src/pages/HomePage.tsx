@@ -432,7 +432,10 @@ export default function HomePage() {
         </div>
         <div className={`text-center transition-opacity ${hasChat ? 'max-md:hidden' : ''}`}>
           <p className="hud-title text-[11px] tracking-[0.6em] text-cyan-100 [text-shadow:0_0_10px_#00e5ff] md:text-sm [@media(max-height:560px)]:hidden">Luna</p>
-          <p className="hud-title hud-glow text-4xl leading-tight font-bold text-cyan-50 tabular-nums md:text-5xl [@media(max-height:560px)]:text-2xl">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          <div className="flex items-center justify-center gap-3">
+            <p className="hud-title hud-glow text-4xl leading-tight font-bold text-cyan-50 tabular-nums md:text-5xl [@media(max-height:560px)]:text-2xl">{now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+            <RecadoButton compact />
+          </div>
           <p className="hud-label text-[10px] md:text-xs [@media(max-height:560px)]:hidden">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
         </div>
         <div className="flex items-center gap-2 justify-self-end">
@@ -573,7 +576,6 @@ export default function HomePage() {
         }}
       />
 
-      {!ambient && !voiceFocus && !hasChat && <RecadoButton />}
       {ambient && (
         <AmbientMode
           now={now}

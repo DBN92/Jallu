@@ -8,7 +8,7 @@ import type { UiMessage } from '../stores/assistant';
 import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
-import { RecadosChips } from './Recados';
+import { RecadoButton, RecadosChips } from './Recados';
 import { useLists } from '../stores/lists';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
@@ -375,9 +375,12 @@ export function ModernHome(p: ModernHomeProps) {
           {p.greeting}
           {p.userName ? `, ${p.userName}` : ''} 👋
         </p>
-        <p className="m-num mt-0.5 leading-none font-medium" style={{ fontSize: p.wide ? 50 : 38 }}>
-          {p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        <div className="mt-0.5 flex items-center gap-3">
+          <p className="m-num leading-none font-medium" style={{ fontSize: p.wide ? 50 : 38 }}>
+            {p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+          <RecadoButton />
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <p className="m-muted hidden text-sm first-letter:uppercase md:block">{p.now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
@@ -396,7 +399,10 @@ export function ModernHome(p: ModernHomeProps) {
           {p.greeting}
           {p.userName ? `, ${p.userName}` : ''}
         </p>
-        <p className="m-num shrink-0 text-2xl leading-none font-medium">{p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="m-num text-2xl leading-none font-medium">{p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          <RecadoButton compact />
+        </div>
       </div>
     );
     return (

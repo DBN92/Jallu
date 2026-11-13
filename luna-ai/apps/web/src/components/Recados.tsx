@@ -264,27 +264,23 @@ function Player() {
   );
 }
 
-/** Botão fixo na tela inicial para deixar um recado (com o número de recados novos) */
-export function RecadoButton() {
+/** Botão “Deixar recado” do cabeçalho, ao lado do horário (mostra quantos recados novos há) */
+export function RecadoButton({ compact = false }: { compact?: boolean }) {
   const list = useRecados((s) => s.list);
   const open = useRecados((s) => s.open);
   const fresh = unseenRecados(list).length;
-  const view = useRecados((s) => s.view);
-  if (view) return null;
-  return createPortal(
+  return (
     <button
       onClick={() => open(fresh ? 'player' : 'recorder')}
-      className="recado-fab fixed right-4 z-[45] flex items-center gap-2 rounded-full border border-cyan-300/50 bg-ink-950/85 p-3.5 sm:px-4 sm:py-3 text-sm font-semibold text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.35)] backdrop-blur md:right-6"
-      style={{ bottom: 'calc(var(--dock-h, 88px) + 14px)' }}
+      className={`flex shrink-0 items-center gap-2 rounded-full border text-sm font-semibold transition ${fresh ? 'border-amber-300/70 bg-amber-400/15 text-amber-50 shadow-[0_0_14px_rgba(255,181,71,0.35)]' : 'border-cyan-300/40 bg-white/5 text-cyan-50'} ${compact ? 'p-2' : 'px-3.5 py-2'}`}
       aria-label={fresh ? `Ver ${fresh} recado(s) novo(s)` : 'Deixar recado'}
     >
       <span className="relative">
-        <Video className="h-5 w-5" />
+        <Video className="h-[18px] w-[18px]" />
         {fresh > 0 && <span className="absolute -top-2 -right-2 grid h-4 min-w-4 place-items-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-black">{fresh}</span>}
       </span>
-      <span className="max-sm:sr-only">{fresh ? (fresh === 1 ? 'Ver recado' : 'Ver recados') : 'Deixar recado'}</span>
-    </button>,
-    document.body,
+      {!compact && <span className="max-sm:sr-only">{fresh ? (fresh === 1 ? 'Ver recado' : 'Ver recados') : 'Deixar recado'}</span>}
+    </button>
   );
 }
 
