@@ -21,6 +21,10 @@ export function acquireCamera(): Promise<HTMLVideoElement> {
       v.muted = true;
       v.playsInline = true;
       v.srcObject = s;
+      // Fica na página (invisível): vídeo fora da página pode ser pausado pelo Android para poupar bateria
+      v.setAttribute('aria-hidden', 'true');
+      Object.assign(v.style, { position: 'fixed', left: '0', top: '0', width: '2px', height: '2px', opacity: '0.01', pointerEvents: 'none', zIndex: '-1' });
+      document.body.appendChild(v);
       await v.play();
       stream = s;
       video = v;
@@ -42,6 +46,7 @@ export function releaseCamera() {
   setTimeout(() => {
     if (users > 0) return;
     stream?.getTracks().forEach((t) => t.stop());
+    video?.remove();
     stream = null;
     video = null;
   }, 1500);

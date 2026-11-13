@@ -8,7 +8,7 @@ const chip = (on: boolean) => `rounded-sm py-2 text-sm ${on ? 'border border-cya
 /** Ajustes › Câmera deste aparelho: acordar quando alguém chega perto e escurecer sem ninguém. */
 export function PresenceSettings() {
   const { presenceWake, setPresenceWake, dimAfter, setDimAfter } = useSettings();
-  const { status, level } = usePresenceStore();
+  const { status, level, light } = usePresenceStore();
   const ok = cameraAvailable();
   return (
     <div className="px-4 py-3">
@@ -31,7 +31,7 @@ export function PresenceSettings() {
         {!ok
           ? 'Neste aparelho a câmera só funciona pelo app Android da Luna (1.0.8 ou mais nova) ou por um endereço https.'
           : presenceWake || dimAfter > 0
-            ? `Câmera: ${status}${status === 'olhando' ? (level > 0.015 ? ' · movimento agora' : ' · parado') : ''}. Toque na tela ou passe na frente para acender.`
+            ? `Câmera: ${status}${status === 'olhando' ? (light < 6 ? ' · escuro demais: a câmera não enxerga, acende com toque' : level > 0.015 ? ' · movimento agora' : ' · parado') : ''}. Toque na tela ou passe na frente para acender.`
             : 'Desligado: a câmera fica fechada.'}
       </p>
     </div>

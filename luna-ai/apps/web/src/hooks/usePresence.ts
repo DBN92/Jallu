@@ -11,6 +11,8 @@ interface PresenceState {
   nearAt: number;
   /** Quanto da imagem mudou no último quadro (0–1), para conferir nos ajustes */
   level: number;
+  /** Claridade que a câmera está vendo (0–255) */
+  light: number;
   status: string;
   dimmed: boolean;
   setDimmed: (v: boolean) => void;
@@ -20,6 +22,7 @@ export const usePresenceStore = create<PresenceState>((set) => ({
   seenAt: Date.now(),
   nearAt: 0,
   level: 0,
+  light: 0,
   status: 'desligado',
   dimmed: false,
   setDimmed: (dimmed) => {
@@ -30,20 +33,34 @@ export const usePresenceStore = create<PresenceState>((set) => ({
 
 const W = 32;
 const H = 24;
-/** Diferença por ponto para contar como mudança (0–255), e fração mínima da imagem */
-const PIXEL_DIFF = 28;
+/** Fração mínima da imagem que precisa mudar: alguém na sala / alguém bem na frente */
 const SEEN = 0.015;
 const NEAR = 0.16;
 
-/** Quanto da imagem mudou entre dois quadros pequenos em tons de cinza (0–1) */
+const gray = (d: Uint8ClampedArray) => {
+  const g = new Float32Array(d.length / 4);
+  for (let i = 0, k = 0; i < d.length; i += 4, k++) g[k] = d[i]! * 0.3 + d[i + 1]! * 0.59 + d[i + 2]! * 0.11;
+  return g;
+};
+const mean = (g: Float32Array) => g.reduce((s, v) => s + v, 0) / g.length;
+
+/** Claridade média da imagem (0–255): perto de 0 = escuro demais para a câmera enxergar */
+export const frameLight = (d: Uint8ClampedArray) => mean(gray(d));
+
+/**
+ * Quanto da imagem mudou entre dois quadros pequenos (0–1). Funciona também na penumbra (tela
+ * apagada, luz baixa): a diferença exigida acompanha a claridade da cena, e a mudança geral de
+ * exposição da câmera (tudo clareando ou escurecendo junto) é descontada.
+ */
 export function changedFraction(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
+  const ga = gray(a);
+  const gb = gray(b);
+  const ma = mean(ga);
+  const mb = mean(gb);
+  const limit = Math.min(28, Math.max(6, ((ma + mb) / 2) * 0.3));
   let n = 0;
-  for (let i = 0; i < a.length; i += 4) {
-    const ga = a[i]! * 0.3 + a[i + 1]! * 0.59 + a[i + 2]! * 0.11;
-    const gb = b[i]! * 0.3 + b[i + 1]! * 0.59 + b[i + 2]! * 0.11;
-    if (Math.abs(ga - gb) > PIXEL_DIFF) n++;
-  }
-  return n / (a.length / 4);
+  for (let k = 0; k < ga.length; k++) if (Math.abs(ga[k]! - ma - (gb[k]! - mb)) > limit) n++;
+  return n / ga.length;
 }
 
 /**
@@ -93,6 +110,8 @@ export function usePresence(enabled: boolean) {
       if (!alive) return releaseCamera();
       store.setState({ status: 'olhando' });
       while (alive) {
+        // O navegador pode pausar o vídeo da câmera para economizar: retoma
+        if (video.paused) void video.play().catch(() => undefined);
         if (document.visibilityState === 'visible' && video.readyState >= 2) {
           ctx.drawImage(video, 0, 0, W, H);
           const cur = ctx.getImageData(0, 0, W, H).data;
@@ -100,7 +119,7 @@ export function usePresence(enabled: boolean) {
             const level = changedFraction(prev, cur);
             const now = Date.now();
             const s = store.getState();
-            const patch: Partial<PresenceState> = { level };
+            const patch: Partial<PresenceState> = { level, light: frameLight(cur) };
             if (level > SEEN) {
               patch.seenAt = now;
               if (s.dimmed) s.setDimmed(false);

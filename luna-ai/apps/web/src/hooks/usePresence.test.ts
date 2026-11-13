@@ -18,4 +18,12 @@ describe('presença pela câmera', () => {
     const person = frame((p) => (p % 32 < 16 && p < 32 * 12 ? 40 : 120));
     expect(changedFraction(base, person)).toBeCloseTo(0.25, 2);
   });
+
+  it('na penumbra (tela apagada) ainda percebe alguém; mudança de exposição não conta', () => {
+    const dark = frame(() => 18);
+    const person = frame((p) => (p % 32 < 16 && p < 32 * 12 ? 6 : 18));
+    expect(changedFraction(dark, person)).toBeGreaterThan(0.2);
+    // a câmera clareou a imagem toda (exposição automática): não é movimento
+    expect(changedFraction(dark, frame(() => 45))).toBe(0);
+  });
 });
