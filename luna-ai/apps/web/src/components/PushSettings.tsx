@@ -48,8 +48,12 @@ export function PushSettings() {
             busy={busy}
             onClick={async () => {
               try {
-                const r = await api<{ sent: number }>('/api/push/test', { method: 'POST' });
-                setMsg({ text: r.sent ? 'Aviso de teste enviado. Deve chegar em alguns segundos.' : 'Nenhum aparelho recebeu. Desligue e ligue os avisos de novo.', ok: r.sent > 0 });
+                const r = await api<{ sent: number; errors?: string[] }>('/api/push/test', { method: 'POST' });
+                setMsg(
+                  r.sent
+                    ? { text: `Aviso de teste enviado${r.sent > 1 ? ` para ${r.sent} aparelhos` : ''}. Deve chegar em alguns segundos.`, ok: true }
+                    : { text: r.errors?.length ? `O serviço de avisos recusou: ${r.errors.join(' · ')}` : 'Nenhum aparelho inscrito. Desligue e ligue os avisos de novo.', ok: false },
+                );
               } catch (err) {
                 setMsg({ text: errorMessage(err), ok: false });
               }

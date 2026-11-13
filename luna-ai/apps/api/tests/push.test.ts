@@ -35,6 +35,6 @@ describe('Avisos no celular (push)', () => {
     expect((await ctx.inject('GET', '/api/push/key')).json.devices).toBe(2);
 
     expect((await ctx.inject('POST', '/api/push/unsubscribe', { endpoint: iphone })).json).toEqual({ ok: true });
-    expect((await ctx.inject('POST', '/api/push/test')).json).toEqual({ sent: 1 });
+    expect((await ctx.inject('POST', '/api/push/test')).json).toEqual({ sent: 1, errors: [] });
   });
 });

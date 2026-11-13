@@ -124,7 +124,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   chat.setWatches(watches);
   chat.setReplyListener((userId, r) => hub.toUser(userId, { type: 'assistant_reply', ...r }));
   // Recados em vídeo (gravados na tela; a voz avisa e abre)
-  const push = new PushService(db, dataDir, deps.pushSender);
+  const push = new PushService(db, dataDir, deps.pushSender, env.LUNA_PUBLIC_URL, (m) => console.warn(m));
   const recados = new RecadosService(dataDir, () => hub.broadcast({ type: 'recados_update' }));
   // Recado novo: aviso no celular de todos da casa (menos no aparelho que gravou)
   recados.onAdded = (r, exceptEndpoint) =>

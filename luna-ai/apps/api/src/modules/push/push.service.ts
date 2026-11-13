@@ -31,7 +31,12 @@ export class PushService {
     private readonly db: Db,
     dataDir: string,
     sender?: Sender,
+    /** Endereço https público da Luna (Cloudflare): a Apple exige um remetente válido (https ou e-mail) */
+    publicUrl?: string,
+    private readonly log: (msg: string) => void = () => {},
   ) {
+    // A Apple recusa remetente “@localhost” (erro BadJwtToken); o endereço público da casa serve
+    const subject = publicUrl?.startsWith('https://') ? new URL(publicUrl).origin : 'mailto:avisos@luna-assistente.app';
     const file = join(dataDir, 'vapid.json');
     if (existsSync(file)) this.keys = JSON.parse(readFileSync(file, 'utf8'));
     else {
@@ -45,7 +50,7 @@ export class PushService {
     this.send =
       sender ??
       ((sub, payload) =>
-        webpush.sendNotification(sub, payload, { vapidDetails: { subject: 'mailto:luna@localhost', publicKey: this.keys.publicKey, privateKey: this.keys.privateKey }, TTL: 6 * 3600, urgency: 'high' }));
+        webpush.sendNotification(sub, payload, { vapidDetails: { subject, publicKey: this.keys.publicKey, privateKey: this.keys.privateKey }, TTL: 6 * 3600, urgency: 'high' }));
   }
 
   get publicKey() {
@@ -75,6 +80,7 @@ export class PushService {
   async broadcast(msg: PushMessage, opts: { exceptEndpoint?: string; userId?: string } = {}) {
     const subs = await this.db.pushSubscription.findMany({ where: opts.userId ? { userId: opts.userId } : {} });
     let sent = 0;
+    const errors: string[] = [];
     await Promise.all(
       subs
         .filter((s) => s.endpoint !== opts.exceptEndpoint)
@@ -83,11 +89,15 @@ export class PushService {
             await this.send({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(msg));
             sent++;
           } catch (err) {
-            const code = (err as { statusCode?: number }).statusCode;
+            const e = err as { statusCode?: number; body?: string; message?: string };
+            const code = e.statusCode;
+            const why = `${s.label ?? 'aparelho'}: ${code ? `${code} ${String(e.body ?? '').slice(0, 120)}` : (e.message ?? 'sem conexão')}`.trim();
+            errors.push(why);
+            this.log(`aviso push não entregue (${new URL(s.endpoint).host}) ${why}`);
             if (code === 404 || code === 410) await this.db.pushSubscription.deleteMany({ where: { id: s.id } });
           }
         }),
     );
-    return { sent };
+    return { sent, errors };
   }
 }
