@@ -12,6 +12,7 @@ import { AMBIENT_DELAYS, useSettings, type AmbientSlide, type ScreenOrientationP
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { ThemePicker } from '../components/ThemePicker';
+import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
@@ -510,13 +511,14 @@ export default function SettingsPage() {
         {ambientMode && (
           <div className="px-4 py-3">
             <p className="mb-2 text-sm">Mostrar no descanso de tela</p>
-            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4 rounded-sm bg-white/5 p-1">
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-5 rounded-sm bg-white/5 p-1">
               {(
                 [
                   ['weather', 'Previsão do tempo'],
                   ['home', 'Aparelhos'],
                   ['house3d', 'Casa em 3D'],
                   ['cameras', 'Câmeras'],
+                  ['photos', 'Fotos'],
                 ] as [AmbientSlide, string][]
               ).map(([v, label]) => {
                 const on = ambientSlides.includes(v);
@@ -528,7 +530,10 @@ export default function SettingsPage() {
               })}
             </div>
             <p className="mt-2 text-xs text-white/45">{ambientSlides.length ? 'Toque para ligar ou desligar cada um.' : 'Nada escolhido: fica só o relógio com a Luna.'}</p>
-            <p className="mt-4 mb-2 text-sm">Começar depois de</p>
+            <div className="-mx-4 mt-2 border-t border-white/10">
+              <PhotoAlbumSettings onFirstPhoto={() => !ambientSlides.includes('photos') && setAmbientSlides([...ambientSlides, 'photos'])} />
+            </div>
+            <p className="mt-2 mb-2 text-sm">Começar depois de</p>
             <div className="grid grid-cols-4 gap-1 rounded-sm bg-white/5 p-1">
               {AMBIENT_DELAYS.map((s) => (
                 <button key={s} onClick={() => setAmbientDelay(s)} className={`rounded-sm py-2 text-sm ${ambientDelay === s ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}>

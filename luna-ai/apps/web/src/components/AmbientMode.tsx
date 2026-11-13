@@ -4,6 +4,7 @@ import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box
 import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useCameras } from '../stores/cameras';
 import { useDevices } from '../stores/devices';
+import { usePhotos } from '../stores/photos';
 import { CameraThumb } from './CameraPlayer';
 import { useSettings } from '../stores/settings';
 import { AnimatedBackground } from './AnimatedBackground';
@@ -16,7 +17,11 @@ const SLIDE_MS = 10_000;
 const HOUSE_MS = 30_000;
 /** As câmeras também ficam mais tempo; a imagem de cada uma se renova a cada 5 s */
 const CAMERAS_MS = 20_000;
-const slideMs = (s: string) => (s === 'house3d' ? HOUSE_MS : s === 'cameras' ? CAMERAS_MS : SLIDE_MS);
+/** Cada foto fica 8 s; o slide de fotos mostra três por vez */
+const PHOTO_MS = 8_000;
+const slideMs = (s: string) => (s === 'house3d' ? HOUSE_MS : s === 'cameras' ? CAMERAS_MS : s === 'photos' ? PHOTO_MS * 3 : SLIDE_MS);
+/** Qual foto vem agora (continua de onde parou a cada vez que o slide volta) */
+let photoTurn = 0;
 const ICONS: Record<DeviceCategory, typeof Lightbulb> = { lighting: Lightbulb, switches: ToggleLeft, outlets: Plug, sensors: Thermometer, climate: Wind, vacuum: Disc3, other: Box };
 
 function WeatherSlide({ w }: { w: WeatherDto }) {
@@ -74,6 +79,25 @@ function CamerasSlide() {
   );
 }
 
+/** Fotos da família, uma por vez, na ordem em que foram enviadas. */
+function PhotosSlide() {
+  const ids = usePhotos((s) => s.ids) ?? [];
+  const [turn, setTurn] = useState(photoTurn);
+  useEffect(() => {
+    const t = setInterval(() => setTurn(++photoTurn), PHOTO_MS);
+    return () => {
+      clearInterval(t);
+      photoTurn++; // na próxima vez começa pela foto seguinte
+    };
+  }, []);
+  const id = ids[turn % Math.max(1, ids.length)];
+  return (
+    <div className="h-[min(40vh,520px)] sm:h-[min(58vh,520px)]">
+      {id && <img key={id} src={`/api/photos/${id}`} alt="" className="ambient-slide h-full w-full rounded-sm object-contain" />}
+    </div>
+  );
+}
+
 function HomeSlide() {
   const devices = useDevices((s) => s.devices);
   const list = useMemo(() => Object.values(devices).filter((d) => !d.hidden), [devices]);
@@ -124,7 +148,7 @@ function HomeSlide() {
 
 /**
  * Modo ambiente: tela cheia exibida quando a Luna fica sem uso. Alterna automaticamente
- * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D, câmeras). Qualquer toque (ou “Oi, Luna”) volta ao normal.
+ * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D, câmeras, fotos). Qualquer toque (ou “Oi, Luna”) volta ao normal.
  */
 export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
   const chosen = useSettings((s) => s.ambientSlides);
@@ -132,8 +156,10 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
   const hasCameras = !!cameras?.some((c) => c.available);
   useEffect(() => {
     if (chosen.includes('cameras') && !useCameras.getState().cameras) void useCameras.getState().load();
+    if (chosen.includes('photos')) void usePhotos.getState().load();
   }, [chosen]);
-  const slides = useMemo(() => chosen.filter((s) => (s !== 'weather' || weather) && (s !== 'cameras' || hasCameras)), [chosen, weather, hasCameras]);
+  const hasPhotos = usePhotos((s) => !!s.ids?.length);
+  const slides = useMemo(() => chosen.filter((s) => (s !== 'weather' || weather) && (s !== 'cameras' || hasCameras) && (s !== 'photos' || hasPhotos)), [chosen, weather, hasCameras, hasPhotos]);
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (slides.length < 2) return;
@@ -172,7 +198,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
           <div className="hud-panel w-full max-w-2xl p-6 md:p-8">
             {current !== 'house3d' && (
               <div key={`${current}-${index}`} className="ambient-slide">
-                {current === 'weather' && weather ? <WeatherSlide w={weather} /> : current === 'cameras' ? <CamerasSlide /> : <HomeSlide />}
+                {current === 'weather' && weather ? <WeatherSlide w={weather} /> : current === 'cameras' ? <CamerasSlide /> : current === 'photos' ? <PhotosSlide /> : <HomeSlide />}
               </div>
             )}
             {/* A maquete fica carregada o tempo todo (escondida e pausada fora da vez dela) */}

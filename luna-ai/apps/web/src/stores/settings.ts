@@ -10,9 +10,9 @@ export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
 /** Modo TV: automático (Fire TV/Android TV), sempre ou nunca. */
 export type TvModePref = 'auto' | 'on' | 'off';
 /** O que o descanso de tela pode mostrar, além do relógio */
-export const AMBIENT_SLIDES = ['weather', 'home', 'house3d', 'cameras'] as const;
+export const AMBIENT_SLIDES = ['weather', 'home', 'house3d', 'cameras', 'photos'] as const;
 /** As câmeras só entram no descanso de tela se forem escolhidas nos ajustes */
-const AMBIENT_DEFAULT: AmbientSlide[] = ['weather', 'home', 'house3d'];
+const AMBIENT_DEFAULT: AmbientSlide[] = ['weather', 'home', 'house3d', 'photos'];
 export type AmbientSlide = (typeof AMBIENT_SLIDES)[number];
 /** Tempos de espera (em segundos) oferecidos para o descanso de tela começar */
 export const AMBIENT_DELAYS = [45, 120, 300, 600] as const;

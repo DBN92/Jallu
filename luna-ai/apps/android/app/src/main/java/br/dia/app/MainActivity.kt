@@ -266,7 +266,10 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 2) {
-            fileCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data))
+            // Várias fotos escolhidas de uma vez chegam em clipData (o parseResult só entrega uma)
+            val clip = if (resultCode == RESULT_OK) data?.clipData else null
+            val many = clip?.let { c -> Array(c.itemCount) { c.getItemAt(it).uri } }
+            fileCallback?.onReceiveValue(many ?: WebChromeClient.FileChooserParams.parseResult(resultCode, data))
             fileCallback = null
         }
     }

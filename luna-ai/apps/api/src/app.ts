@@ -48,6 +48,8 @@ import { litterRoutes } from './modules/litter/litter.routes';
 import { WasherService } from './modules/washer/washer.service';
 import { washerRoutes } from './modules/washer/washer.routes';
 import { houseRoutes } from './modules/house/house.routes';
+import { photosRoutes } from './modules/photos/photos.routes';
+import { PhotoAlbum } from './modules/photos/photos.service';
 import { androidRoutes } from './modules/android/android.routes';
 import { SiriService } from './modules/siri/siri.service';
 import { healthRoutes } from './routes/health.routes';
@@ -145,7 +147,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -241,6 +243,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(litterRoutes);
   await app.register(washerRoutes);
   await app.register(houseRoutes);
+  await app.register(photosRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 
