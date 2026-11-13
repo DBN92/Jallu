@@ -39,6 +39,10 @@ export interface DeviceDto {
   /** 0–100 quando suportado */
   brightness: number | null;
   supportsBrightness: boolean;
+  /** Lâmpada colorida: aceita escolher a cor */
+  supportsColor: boolean;
+  /** Cor atual [r, g, b] (0–255), quando a lâmpada informa */
+  rgb: [number, number, number] | null;
   controllable: boolean;
   unit: string | null;
   deviceClass: string | null;
@@ -436,3 +440,15 @@ export interface WasherDto {
   speak: boolean;
   voiceAllowed: boolean;
 }
+
+/** Luzes e aparelhos desenhados na maquete 3D da casa (lista fechada). */
+export const HOUSE_AUTOMATIONS = [
+  { id: 'cabeceira', name: 'Cabeceira', room: 'Suíte', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'ventilador', name: 'Ventilador', room: 'Suíte', domains: ['fan', 'switch', 'input_boolean'] },
+  { id: 'led-luiza', name: 'Led Luiza', room: 'Quarto do bebê', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'luminaria', name: 'Luminária', room: 'Sala', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'luz-garagem', name: 'Luz da Garagem', room: 'Garagem', domains: ['light', 'switch', 'input_boolean'] },
+] as const;
+export type HouseAutomationId = (typeof HOUSE_AUTOMATIONS)[number]['id'];
+/** Vínculos salvos: id da maquete → entidade do Home Assistant (null = “nenhuma”, escolhido pelo administrador). */
+export type HouseLinksDto = Partial<Record<HouseAutomationId, string | null>>;

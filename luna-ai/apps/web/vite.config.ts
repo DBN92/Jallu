@@ -54,18 +54,22 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/ws/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/ws/, /^\/casa3d\.html/],
         // Dados da API nunca são cacheados pelo service worker (privacidade e estado real)
         runtimeCaching: [],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // O player de vídeo (hls.js) só é baixado quando uma câmera é aberta
-        globIgnores: ['**/hls-*.js', 'mediapipe/**', 'models/**', '**/vision_bundle*.js', '**/gestures-*.js'],
+        globIgnores: ['**/hls-*.js', '**/casa3d-*.js', 'casa3d.html', 'mediapipe/**', 'models/**', '**/vision_bundle*.js', '**/gestures-*.js'],
       },
     }),
   ],
   build: {
     // Limita arquivos abertos simultaneamente (sistemas com ulimit baixo, ex.: ZimaOS sob sudo)
-    rollupOptions: { maxParallelFileOps: 32 },
+    rollupOptions: {
+      maxParallelFileOps: 32,
+      // casa3d.html: a maquete 3D da casa, aberta num quadro pela tela “Casa em 3D”
+      input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), casa3d: fileURLToPath(new URL('./casa3d.html', import.meta.url)) },
+    },
   },
   server: {
     port: 5173,

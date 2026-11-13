@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Minha casa em 3D · Luna</title>
+<style>
+  :root { --tx: #fff; --muted: rgba(255,255,255,.66); --glass: rgba(255,255,255,.14); --line: rgba(255,255,255,.24); }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; color: var(--tx); font-family: Inter, -apple-system, system-ui, sans-serif; }
+  body { background: #8c8c8e; }
+  .glass { background: rgba(28,28,32,.42) !important; }
+  canvas { display: block; touch-action: none; }
+  .glass { background: var(--glass); border: 1px solid var(--line); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 30px rgba(10,6,40,.35); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
+  body.inside .glass { background: rgba(20,16,50,.62); }
+  header { position: fixed; top: max(env(safe-area-inset-top), 12px); left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 22px; z-index: 5; }
+  header h1 { font-size: 17px; font-weight: 700; letter-spacing: -.02em; }
+  header p { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+  header .sp { flex: 1; }
+  .floors { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(0,0,0,.18); }
+  .floors .btn { padding: 7px 12px; font-size: 12.5px; border: none; background: transparent; }
+  .floors .btn.on { background: #fff; color: #1a1440; }
+  header h1 { white-space: nowrap; }
+  @media (max-width: 480px) { header h1 { font-size: 15px; } header p, #spin { display: none; } .floors .btn { padding: 8px 11px; font-size: 13px; } }
+  .btn { border: 1px solid var(--line); background: rgba(255,255,255,.14); color: var(--tx); border-radius: 999px; padding: 9px 14px; font: 600 13.5px Inter, system-ui, sans-serif; cursor: pointer; white-space: nowrap; }
+  .btn.on { background: #fff; color: #1a1440; border-color: transparent; }
+  .dock { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(env(safe-area-inset-bottom), 14px); display: flex; flex-direction: column; gap: 10px; width: min(980px, calc(100% - 24px)); padding: 12px; border-radius: 26px; z-index: 5; }
+  @media (min-width: 900px) { .rooms { justify-content: center; } }
+  .rooms { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .rooms::-webkit-scrollbar { display: none; }
+  .rooms .btn { flex: none; padding: 10px 14px; scroll-snap-align: center; }
+  .lampbtn { display: none; align-items: center; justify-content: center; gap: 10px; padding: 12px; font-size: 15px; }
+  .lampbtn.show { display: flex; }
+  .autobtns { display: flex; gap: 8px; } .autobtns .lampbtn { flex: 1; min-width: 0; }
+  .lampbtn.fan.on { background: #e6f4ff; color: #0f2a40; } .lampbtn.fan.on .dot { background: #4dabff; box-shadow: 0 0 10px 3px rgba(77,171,255,.6); }
+  .dimmer { display: none; flex-direction: column; gap: 8px; padding: 2px 4px; }
+  .dimmer.show { display: flex; }
+  .dimmer .row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .dimmer .row b { color: var(--tx); min-width: 40px; text-align: right; font-weight: 600; }
+  .dimmer input[type=range] { flex: 1; accent-color: #ffb547; height: 26px; }
+  .swatches { display: flex; gap: 6px; justify-content: center; }
+  .swatches button { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); cursor: pointer; }
+  .swatches button.on { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.35); }
+  .swatches label { width: 26px; height: 26px; flex: none; border-radius: 50%; overflow: hidden; border: 2px dashed rgba(255,255,255,.6); position: relative; cursor: pointer; }
+  .swatches label input { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; cursor: pointer; opacity: 0; }
+  .lampbtn .dot { width: 12px; height: 12px; border-radius: 50%; background: #6b6b70; transition: background .3s, box-shadow .3s; }
+  .lampbtn.on { background: #fff4e0; color: #3a2a12; }
+  .lampbtn.on .dot { background: #ffb547; box-shadow: 0 0 10px 3px rgba(255,181,71,.7); }
+  #card .nav { width: 40px; height: 40px; padding: 0; font-size: 22px; line-height: 1; flex: none; }
+  #card { text-align: center; }
+  .lbl { font-size: 13px; padding: 6px 12px; }
+  #labels { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+  .lbl { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer; font: 600 12.5px Inter, system-ui, sans-serif; padding: 6px 11px; border-radius: 999px; background: rgba(20,16,50,.55); border: 1px solid rgba(255,255,255,.28); color: #fff; white-space: nowrap; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  body.planta .lbl { font-size: 11px; padding: 4px 9px; }
+  .lbl.sel { background: #fff; color: #1a1440; }
+  .lbl.dim { opacity: .45; }
+  #card { display: none; align-items: center; gap: 10px; }
+  #card.show { display: flex; }
+  #card .t { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  #card .s { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  #card .grow { flex: 1; min-width: 0; }
+  .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(max(env(safe-area-inset-bottom), 14px) + 82px); width: max-content; max-width: calc(100% - 24px); text-align: center; font-size: 13px; line-height: 1.4; padding: 8px 14px; border-radius: 18px; transition: opacity .4s; pointer-events: none; z-index: 5; }
+  #load { position: fixed; inset: 0; display: grid; place-items: center; font-size: 15px; color: var(--muted); }
+
+  body.lite .glass, body.lite .lbl { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  body.lite .glass { background: rgba(28,28,32,.82) !important; }
+</style>
+</head>
+<body>
+<div id="load">Montando a casa…</div>
+<div id="labels"></div>
+<header class="glass">
+  <div><h1>Minha casa</h1><p id="floorName">planta 3D</p></div>
+  <div class="floors" role="tablist" aria-label="Andar"><button class="btn" data-floor="terreo">Térreo</button><button class="btn" data-floor="superior">Andar de cima</button></div>
+  <span class="sp"></span>
+  <button class="btn" id="spin" aria-pressed="false">Girar</button>
+</header>
+<div class="hint glass" id="hint">Toque num cômodo para ver de perto<br />Arraste para girar · pinça para aproximar</div>
+<div class="dock glass">
+  <div id="card">
+    <button class="btn nav" id="prev" aria-label="Cômodo anterior">‹</button>
+    <div class="grow"><div class="t" id="cardT"></div><div class="s" id="cardS"></div></div>
+    <button class="btn nav" id="next" aria-label="Próximo cômodo">›</button>
+  </div>
+  <div class="autobtns"><button class="btn lampbtn" id="lampBtn" aria-pressed="true"><span class="dot"></span><span id="lampTxt">Cabeceira ligada</span></button><button class="btn lampbtn" id="lampBtn2" aria-pressed="false"><span class="dot"></span><span id="lampTxt2"></span></button></div>
+  <div class="dimmer" id="dimmer">
+    <label class="row"><span>Intensidade</span><input type="range" id="lvl" min="5" max="100" step="5" aria-label="Intensidade" /><b id="lvlv">80%</b></label>
+    <div class="swatches" id="sw" role="group" aria-label="Cor da luz"></div>
+  </div>
+  <div class="rooms" id="rooms"></div>
+</div>
+<script type="module" src="/src/casa3d/main.js"></script>
+</body>
+</html>

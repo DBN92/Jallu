@@ -31,6 +31,7 @@ const CamerasPage = lazy(() => import('./pages/CamerasPage'));
 const VacuumPage = lazy(() => import('./pages/VacuumPage'));
 const LitterPage = lazy(() => import('./pages/LitterPage'));
 const WasherPage = lazy(() => import('./pages/WasherPage'));
+const House3DPage = lazy(() => import('./pages/House3DPage'));
 const TvApp = lazy(() => import('./tv/TvApp'));
 
 /** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
@@ -146,6 +147,7 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="conversas" element={<ConversationsPage />} />
             <Route path="casa" element={<HousePage />} />
+            <Route path="casa/3d" element={<House3DPage />} />
             <Route path="aspirador/:entityId" element={<VacuumPage />} />
             <Route path="caixa-de-areia/:id" element={<LitterPage />} />
             <Route path="lava-e-seca/:id" element={<WasherPage />} />

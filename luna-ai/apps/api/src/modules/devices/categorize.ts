@@ -68,6 +68,15 @@ export function categorize(state: HaState): DeviceCategory {
   return 'other';
 }
 
+const COLOR_MODES = new Set(['hs', 'rgb', 'rgbw', 'rgbww', 'xy']);
+export function supportsColor(state: HaState): boolean {
+  const modes = state.attributes.supported_color_modes;
+  return domainOf(state.entity_id) === 'light' && Array.isArray(modes) && modes.some((m) => COLOR_MODES.has(String(m)));
+}
+function rgbOf(state: HaState): [number, number, number] | null {
+  const c = state.attributes.rgb_color;
+  return Array.isArray(c) && c.length >= 3 && c.slice(0, 3).every((v) => typeof v === 'number') ? [c[0], c[1], c[2]].map((v) => Math.max(0, Math.min(255, Math.round(v as number)))) as [number, number, number] : null;
+}
 export function supportsBrightness(state: HaState): boolean {
   if (domainOf(state.entity_id) !== 'light') return false;
   const modes = state.attributes.supported_color_modes;
@@ -99,6 +108,8 @@ export function toDeviceDto(
     isOn: available ? isOn : null,
     brightness: typeof raw === 'number' ? Math.round((raw / 255) * 100) : isOn === false ? 0 : null,
     supportsBrightness: supportsBrightness(state),
+    supportsColor: supportsColor(state),
+    rgb: rgbOf(state),
     controllable,
     unit: (state.attributes.unit_of_measurement as string | undefined) ?? null,
     deviceClass: (state.attributes.device_class as string | undefined) ?? null,

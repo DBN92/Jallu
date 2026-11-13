@@ -397,6 +397,14 @@ export class DevicesService extends EventEmitter {
     return this.execute(entityId, 'turn_on', { brightness_pct: value }, actor, 'set_brightness');
   }
 
+  /** Cor de uma lâmpada colorida (liga a lâmpada se estiver apagada). */
+  async setColor(entityId: string, rgb: [number, number, number], actor: Actor) {
+    if (domainOf(entityId) !== 'light') throw badRequest('Cor só pode ser escolhida em lâmpadas.');
+    const device = await this.get(entityId);
+    if (!device.supportsColor) throw badRequest(`${device.name} não permite escolher a cor.`);
+    return this.execute(entityId, 'turn_on', { rgb_color: rgb }, actor, 'set_color');
+  }
+
   /** Executa em lote somente sobre entidades autorizadas de um domínio. */
   async bulk(domain: string, service: 'turn_on' | 'turn_off', actor: Actor) {
     const devices = (await this.list({ includeHidden: true })).filter(

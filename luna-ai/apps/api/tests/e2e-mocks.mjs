@@ -34,6 +34,12 @@ for (const b of ['start_mop_wash_a_2_6', 'start_dry_a_2_8', 'stop_dry_a_2_9', 's
 for (const [n, v, u] of [['brush_life_level_p_9_2', '99'], ['brush_left_time_p_9_1', '298', 'h'], ['brush_life_level_p_10_2', '66'], ['brush_left_time_p_10_1', '132', 'h'], ['filter_life_level_p_11_1', '99'], ['filter_left_time_p_11_2', '148', 'h'], ['mop_life_level_p_18_1', '60'], ['mop_left_time_p_18_2', '48', 'h'], ['dry_left_time_p_2_5', '219', 'min'], ['cleaning_area_p_4_3', '3'], ['cleaning_time_p_4_2', '2'], ['total_clean_area_p_12_4', '61'], ['total_clean_time_p_12_2', '87'], ['total_clean_times_p_12_3', '4']])
   ra(`sensor.${RITA}_${n}`, v, u ? { unit_of_measurement: u } : {});
 add('vacuum.neatsvor', 'docked', { friendly_name: 'Neatsvor', supported_features: 4 | 16 | 32 | 8192, battery_level: 100, fan_speed: 'normal', fan_speed_list: ['gentle', 'normal', 'strong'] });
+// Luzes da maquete 3D da casa
+add('light.cabeceira', 'on', { friendly_name: 'Cabeceira', supported_color_modes: ['onoff'] });
+add('fan.ventilador', 'off', { friendly_name: 'Ventilador' });
+add('light.led_luiza', 'on', { friendly_name: 'Led Luiza', supported_color_modes: ['brightness'], brightness: 255 });
+add('light.luminaria', 'on', { friendly_name: 'Luminária', supported_color_modes: ['rgb'], brightness: 204, rgb_color: [255, 216, 168] });
+add('light.luz_da_garagem', 'on', { friendly_name: 'Luz da Garagem', supported_color_modes: ['onoff'] });
 // Lava e seca Midea (Midea AC LAN), como no Home Assistant do usuário
 {
   const W = '149533581394056';
@@ -123,6 +129,7 @@ const ha = http.createServer(async (req, res) => {
         // depois de voltar, o robô chega à base
         if (m[2] === 'return_to_base') setTimeout(() => { const o = structuredClone(s); s.state = 'docked'; broadcast(o, s); }, 4000);
       } else s.state = m[2] === 'turn_on' ? 'on' : 'off';
+      if (data.rgb_color) s.attributes.rgb_color = data.rgb_color;
       if (data.brightness_pct) s.attributes.brightness = Math.round(data.brightness_pct * 2.55);
       if (m[2] === 'turn_off') delete s.attributes.brightness;
       else if (s.attributes.supported_color_modes?.includes('brightness') && !s.attributes.brightness) s.attributes.brightness = 255;

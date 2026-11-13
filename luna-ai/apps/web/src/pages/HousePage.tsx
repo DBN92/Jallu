@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bot, Check, Disc3, Lightbulb, Pencil, Plug, Power, RefreshCw, RotateCcw, Settings2, Thermometer, ToggleLeft, Wind, Box, X } from 'lucide-react';
 import { DEVICE_CATEGORY_LABELS, type DeviceCategory, type DeviceDto } from '@luna/shared/types';
+import { useNavigate } from 'react-router-dom';
 import { Page } from '../components/Layout';
 import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '../components/ui';
 import { useAuth } from '../stores/auth';
@@ -195,6 +196,7 @@ function DeviceCard({ device, manage }: { device: DeviceDto; manage: boolean }) 
 
 export default function HousePage() {
   const { devices, load, loading, error, haConnected } = useDevices();
+  const navigate = useNavigate();
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const [manage, setManage] = useState(false);
   const [filter, setFilter] = useState<DeviceCategory | 'all'>(() => {
@@ -223,6 +225,9 @@ export default function HousePage() {
         subtitle={total ? `${total} dispositivos · ${onCount} ligados${haConnected ? ' · tempo real' : ''}` : 'Dispositivos do Home Assistant'}
         action={
           <div className="flex gap-2">
+            <button onClick={() => navigate('/casa/3d')} className="glass flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-white/85" aria-label="Ver a casa em 3D">
+              <Box className="h-4 w-4" /> 3D
+            </button>
             {isAdmin && (
               <button onClick={() => setManage((m) => !m)} className={`glass rounded-full p-2 ${manage ? 'text-cyan-300' : 'text-white/70'}`} aria-label="Gerenciar autorizações">
                 <Settings2 className="h-4 w-4" />

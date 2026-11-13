@@ -62,6 +62,7 @@ export class FakeHomeAssistant {
         if (!s) continue;
         if (service === 'turn_on') {
           s.state = domain === 'climate' ? 'cool' : 'on';
+          if (Array.isArray(data.rgb_color)) s.attributes.rgb_color = data.rgb_color;
           if (typeof data.brightness_pct === 'number') s.attributes.brightness = Math.round((data.brightness_pct / 100) * 255);
           else if (domain === 'light' && s.attributes.supported_color_modes?.includes('brightness') && s.attributes.brightness === undefined) s.attributes.brightness = 255;
         }

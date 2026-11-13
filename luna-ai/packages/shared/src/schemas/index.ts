@@ -142,3 +142,13 @@ export const washerPrefsSchema = z.object({
   notifyDone: z.boolean().optional(),
   speak: z.boolean().optional(),
 });
+
+export const colorSchema = z.object({
+  /** Cor [r, g, b], cada um de 0 a 255. */
+  rgb: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]),
+});
+
+export const houseLinkSchema = z.object({
+  /** entity_id real do Home Assistant, ou null para “nenhuma”. */
+  entityId: z.string().regex(/^[a-z_]+\.[a-z0-9_]+$/).max(120).nullable(),
+});

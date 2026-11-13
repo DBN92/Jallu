@@ -292,3 +292,10 @@ model WasherCycle {
 
   @@index([washerId, endedAt])
 }
+
+/// Maquete 3D: qual entidade do Home Assistant corresponde a cada luz/aparelho desenhado.
+model HouseLink {
+  id       String  @id // id da maquete (cabeceira, luminaria…)
+  /// null = o administrador escolheu “nenhuma”
+  entityId String?
+}

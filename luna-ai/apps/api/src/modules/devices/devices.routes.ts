@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { brightnessSchema, deviceUpdateSchema, vacuumCommandSchema, vacuumExtraSchema } from '@luna/shared';
+import { brightnessSchema, colorSchema, deviceUpdateSchema, vacuumCommandSchema, vacuumExtraSchema } from '@luna/shared';
 import { AppError } from '../../lib/errors';
 import { requireAdmin, requireAuth } from '../../middleware/auth';
 
@@ -27,6 +27,11 @@ export async function deviceRoutes(app: FastifyInstance) {
   app.post('/api/devices/:entityId/brightness', { preHandler: requireAuth }, async (req) => {
     const { brightness } = brightnessSchema.parse(req.body);
     return devices.setBrightness(params.parse(req.params).entityId, brightness, { source: 'ui', userId: req.user!.id });
+  });
+
+  app.post('/api/devices/:entityId/color', { preHandler: requireAuth }, async (req) => {
+    const { rgb } = colorSchema.parse(req.body);
+    return devices.setColor(params.parse(req.params).entityId, rgb, { source: 'ui', userId: req.user!.id });
   });
 
   app.post('/api/devices/:entityId/vacuum', { preHandler: requireAuth }, async (req) => {
