@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { acquireCamera, releaseCamera } from '../lib/deviceCamera';
+import { acquireCamera, forceCloseCamera, releaseCamera } from '../lib/deviceCamera';
 import { nativeApp } from '../lib/native';
 import { useSettings } from '../stores/settings';
 
@@ -16,6 +16,10 @@ interface PresenceState {
   status: string;
   dimmed: boolean;
   setDimmed: (v: boolean) => void;
+  /** Tela apagada pelo app (a câmera está com o vigia do app) */
+  sleeping: boolean;
+  /** Conta as vezes que a tela voltou (reinicia a presença) */
+  wakes: number;
 }
 
 export const usePresenceStore = create<PresenceState>((set) => ({
@@ -25,6 +29,8 @@ export const usePresenceStore = create<PresenceState>((set) => ({
   light: 0,
   status: 'desligado',
   dimmed: false,
+  sleeping: false,
+  wakes: 0,
   setDimmed: (dimmed) => {
     nativeApp()?.setDim?.(dimmed);
     set({ dimmed });
@@ -71,10 +77,16 @@ export function changedFraction(a: Uint8ClampedArray, b: Uint8ClampedArray): num
 export function usePresence(enabled: boolean) {
   const wake = useSettings((s) => s.presenceWake);
   const dimAfter = useSettings((s) => s.dimAfter);
+  const wakes = usePresenceStore((s) => s.wakes);
   const on = enabled && (wake || dimAfter > 0);
 
   useEffect(() => {
     const store = usePresenceStore;
+    // Tela acesa de novo pelo app (alguém chegou, ou tocaram/ligaram a tela)
+    const onWake = () => {
+      const now = Date.now();
+      store.setState((s) => ({ sleeping: false, wakes: s.wakes + 1, seenAt: now, nearAt: now }));
+    };
     if (!on) {
       store.setState({ status: 'desligado', level: 0 });
       if (store.getState().dimmed) store.getState().setDimmed(false);
@@ -92,10 +104,12 @@ export function usePresence(enabled: boolean) {
 
     // Toque na tela também conta como “tem gente aqui”
     const touch = () => {
+      if (store.getState().sleeping) nativeApp()?.wakeScreen?.();
       store.setState({ seenAt: Date.now() });
       if (store.getState().dimmed) store.getState().setDimmed(false);
     };
     window.addEventListener('pointerdown', touch, { passive: true });
+    window.addEventListener('dia-native-wake', onWake);
 
     (async () => {
       let video: HTMLVideoElement;
@@ -131,7 +145,26 @@ export function usePresence(enabled: boolean) {
           }
           prev = new Uint8ClampedArray(cur);
           const s = store.getState();
-          if (dimAfter > 0 && !s.dimmed && Date.now() - s.seenAt > dimAfter * 60_000) s.setDimmed(true);
+          if (dimAfter > 0 && !s.dimmed && Date.now() - s.seenAt > dimAfter * 60_000) {
+            // No app com a permissão liberada: apaga a tela de verdade e o app vigia com a câmera
+            const app = nativeApp();
+            if (app?.sleepScreen && app.screenOffReady?.()) {
+              forceCloseCamera();
+              have = false;
+              store.setState({ sleeping: true, status: 'tela apagada' });
+              await new Promise((r) => setTimeout(r, 300));
+              if (app.sleepScreen()) return; // o app acende e avisa (“dia-native-wake”), e a presença recomeça
+              // Não deu para apagar: volta a olhar com a câmera e só escurece
+              store.setState({ sleeping: false });
+              try {
+                video = await acquireCamera();
+                have = true;
+              } catch {
+                return;
+              }
+              s.setDimmed(true);
+            } else s.setDimmed(true);
+          }
         }
         await new Promise((r) => setTimeout(r, 500));
       }
@@ -140,9 +173,10 @@ export function usePresence(enabled: boolean) {
     return () => {
       alive = false;
       window.removeEventListener('pointerdown', touch);
+      window.removeEventListener('dia-native-wake', onWake);
       if (have) releaseCamera();
       if (store.getState().dimmed) store.getState().setDimmed(false);
     };
-  }, [on, dimAfter]);
+  }, [on, dimAfter, wakes]);
 }
 

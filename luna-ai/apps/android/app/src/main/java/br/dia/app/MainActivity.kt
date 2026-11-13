@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -53,6 +54,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        // Ao chegar alguém com a tela apagada, a Luna aparece por cima do bloqueio e acende a tela
+        if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
         // Android 15 desenha o app por baixo das barras do sistema: quando elas estão à vista (ou o teclado
         // aberto), a tela recua para não ficar nada por baixo. Em tela cheia as barras somem e o recuo é zero.
         if (Build.VERSION.SDK_INT >= 30) {
@@ -76,6 +79,12 @@ class MainActivity : Activity() {
         super.onResume()
         applyKeepOn()
         applyFullscreen()
+        // Voltou para a frente (alguém chegou, ou tocaram/ligaram a tela): a câmera volta para a Luna
+        if (PresenceService.running) PresenceService.stop(this)
+        if (sleeping) {
+            sleeping = false
+            web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wake'))", null)
+        }
         // App em primeiro plano: o Android permite (re)ligar o microfone em segundo plano a partir daqui
         if (prefs.wake && hasMic()) ListenService.send(this, ListenService.ACTION_START)
     }
@@ -302,6 +311,8 @@ class MainActivity : Activity() {
 
     // ---- Mudança única do endereço direto para a ponte local (login e preferências vão junto) ----
     private var moving = false
+    /** A tela foi apagada pela Luna (avisa a página quando voltar) */
+    @Volatile private var sleeping = false
     private var movedPrefs: String? = null
 
     private fun copyCookies() {
@@ -416,6 +427,54 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface fun setAutostart(on: Boolean) { if (allowed()) prefs.autostart = on }
+        /** A Luna pode apagar a tela de verdade? (permissão de administrador liberada) */
+        @JavascriptInterface fun screenOffReady(): Boolean = allowed() && ScreenAdmin.active(this@MainActivity)
+
+        /** Abre o pedido do Android para a Luna poder apagar a tela */
+        @JavascriptInterface
+        fun enableScreenOff() {
+            if (!allowed()) return
+            runOnUiThread {
+                try {
+                    startActivity(Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+                        .putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, ScreenAdmin.component(this@MainActivity))
+                        .putExtra(android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Para apagar a tela quando não houver ninguém por perto. A Luna acende de novo quando alguém chegar."))
+                } catch (_: Exception) {}
+            }
+        }
+
+        /**
+         * Ninguém por perto: a câmera passa para o vigia do app, e a tela apaga. Quando alguém chegar,
+         * o vigia acende a tela e a página recebe “dia-native-wake”. Devolve false se não deu.
+         */
+        @JavascriptInterface
+        fun sleepScreen(): Boolean {
+            if (!allowed() || !ScreenAdmin.active(this@MainActivity)) return false
+            runOnUiThread {
+                sleeping = true
+                PresenceService.start(this@MainActivity)
+                // Espera o vigia abrir a câmera antes de apagar (o Android só libera a câmera com o app na frente)
+                Handler(mainLooper).postDelayed({
+                    // Alguém tocou na tela nesse meio-tempo: não apaga
+                    if (sleeping) try { getSystemService(android.app.admin.DevicePolicyManager::class.java).lockNow() } catch (_: Exception) {}
+                }, 1500)
+            }
+            return true
+        }
+
+        /** Tocaram na tela antes de apagar: cancela e devolve a câmera para a página */
+        @JavascriptInterface
+        fun wakeScreen() {
+            if (!allowed()) return
+            runOnUiThread {
+                PresenceService.stop(this@MainActivity)
+                if (sleeping) {
+                    sleeping = false
+                    web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wake'))", null)
+                }
+            }
+        }
+
         /** Tela quase apagada quando não há ninguém por perto (volta ao brilho do sistema ao desligar) */
         @JavascriptInterface
         fun setDim(on: Boolean) {

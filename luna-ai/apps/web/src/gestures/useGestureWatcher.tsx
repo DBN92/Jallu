@@ -57,6 +57,11 @@ export function useGestureWatcher(enabled: boolean) {
     };
 
     const ensureDeviceCamera = async () => {
+      // A câmera foi fechada (tela apagada pelo app): pede de novo
+      if (video && !(video.srcObject as MediaStream | null)?.active) {
+        video = null;
+        cameraTried = false;
+      }
       if (video || cameraTried || !sources.includes('device')) return;
       cameraTried = true; // câmera compartilhada com a presença e os recados
       try {

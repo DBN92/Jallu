@@ -12,6 +12,14 @@ da Luna (1.0.8 ou mais nova) ou em qualquer navegador aberto por um endereço **
   (no app o brilho baixa de verdade). Passar na frente ou tocar acende.
 - Nada é gravado nem enviado: o aparelho compara imagens de 32×24 pontos, duas vezes por segundo.
 
+### Apagar a tela de verdade (app 1.0.13+)
+
+Em **Ajustes › Descanso de tela**, toque em **Permitir apagar a tela** e confirme no Android (a Luna vira
+“administrador do aparelho”, usado só para apagar a tela). A partir daí, depois do tempo escolhido sem
+ninguém, a tela **apaga**; o app continua olhando pela câmera da frente e **acende sozinho** quando alguém
+chega perto, já com a Luna aberta. Para tirar a permissão: Configurações do Android › Segurança ›
+Apps de administração do dispositivo › Luna (é preciso tirar antes de desinstalar o app).
+
 ## Gestos (Ajustes › Gestos)
 
 Crie a regra com **Onde: Câmera do aparelho que analisa (frontal)** e ligue a análise de gestos no tablet.

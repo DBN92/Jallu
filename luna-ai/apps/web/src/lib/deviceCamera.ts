@@ -52,5 +52,17 @@ export function releaseCamera() {
   }, 1500);
 }
 
+/**
+ * Fecha a câmera na hora, mesmo com outros usando (a tela vai apagar e o app passa a vigiar com ela).
+ * Quem estava usando percebe que o vídeo parou e pede a câmera de novo quando a tela voltar.
+ */
+export function forceCloseCamera() {
+  users = 0;
+  stream?.getTracks().forEach((t) => t.stop());
+  video?.remove();
+  stream = null;
+  video = null;
+}
+
 /** Trilha de vídeo da câmera aberta (para gravar recados junto com o microfone) */
 export const cameraTrack = () => stream?.getVideoTracks()[0] ?? null;
