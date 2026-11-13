@@ -34,10 +34,14 @@ async function openMic(alive: () => boolean): Promise<MediaStream> {
     }
   }
   const name = (last as DOMException)?.name;
+  const app = nativeApp();
   throw new Error(
-    name === 'NotAllowedError'
-      ? 'O microfone não foi permitido para a Luna. Libere nas permissões do app.'
-      : 'O microfone está ocupado por outro app. Feche-o (ou pause a escuta do “Oi, Luna”) e tente de novo.',
+    // Antes da 1.0.11 o app não deixava a página abrir o microfone
+    app && app.versionCode() < 12
+      ? 'Para gravar com som, atualize o app da Luna no tablet (Ajustes › App Android).'
+      : name === 'NotAllowedError'
+        ? 'O microfone não foi permitido para a Luna. Libere nas permissões do app.'
+        : 'O microfone está ocupado por outro app. Feche-o e tente de novo.',
   );
 }
 
@@ -89,7 +93,10 @@ function Recorder() {
         mic.current = a;
         setPhase('ready');
       } catch (err) {
-        if (alive) setError(errorMessage(err));
+        if (!alive) return;
+        setError(errorMessage(err));
+        // Câmera funcionando mas microfone não: ainda dá para deixar o recado só com imagem
+        if (cameraTrack()) setPhase('ready');
       }
     })();
     return () => {
@@ -119,9 +126,9 @@ function Recorder() {
   const start = () => {
     const v = cameraTrack();
     const a = mic.current?.getAudioTracks()[0];
-    if (!v || !a) return setError('Câmera ou microfone indisponível.');
+    if (!v) return setError('Câmera indisponível.');
     const mime = pickMime();
-    const r = new MediaRecorder(new MediaStream([v, a]), { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 64_000 });
+    const r = new MediaRecorder(new MediaStream(a ? [v, a] : [v]), { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 1_000_000, audioBitsPerSecond: 64_000 });
     const parts: Blob[] = [];
     r.ondataavailable = (e) => e.data.size && parts.push(e.data);
     r.onstop = () => {
@@ -163,7 +170,7 @@ function Recorder() {
       <div className="flex flex-wrap justify-center gap-2">
         {phase === 'ready' && (
           <button className="m-chip act" style={{ padding: '12px 22px', fontSize: 16 }} onClick={start}>
-            <Circle className="h-4 w-4 fill-current" /> Gravar
+            <Circle className="h-4 w-4 fill-current" /> {mic.current ? 'Gravar' : 'Gravar sem som'}
           </button>
         )}
         {phase === 'recording' && (

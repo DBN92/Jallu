@@ -115,7 +115,7 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PAUSE -> { paused = true; stopListening(); update() }
+            ACTION_PAUSE -> { paused = true; speech?.cancel(); stopListening(); update() }
             ACTION_RESUME -> { paused = false; startListening() }
             ACTION_LISTEN_NOW -> if (model != null) main.post { beginCommand() } else pendingManual = true
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
