@@ -8,6 +8,7 @@ import { useSettings } from '../stores/settings';
 import { Button, Toggle } from '../components/ui';
 import { useGestureToast } from './useGestureWatcher';
 import { cameraFrame, HandTracker, type Detection } from './recognizer';
+import { acquireCamera, cameraAvailable, releaseCamera } from '../lib/deviceCamera';
 import type { Sensitivity } from './stabilizer';
 
 const ACTIONS: { value: GestureRuleDto['action']; label: string }[] = [
@@ -152,6 +153,7 @@ export function GestureSettings({ isAdmin }: { isAdmin: boolean }) {
               <option value="device">Câmera do aparelho que analisa (frontal)</option>
             </select>
           </label>
+          {source === 'device' && !cameraAvailable() && <p className="text-xs text-amber-200/80">Neste aparelho a câmera só funciona pelo app Android da Luna (1.0.8 ou mais nova) ou por um endereço https.</p>}
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-xs text-white/50">
               Ação
@@ -203,17 +205,15 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
 
   useEffect(() => {
     let alive = true;
-    let stream: MediaStream | null = null;
-    const video = document.createElement('video');
+    let video = document.createElement('video');
+    let have = false;
     const tracker = new HandTracker();
     (async () => {
       try {
         if (source === 'device') {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 } }, audio: false });
-          video.muted = true;
-          video.playsInline = true;
-          video.srcObject = stream;
-          await video.play();
+          video = await acquireCamera();
+          have = true;
+          if (!alive) return releaseCamera();
         }
         while (alive) {
           const img = source === 'device' ? video : await cameraFrame(source);
@@ -243,7 +243,7 @@ function Preview({ source, name, onClose }: { source: string; name: string; onCl
     })();
     return () => {
       alive = false;
-      stream?.getTracks().forEach((t) => t.stop());
+      if (have) releaseCamera();
     };
   }, [source]);
 

@@ -11,6 +11,9 @@ import { useCameras } from '../stores/cameras';
 import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
+import { RecadosChips } from '../components/Recados';
+import { usePresenceStore } from '../hooks/usePresence';
+import { unseenRecados, useRecados } from '../stores/recados';
 import { VoiceFocus } from '../components/VoiceFocus';
 import { Banner } from '../components/ui';
 import { useSpeechRecognition, useSpeechSynthesis, useRecorder } from '../hooks/speech';
@@ -308,6 +311,20 @@ export default function HomePage() {
     return () => clearInterval(t);
   }, [ambientEnabled, ambientDelay, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
+  // Saiu do descanso de tela: se há recado novo, ele aparece para quem chegou
+  const leaveAmbient = () => {
+    lastUse.current = Date.now();
+    setAmbient(false);
+    if (unseenRecados(useRecados.getState().list).length && !useRecados.getState().view) useRecados.getState().open('player');
+  };
+  // Câmera do aparelho: alguém chegou perto da tela
+  const nearAt = usePresenceStore((s) => s.nearAt);
+  const presenceWake = useSettings((s) => s.presenceWake);
+  useEffect(() => {
+    if (!nearAt || !presenceWake) return;
+    lastUse.current = Date.now();
+    if (ambient) leaveAmbient();
+  }, [nearAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Dados dos painéis HUD ----
   const health = useHealth();
@@ -484,6 +501,9 @@ export default function HomePage() {
             </div>
           )}
 
+          <div className="mt-3 flex flex-wrap gap-2">
+            <RecadosChips chipClass="font-hud flex items-center gap-1.5 rounded-sm border border-cyan-300/40 bg-ink-950/70 px-3 py-1.5 text-xs text-cyan-50 [&.act]:border-amber-300/70 [&.act]:bg-amber-400/15" />
+          </div>
           <form onSubmit={onSubmit} className="hud-panel mt-3 flex items-center gap-2 p-2">
             <span className="hud-label pl-2 text-cyan-300/60">›</span>
             <input
@@ -555,8 +575,7 @@ export default function HomePage() {
           weather={weather.data}
           hint={wake.armed ? 'Diga “Oi, Luna” ou toque na tela' : 'Toque na tela para voltar'}
           onExit={() => {
-            lastUse.current = Date.now();
-            setAmbient(false);
+            leaveAmbient();
             tts.unlock();
           }}
         />

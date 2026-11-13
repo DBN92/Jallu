@@ -5,6 +5,7 @@ import { api, errorMessage } from '../services/api';
 import { useSettings } from '../stores/settings';
 import { GestureStabilizer, SENSITIVITY } from './stabilizer';
 import { cameraFrame, HandTracker, loadRecognizer } from './recognizer';
+import { acquireCamera, releaseCamera } from '../lib/deviceCamera';
 
 interface GestureToastState {
   toast: { text: string; ok: boolean; at: number } | null;
@@ -41,7 +42,7 @@ export function useGestureWatcher(enabled: boolean) {
     const ctrl = new AbortController();
     let sources: string[] = [];
     let video: HTMLVideoElement | null = null;
-    let stream: MediaStream | null = null;
+    let cameraTried = false;
     const stabilizers = new Map<string, GestureStabilizer>();
     const trackers = new Map<string, HandTracker>();
     const status = useGestureToast.getState().setStatus;
@@ -56,14 +57,12 @@ export function useGestureWatcher(enabled: boolean) {
     };
 
     const ensureDeviceCamera = async () => {
-      if (video || !sources.includes('device')) return;
+      if (video || cameraTried || !sources.includes('device')) return;
+      cameraTried = true; // câmera compartilhada com a presença e os recados
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
-        video = document.createElement('video');
-        video.muted = true;
-        video.playsInline = true;
-        video.srcObject = stream;
-        await video.play();
+        const v = await acquireCamera();
+        if (!alive) return releaseCamera();
+        video = v;
       } catch (err) {
         status(`sem acesso à câmera do aparelho: ${errorMessage(err)}`);
       }
@@ -127,7 +126,7 @@ export function useGestureWatcher(enabled: boolean) {
     return () => {
       alive = false;
       ctrl.abort();
-      stream?.getTracks().forEach((t) => t.stop());
+      if (video) releaseCamera();
     };
   }, [on, sensitivity]);
 }

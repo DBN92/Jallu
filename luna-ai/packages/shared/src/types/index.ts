@@ -266,7 +266,10 @@ export type ServerEvent =
   | { type: 'ha_status'; connected: boolean }
   | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
   /** Resposta da Luna (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
-  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[] }
+  /** open: a tela deve abrir o gravador de recado ou os recados (pedido por voz) */
+  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[]; open?: 'recorder' | 'recados' }
+  /** Algum recado em vídeo foi gravado, visto ou apagado */
+  | { type: 'recados_update' }
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
   | { type: 'camera_event'; event: CameraEventDto }
   | { type: 'litter_update' }
@@ -274,6 +277,14 @@ export type ServerEvent =
   | { type: 'washer_update' }
   /** A lava e seca terminou (ou outro aviso dela). speak = falar no tablet. */
   | { type: 'washer_done'; text: string; speech: string; speak: boolean };
+
+/** Recado em vídeo deixado na tela */
+export interface RecadoDto {
+  id: string;
+  fromName: string;
+  createdAt: string;
+  seen: boolean;
+}
 
 export interface CameraDto {
   entityId: string;

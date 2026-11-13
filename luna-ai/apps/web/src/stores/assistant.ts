@@ -4,6 +4,7 @@ import { api, apiStream, ApiError, errorMessage } from '../services/api';
 import { useLocation } from './location';
 import { useSettings } from './settings';
 import { useCameras } from './cameras';
+import { useRecados } from './recados';
 
 export interface UiMessage {
   id: string;
@@ -89,6 +90,8 @@ export const useAssistant = create<AssistantStore>((set, get) => ({
       if (!live()) return final; // conversa fechada enquanto respondia: a ação vale, mas a janela fica fechada
       const camAction = final.actions.find((a) => a.tool === 'show_camera' && a.entityIds?.length);
       if (camAction) useCameras.getState().open(camAction.entityIds!);
+      if (final.actions.some((a) => a.tool === 'record_message')) useRecados.getState().open('recorder');
+      else if (final.actions.some((a) => a.tool === 'show_recados')) useRecados.getState().open('player');
       set((s) => ({
         conversationId: final.conversationId,
         state: 'idle',

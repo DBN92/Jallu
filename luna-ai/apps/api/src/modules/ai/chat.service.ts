@@ -44,6 +44,10 @@ export class ChatService {
   }
 
   private litter: import('../litter/litter.service').LitterService | null = null;
+  private recados: import('../recados/recados.service').RecadosService | null = null;
+  setRecados(r: import('../recados/recados.service').RecadosService) {
+    this.recados = r;
+  }
   private washer: import('../washer/washer.service').WasherService | null = null;
   setWasher(w: import('../washer/washer.service').WasherService) {
     this.washer = w;
@@ -58,8 +62,8 @@ export class ChatService {
   }
 
   /** Avisa as outras telas do mesmo usuário (ex.: TV) sobre a resposta, para mostrá-la lá também. */
-  private replyListener: ((userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) | null = null;
-  setReplyListener(fn: (userId: string, reply: { userText: string; reply: string; cameraIds: string[] }) => void) {
+  private replyListener: ((userId: string, reply: { userText: string; reply: string; cameraIds: string[]; open?: 'recorder' | 'recados' }) => void) | null = null;
+  setReplyListener(fn: (userId: string, reply: { userText: string; reply: string; cameraIds: string[]; open?: 'recorder' | 'recados' }) => void) {
     this.replyListener = fn;
   }
 
@@ -112,7 +116,8 @@ export class ChatService {
     await this.db.conversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
     this.onState(user.id, 'idle', conversation.id);
     const cameraIds = result.actions.filter((a) => a.tool === 'show_camera' && a.ok).flatMap((a) => a.entityIds ?? []);
-    this.replyListener?.(user.id, { userText: req.message, reply: result.reply, cameraIds });
+    const open = result.actions.some((a) => a.tool === 'record_message') ? ('recorder' as const) : result.actions.some((a) => a.tool === 'show_recados') ? ('recados' as const) : undefined;
+    this.replyListener?.(user.id, { userText: req.message, reply: result.reply, cameraIds, ...(open ? { open } : {}) });
     return { conversationId: conversation.id, messageId: saved.id, ...result };
   }
 
@@ -262,6 +267,12 @@ export class ChatService {
             reply: on ? `Limpeza automática da caixa de areia ligada${wait}.` : 'Limpeza automática da caixa de areia desligada.',
             actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
           };
+        }
+        case 'recado': {
+          if (!this.recados) return null;
+          if (intent.command === 'record') return { reply: 'Pode gravar o seu recado na tela.', actions: [{ tool: 'record_message', ok: true, summary: 'Gravar recado' }] };
+          const r = await this.recados.unseenText(this.timezone);
+          return { reply: r.text, actions: r.count ? [{ tool: 'show_recados', ok: true, summary: 'Recados' }] : [] };
         }
         case 'washer': {
           if (!this.washer) return null;

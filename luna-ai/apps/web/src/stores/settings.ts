@@ -46,6 +46,10 @@ interface SettingsState {
   ambientSlides: AmbientSlide[];
   /** Segundos sem uso até o descanso de tela começar */
   ambientDelay: number;
+  /** Câmera deste aparelho: sair do descanso de tela quando alguém chega perto */
+  presenceWake: boolean;
+  /** Minutos sem ninguém na frente da câmera até escurecer a tela (0 = nunca) */
+  dimAfter: number;
   /** Orientação forçada neste aparelho (app instalado). */
   orientation: ScreenOrientationPref;
   tvMode: TvModePref;
@@ -65,6 +69,8 @@ interface SettingsState {
   setAmbientMode: (v: boolean) => void;
   setAmbientSlides: (v: AmbientSlide[]) => void;
   setAmbientDelay: (v: number) => void;
+  setPresenceWake: (v: boolean) => void;
+  setDimAfter: (v: number) => void;
   setTvMode: (v: TvModePref) => void;
   setGestureWatch: (v: boolean) => void;
   setGestureSensitivity: (v: Sensitivity) => void;
@@ -79,6 +85,8 @@ export const useSettings = create<SettingsState>((set) => ({
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
   ambientSlides: ((v) => (Array.isArray(v) ? AMBIENT_SLIDES.filter((s) => v.includes(s)) : AMBIENT_DEFAULT))(readLocal<unknown>('luna.ambientSlides', null)),
+  presenceWake: readLocal<boolean>('luna.presenceWake', false),
+  dimAfter: ((v) => ([0, 2, 5, 10, 30] as number[]).includes(v) ? v : 0)(readLocal<number>('luna.dimAfter', 0)),
   ambientDelay: ((v) => ((AMBIENT_DELAYS as readonly number[]).includes(v) ? v : 45))(readLocal<number>('luna.ambientDelay', 45)),
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
@@ -100,6 +108,14 @@ export const useSettings = create<SettingsState>((set) => ({
     const ambientSlides = AMBIENT_SLIDES.filter((s) => v.includes(s));
     writeLocal('luna.ambientSlides', ambientSlides);
     set({ ambientSlides });
+  },
+  setPresenceWake: (presenceWake) => {
+    writeLocal('luna.presenceWake', presenceWake);
+    set({ presenceWake });
+  },
+  setDimAfter: (dimAfter) => {
+    writeLocal('luna.dimAfter', dimAfter);
+    set({ dimAfter });
   },
   setAmbientDelay: (ambientDelay) => {
     writeLocal('luna.ambientDelay', ambientDelay);

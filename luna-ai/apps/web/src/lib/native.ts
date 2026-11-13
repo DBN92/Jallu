@@ -27,6 +27,10 @@ interface Bridge {
   setAutostart(on: boolean): void;
   setKeepOn(on: boolean): void;
   setFullscreen?(on: boolean): void;
+  /** Baixa o brilho da tela ao mínimo (app 1.0.8 em diante) */
+  setDim?(on: boolean): void;
+  /** Pausa a escuta do “Oi, Luna” enquanto a tela usa o microfone (app 1.0.8 em diante) */
+  pauseWake?(on: boolean): void;
   listen(): void;
   openBattery(): void;
   openOverlay(): void;

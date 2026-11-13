@@ -235,6 +235,7 @@ class MainActivity : Activity() {
                 return true
             }
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { currentUrl = url }
+            override fun onPageFinished(view: WebView, url: String) { if (moving) moveStep(view, url) }
             override fun onReceivedError(view: WebView, req: WebResourceRequest, err: android.webkit.WebResourceError) {
                 if (req.isForMainFrame) view.loadDataWithBaseURL(null, offlinePage(), "text/html", "utf-8", null)
             }
@@ -256,7 +257,12 @@ class MainActivity : Activity() {
                 return try { startActivityForResult(params.createIntent(), 2); true } catch (_: Exception) { fileCallback = null; false }
             }
         }
-        w.loadUrl(prefs.url)
+        // Com endereço http, a Luna abre pela ponte local (127.0.0.1), que o Android trata como página
+        // segura e por isso libera a câmera. Na primeira vez, leva junto o login e as preferências.
+        val local = LocalRelay.start(prefs.url)
+        moving = local && !prefs.localMoved
+        if (moving) copyCookies()
+        w.loadUrl(if (local && !moving) LocalRelay.ORIGIN else prefs.url)
         setContentView(w)
         applyFullscreen()
         applyKeepOn()
@@ -276,13 +282,47 @@ class MainActivity : Activity() {
 
     private fun offlinePage() = """<html><body style="background:#06070d;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
         <h2 style="color:#22d3ee">Sem conexão com a Luna</h2><p>Confira se o servidor está ligado e o tablet no Wi-Fi de casa.</p>
-        <p><button style="font-size:18px;padding:12px 24px;border-radius:24px;border:0" onclick="location.href='${prefs.url}'">Tentar de novo</button></p>
+        <p><button style="font-size:18px;padding:12px 24px;border-radius:24px;border:0" onclick="location.href='${if (prefs.localMoved && prefs.url.startsWith("http://")) LocalRelay.ORIGIN else prefs.url}'">Tentar de novo</button></p>
         <p><button style="font-size:14px;padding:8px 16px;border-radius:16px;border:0;opacity:.7" onclick="DiaAndroid.changeServer()">Trocar endereço</button></p></body></html>"""
 
     private fun sameOrigin(url: String): Boolean {
         val a = Uri.parse(url)
+        if (prefs.url.startsWith("http://") && a.scheme == "http" && a.host == "127.0.0.1" && a.port == LocalRelay.PORT) return true
         val b = Uri.parse(prefs.url)
         return a.scheme == b.scheme && a.host == b.host && a.port == b.port
+    }
+
+    // ---- Mudança única do endereço direto para a ponte local (login e preferências vão junto) ----
+    private var moving = false
+    private var movedPrefs: String? = null
+
+    private fun copyCookies() {
+        val cm = CookieManager.getInstance()
+        cm.getCookie(prefs.url)?.split(";")?.map { it.trim() }?.filter { it.contains("=") }?.forEach {
+            // O cookie de sessão continua invisível para a página; o do CSRF a página precisa ler
+            val httpOnly = if (it.startsWith("luna_csrf=")) "" else "; HttpOnly"
+            cm.setCookie(LocalRelay.ORIGIN, "$it; Path=/; Max-Age=2592000; SameSite=Strict$httpOnly")
+        }
+        cm.flush()
+    }
+
+    private fun moveStep(view: WebView, url: String) {
+        val onLocal = Uri.parse(url).host == "127.0.0.1"
+        if (!onLocal && movedPrefs == null) {
+            // 1) página aberta no endereço antigo: lê as preferências guardadas nela e segue para a ponte
+            if (!sameOrigin(url)) { moving = false; return } // sem conexão agora: tenta na próxima abertura
+            view.evaluateJavascript("JSON.stringify(localStorage)") { json ->
+                movedPrefs = json ?: "\"{}\""
+                view.loadUrl(LocalRelay.ORIGIN)
+            }
+        } else if (onLocal) {
+            // 2) já na ponte: grava as preferências (sem passar por cima do que existir) e recarrega
+            moving = false
+            prefs.localMoved = true
+            val data = movedPrefs ?: return
+            movedPrefs = null
+            view.evaluateJavascript("(function(d){try{d=JSON.parse(d);for(var k in d)if(localStorage.getItem(k)===null)localStorage.setItem(k,d[k]);}catch(e){}location.reload();})($data)", null)
+        }
     }
 
     @Deprecated("API do Android")
@@ -368,6 +408,20 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface fun setAutostart(on: Boolean) { if (allowed()) prefs.autostart = on }
+        /** Tela quase apagada quando não há ninguém por perto (volta ao brilho do sistema ao desligar) */
+        @JavascriptInterface
+        fun setDim(on: Boolean) {
+            if (!allowed()) return
+            runOnUiThread { window.attributes = window.attributes.also { it.screenBrightness = if (on) 0.01f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
+        }
+
+        /** Pausa a escuta do “Oi, Luna” enquanto a tela grava um recado (o microfone é um só) */
+        @JavascriptInterface
+        fun pauseWake(on: Boolean) {
+            if (!allowed() || !prefs.wake) return
+            runOnUiThread { ListenService.send(this@MainActivity, if (on) ListenService.ACTION_PAUSE else ListenService.ACTION_RESUME) }
+        }
+
         @JavascriptInterface fun setFullscreen(on: Boolean) { if (allowed()) { prefs.fullscreen = on; runOnUiThread { applyFullscreen() } } }
         @JavascriptInterface fun setKeepOn(on: Boolean) { if (allowed()) { prefs.keepOn = on; runOnUiThread { applyKeepOn() } } }
 

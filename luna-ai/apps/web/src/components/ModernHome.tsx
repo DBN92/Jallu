@@ -8,6 +8,7 @@ import type { UiMessage } from '../stores/assistant';
 import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
+import { RecadosChips } from './Recados';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
@@ -263,6 +264,7 @@ export function ModernHome(p: ModernHomeProps) {
 
   const quick = (
     <div className="m-scroll -mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-1">
+      <RecadosChips />
       {lights.length > 0 && (
         <>
           <button className="m-chip" onClick={() => void allLights(false)}>

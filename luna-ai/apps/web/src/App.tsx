@@ -13,6 +13,10 @@ import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useCameras } from './stores/cameras';
+import { useRecados } from './stores/recados';
+import { RecadosLayer } from './components/Recados';
+import { DimOverlay } from './components/DimOverlay';
+import { usePresence } from './hooks/usePresence';
 import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
@@ -57,6 +61,7 @@ function useRealtimeConnection(enabled: boolean) {
         } else if (e.type === 'devices_reload') void loadDevices();
         else if (e.type === 'litter_update') reloadLitter();
         else if (e.type === 'litter_alert') useGestureToast.getState().show(e.text, false);
+        else if (e.type === 'recados_update') void useRecados.getState().load();
         else if (e.type === 'washer_update') reloadWasher();
         else if (e.type === 'washer_done') {
           reloadWasher();
@@ -70,7 +75,9 @@ function useRealtimeConnection(enabled: boolean) {
           useTv.getState().pushReply(e);
           // Pedido feito pelo “Oi, Luna” do app Android: a resposta chega ao app só em texto, então é
           // por aqui que a tela fica sabendo que deve abrir a câmera (só no aparelho que ouviu o pedido).
-          if (e.cameraIds.length && Date.now() - nativeVoiceAt < 120_000) useCameras.getState().open(e.cameraIds);
+          const here = Date.now() - nativeVoiceAt < 120_000;
+          if (e.cameraIds.length && here) useCameras.getState().open(e.cameraIds);
+          if (e.open && here) useRecados.getState().open(e.open === 'recorder' ? 'recorder' : 'player');
         }
         else if (e.type === 'camera_event') {
           // Garagem: aviso em todas as telas abertas (celular, tablet, TV)
@@ -111,6 +118,10 @@ export default function App() {
 
   useRealtimeConnection(status === 'ready');
   useGestureWatcher(status === 'ready');
+  usePresence(status === 'ready');
+  useEffect(() => {
+    if (status === 'ready') void useRecados.getState().load();
+  }, [status]);
 
   // Orientação da tela (app instalado): reaplica ao abrir e ao voltar do segundo plano
   const orientation = useSettings((s) => s.orientation);
@@ -147,6 +158,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <GestureToast />
+      <RecadosLayer />
+      <DimOverlay />
       <VacuumCelebration />
       <WasherDone />
       <Suspense

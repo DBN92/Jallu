@@ -5,6 +5,7 @@ import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useCameras } from '../stores/cameras';
 import { useDevices } from '../stores/devices';
 import { usePhotos } from '../stores/photos';
+import { unseenRecados, useRecados } from '../stores/recados';
 import { CameraThumb } from './CameraPlayer';
 import { useSettings } from '../stores/settings';
 import { AnimatedBackground } from './AnimatedBackground';
@@ -168,6 +169,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
   }, [slides, index]);
   const current = slides.length ? slides[index % slides.length] : null;
   const on = useDevices((s) => Object.values(s.devices).filter((d) => !d.hidden && d.controllable && d.isOn).length);
+  const fresh = unseenRecados(useRecados((s) => s.list));
 
   return createPortal(
     <div
@@ -222,6 +224,11 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
           </div>
           )}
         </div>
+        {fresh.length > 0 && (
+          <p className="font-hud animate-pulse pb-2 text-center text-base text-amber-200">
+            📹 {fresh.length === 1 ? `Recado de ${fresh[0]!.fromName}` : `${fresh.length} recados novos`} · toque para ver
+          </p>
+        )}
         <p className="hud-label pb-3 text-center text-[10px] text-cyan-300/50">{hint}</p>
       </div>
     </div>,

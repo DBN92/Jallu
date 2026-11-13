@@ -34,6 +34,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("fullscreen", true)
         set(v) = p.edit().putBoolean("fullscreen", v).apply()
 
+    /** Login e preferências da tela já foram levados para a ponte local (127.0.0.1) */
+    var localMoved: Boolean
+        get() = p.getBoolean("localMoved", false)
+        set(v) = p.edit().putBoolean("localMoved", v).apply()
+
     /** alta | normal | baixa */
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"

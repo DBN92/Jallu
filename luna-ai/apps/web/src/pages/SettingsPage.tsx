@@ -13,6 +13,7 @@ import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
+import { PresenceSettings } from '../components/PresenceSettings';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
@@ -543,6 +544,9 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+        <div className="border-t border-white/10">
+          <PresenceSettings />
+        </div>
         <Row
           label="Modo assistente fixo"
           hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."

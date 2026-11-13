@@ -17,7 +17,8 @@ export type Intent =
   | { type: 'watch_status'; query: string }
   | { type: 'vacuum'; command: VacuumIntentCommand; target: string }
   | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' }
-  | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' };
+  | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' }
+  | { type: 'recado'; command: 'record' | 'play' };
 
 /** Fala sobre a caixa de areia dos gatos? */
 const LITTER_CONTEXT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
@@ -107,6 +108,12 @@ export function parseIntent(original: string): Intent | null {
   }
   const forget = raw.match(/^(?:por favor,?\s*)?(?:esque[çc]a|esquece|apague da mem[óo]ria|remova da mem[óo]ria)\s+(?:que\s+|de que\s+|sobre\s+|o que eu disse sobre\s+)?(.{2,})$/i);
   if (forget) return { type: 'forget', content: forget[1]!.trim().replace(/[.!?]+$/, '') };
+
+  // Recados em vídeo: “deixa um recado”, “quero gravar um recado”, “tem recado?”, “mostra os recados”
+  if (/\brecados?\b/.test(text) && !DEFERRED.test(text)) {
+    if (/\b(grav\w*|deix\w*|mand\w*|cri\w*|faz\w*|fazer|novo)\b/.test(text) && !/\b(tem|ha|algum|deixaram|deixou|mostr\w*|ver|veja|abr\w*)\b/.test(text)) return { type: 'recado', command: 'record' };
+    return { type: 'recado', command: 'play' };
+  }
 
   const litter = parseLitter(text);
   if (litter) return litter;
