@@ -281,8 +281,9 @@ export default function HomePage() {
   const lastReply = lastMsg?.role === 'assistant' ? lastMsg.content : '';
   const lastHeard = interim || ([...messages].reverse().find((m) => m.role === 'user')?.content ?? '');
 
-  // ---- Modo ambiente: entra após 45 s sem uso, sai com toque ou quando a Luna é chamada ----
+  // ---- Descanso de tela: entra após o tempo escolhido sem uso, sai com toque ou quando a Luna é chamada ----
   const ambientEnabled = useSettings((s) => s.ambientMode);
+  const ambientDelay = useSettings((s) => s.ambientDelay);
   const [ambient, setAmbient] = useState(false);
   const lastUse = useRef(Date.now());
   useEffect(() => {
@@ -299,13 +300,13 @@ export default function HomePage() {
     if (!ambientEnabled) return setAmbient(false);
     const t = setInterval(() => {
       const busy = state !== 'idle' || sr.listening || recorder.recording || realtime.active || realtime.connecting || text.length > 0;
-      if (!busy && document.visibilityState === 'visible' && Date.now() - lastUse.current > 45_000) {
+      if (!busy && document.visibilityState === 'visible' && Date.now() - lastUse.current > ambientDelay * 1000) {
         setAmbient(true);
         newConversation(); // volta limpa ao sair do modo ambiente
       }
     }, 3000);
     return () => clearInterval(t);
-  }, [ambientEnabled, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
+  }, [ambientEnabled, ambientDelay, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
 
   // ---- Dados dos painéis HUD ----

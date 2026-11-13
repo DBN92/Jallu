@@ -9,6 +9,11 @@ export type VoiceMode = 'basic' | 'realtime';
 export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
 /** Modo TV: automático (Fire TV/Android TV), sempre ou nunca. */
 export type TvModePref = 'auto' | 'on' | 'off';
+/** O que o descanso de tela pode mostrar, além do relógio */
+export const AMBIENT_SLIDES = ['weather', 'home', 'house3d'] as const;
+export type AmbientSlide = (typeof AMBIENT_SLIDES)[number];
+/** Tempos de espera (em segundos) oferecidos para o descanso de tela começar */
+export const AMBIENT_DELAYS = [45, 120, 300, 600] as const;
 
 const readLocal = <T,>(key: string, fallback: T): T => {
   try {
@@ -35,6 +40,10 @@ interface SettingsState {
   kioskMode: boolean;
   /** Tela ambiente (clima/casa alternando) quando a Luna fica sem uso. */
   ambientMode: boolean;
+  /** O que o descanso de tela alterna neste aparelho (vazio: só o relógio) */
+  ambientSlides: AmbientSlide[];
+  /** Segundos sem uso até o descanso de tela começar */
+  ambientDelay: number;
   /** Orientação forçada neste aparelho (app instalado). */
   orientation: ScreenOrientationPref;
   tvMode: TvModePref;
@@ -52,6 +61,8 @@ interface SettingsState {
   setKioskMode: (v: boolean) => void;
   setOrientation: (v: ScreenOrientationPref) => void;
   setAmbientMode: (v: boolean) => void;
+  setAmbientSlides: (v: AmbientSlide[]) => void;
+  setAmbientDelay: (v: number) => void;
   setTvMode: (v: TvModePref) => void;
   setGestureWatch: (v: boolean) => void;
   setGestureSensitivity: (v: Sensitivity) => void;
@@ -65,6 +76,8 @@ export const useSettings = create<SettingsState>((set) => ({
   kioskMode: readLocal<boolean>('luna.kioskMode', false),
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
+  ambientSlides: ((v) => (Array.isArray(v) ? AMBIENT_SLIDES.filter((s) => v.includes(s)) : [...AMBIENT_SLIDES]))(readLocal<unknown>('luna.ambientSlides', null)),
+  ambientDelay: ((v) => ((AMBIENT_DELAYS as readonly number[]).includes(v) ? v : 45))(readLocal<number>('luna.ambientDelay', 45)),
   tvMode: readLocal<TvModePref>('luna.tvMode', 'auto'),
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
   gestureSensitivity: readLocal<Sensitivity>('luna.gestureSensitivity', 'normal'),
@@ -80,6 +93,15 @@ export const useSettings = create<SettingsState>((set) => ({
   setAmbientMode: (ambientMode) => {
     writeLocal('luna.ambientMode', ambientMode);
     set({ ambientMode });
+  },
+  setAmbientSlides: (v) => {
+    const ambientSlides = AMBIENT_SLIDES.filter((s) => v.includes(s));
+    writeLocal('luna.ambientSlides', ambientSlides);
+    set({ ambientSlides });
+  },
+  setAmbientDelay: (ambientDelay) => {
+    writeLocal('luna.ambientDelay', ambientDelay);
+    set({ ambientDelay });
   },
   setTheme: (theme) => {
     writeLocal('luna.theme', theme);

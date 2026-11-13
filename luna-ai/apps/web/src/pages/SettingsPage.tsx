@@ -8,7 +8,7 @@ import { wakeWordSupport } from '../hooks/useWakeWord';
 import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
 import { useLocation } from '../stores/location';
-import { useSettings, type ScreenOrientationPref } from '../stores/settings';
+import { AMBIENT_DELAYS, useSettings, type AmbientSlide, type ScreenOrientationPref } from '../stores/settings';
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { ThemePicker } from '../components/ThemePicker';
@@ -285,7 +285,7 @@ function ActionLogs() {
 }
 
 export default function SettingsPage() {
-  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation, ambientMode, setAmbientMode, tvMode, setTvMode } = useSettings();
+  const { settings, load, update, voiceMode, setVoiceMode, useGps, setUseGps, kioskMode, setKioskMode, orientation, setOrientation, ambientMode, setAmbientMode, ambientSlides, setAmbientSlides, ambientDelay, setAmbientDelay, tvMode, setTvMode } = useSettings();
   const [orientMsg, setOrientMsg] = useState<string | null>(null);
   const chooseOrientation = async (o: ScreenOrientationPref) => {
     setOrientation(o);
@@ -504,9 +504,39 @@ export default function SettingsPage() {
             Tela feita para o controle remoto (Fire TV / Android TV). “Automático” liga sozinho quando a Luna é aberta numa TV. Para sair na TV, use o ícone de celular no canto superior.
           </p>
         </div>
-        <Row label="Modo ambiente" hint="Após 45 s sem uso, mostra uma tela cheia alternando previsão do tempo e controle da casa. Toque ou diga “Oi, Luna” para voltar.">
-          <Toggle label="Modo ambiente" checked={ambientMode} onChange={setAmbientMode} />
+        <Row label="Descanso de tela" hint="Com a Luna sem uso, mostra o relógio em tela cheia e alterna o que você escolher abaixo. Toque ou diga “Oi, Luna” para voltar. Vale só para este aparelho.">
+          <Toggle label="Descanso de tela" checked={ambientMode} onChange={setAmbientMode} />
         </Row>
+        {ambientMode && (
+          <div className="px-4 py-3">
+            <p className="mb-2 text-sm">Mostrar no descanso de tela</p>
+            <div className="grid grid-cols-3 gap-1 rounded-sm bg-white/5 p-1">
+              {(
+                [
+                  ['weather', 'Previsão do tempo'],
+                  ['home', 'Aparelhos'],
+                  ['house3d', 'Casa em 3D'],
+                ] as [AmbientSlide, string][]
+              ).map(([v, label]) => {
+                const on = ambientSlides.includes(v);
+                return (
+                  <button key={v} aria-pressed={on} onClick={() => setAmbientSlides(on ? ambientSlides.filter((s) => s !== v) : [...ambientSlides, v])} className={`rounded-sm py-2 text-sm ${on ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-white/45">{ambientSlides.length ? 'Toque para ligar ou desligar cada um.' : 'Nada escolhido: fica só o relógio com a Luna.'}</p>
+            <p className="mt-4 mb-2 text-sm">Começar depois de</p>
+            <div className="grid grid-cols-4 gap-1 rounded-sm bg-white/5 p-1">
+              {AMBIENT_DELAYS.map((s) => (
+                <button key={s} onClick={() => setAmbientDelay(s)} className={`rounded-sm py-2 text-sm ${ambientDelay === s ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}>
+                  {s < 60 ? `${s} s` : `${s / 60} min`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <Row
           label="Modo assistente fixo"
           hint="Para um celular/tablet dedicado à Luna: tela sempre acesa, volta sozinha para a tela inicial e retoma a escuta ao reabrir. Vale só para este aparelho."

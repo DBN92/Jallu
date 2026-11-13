@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box, Disc3 } from 'lucide-react';
 import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
+import { useSettings } from '../stores/settings';
 import { AnimatedBackground } from './AnimatedBackground';
 import { LunaOrb } from './LunaOrb';
 import { HouseShow } from './HouseShow';
@@ -99,17 +100,18 @@ function HomeSlide() {
 
 /**
  * Modo ambiente: tela cheia exibida quando a Luna fica sem uso. Alterna automaticamente
- * entre previsão do tempo e controle da casa. Qualquer toque (ou “Oi, Luna”) volta ao normal.
+ * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D). Qualquer toque (ou “Oi, Luna”) volta ao normal.
  */
 export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
-  const slides = useMemo(() => [...(weather ? (['weather'] as const) : []), 'home' as const, 'house3d' as const], [weather]);
+  const chosen = useSettings((s) => s.ambientSlides);
+  const slides = useMemo(() => chosen.filter((s) => s !== 'weather' || weather), [chosen, weather]);
   const [index, setIndex] = useState(0);
   useEffect(() => {
     if (slides.length < 2) return;
     const t = setTimeout(() => setIndex((i) => (i + 1) % slides.length), slides[index % slides.length] === 'house3d' ? HOUSE_MS : SLIDE_MS);
     return () => clearTimeout(t);
   }, [slides, index]);
-  const current = slides[index % slides.length];
+  const current = slides.length ? slides[index % slides.length] : null;
   const on = useDevices((s) => Object.values(s.devices).filter((d) => !d.hidden && d.controllable && d.isOn).length);
 
   return createPortal(
@@ -136,7 +138,8 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
             </div>
           </div>
 
-          {/* Painel que alterna */}
+          {/* Painel que alterna (sem nada escolhido nos ajustes, fica só o relógio) */}
+          {current && (
           <div className="hud-panel w-full max-w-2xl p-6 md:p-8">
             {current !== 'house3d' && (
               <div key={`${current}-${index}`} className="ambient-slide">
@@ -144,12 +147,14 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
               </div>
             )}
             {/* A maquete fica carregada o tempo todo (escondida e pausada fora da vez dela) */}
+            {slides.includes('house3d') && (
             <div className={current === 'house3d' ? 'ambient-slide' : 'hidden'}>
               <p className="hud-label">Minha casa · {on} {on === 1 ? 'ligado' : 'ligados'}</p>
               <div className="mt-2 h-[min(40vh,520px)] sm:h-[min(58vh,520px)]">
                 <HouseShow active={current === 'house3d'} />
               </div>
             </div>
+            )}
             {slides.length > 1 && (
               <div className="mt-6 flex gap-2">
                 {slides.map((s, i) => (
@@ -160,6 +165,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
               </div>
             )}
           </div>
+          )}
         </div>
         <p className="hud-label pb-3 text-center text-[10px] text-cyan-300/50">{hint}</p>
       </div>
