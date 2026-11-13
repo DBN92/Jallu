@@ -65,6 +65,12 @@ object WakeMatch {
         return null
     }
 
+    /**
+     * O trecho depois do “Luna” é um pedido de verdade? Ruído e respiração viram palavras soltas com
+     * confiança baixa no Vosk; um pedido tem pelo menos duas palavras reconhecidas com segurança.
+     */
+    fun tailIsClear(text: String, conf: Float, words: Int): Boolean = words >= 2 && text.length >= 6 && conf >= 0.75f
+
     /** Tira o chamado e cortesias do começo do texto transcrito (“oi luna acende” → “acende”). */
     fun stripWake(text: String): String =
         text.trim().replace(Regex("^(oi\\s+)?(luna|lona)\\b[,\\s]*", RegexOption.IGNORE_CASE), "").trim()

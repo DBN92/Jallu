@@ -7,7 +7,7 @@ export function DimOverlay() {
   if (!dimmed) return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[95] bg-black/90 transition-opacity"
+      className="fixed inset-0 z-[95] cursor-none bg-black"
       role="button"
       aria-label="Acender a tela"
       onPointerDown={(e) => {

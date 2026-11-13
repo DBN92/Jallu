@@ -420,7 +420,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun setDim(on: Boolean) {
             if (!allowed()) return
-            runOnUiThread { window.attributes = window.attributes.also { it.screenBrightness = if (on) 0.01f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
+            runOnUiThread { window.attributes = window.attributes.also { it.screenBrightness = if (on) 0f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
         }
 
         /** Pausa a escuta do “Oi, Luna” enquanto a tela grava um recado (o microfone é um só) */

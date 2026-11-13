@@ -227,25 +227,47 @@ class ListenService : Service() {
             }
             val said = tail
             if (triggered && said != null && said.size > 16000 / 2) {
-                // Pedido junto com o chamado: transcreve o que veio depois do “Luna” e já responde
-                val text = transcribe(said)
-                main.post { if (text.isNotBlank()) commandFromWake(text) else beginCommand() }
-            } else if (triggered) main.post { beginCommand() }
+                // Pedido junto com o chamado: só responde direto se a transcrição saiu clara (frase com
+                // confiança alta). Senão toca o bip e escuta com o reconhecimento do Android, que é melhor;
+                // o trecho fica guardado para usar se depois do bip ninguém falar nada.
+                val (text, conf, words) = transcribe(said)
+                main.post {
+                    if (WakeMatch.tailIsClear(text, conf, words)) commandFromWake(text)
+                    else { pendingTail = if (words >= 2) text else ""; beginCommand() }
+                }
+            } else if (triggered) main.post { pendingTail = ""; beginCommand() }
             else if (!paused && !inSession && prefs.wake && status == "erro no microfone") main.postDelayed({ startListening() }, 3000)
         }
     }
 
     /** Transcreve um trecho de áudio já gravado com o Vosk (off-line, sem a lista restrita do chamado). */
-    private fun transcribe(pcm: ShortArray): String {
-        val m = model ?: return ""
+    private fun transcribe(pcm: ShortArray): Triple<String, Float, Int> {
+        val m = model ?: return Triple("", 0f, 0)
         return try {
             Recognizer(m, 16000f).use { r ->
+                r.setWords(true)
                 var i = 0
-                while (i < pcm.size) { val n = minOf(1600, pcm.size - i); r.acceptWaveForm(pcm.copyOfRange(i, i + n), n); i += n }
-                WakeMatch.stripWake(JSONObject(r.finalResult).optString("text"))
+                val parts = StringBuilder()
+                val confs = mutableListOf<Double>()
+                fun take(json: String) {
+                    val o = JSONObject(json)
+                    parts.append(' ').append(o.optString("text"))
+                    o.optJSONArray("result")?.let { a -> for (k in 0 until a.length()) confs += a.getJSONObject(k).optDouble("conf", 0.0) }
+                }
+                while (i < pcm.size) {
+                    val n = minOf(1600, pcm.size - i)
+                    if (r.acceptWaveForm(pcm.copyOfRange(i, i + n), n)) take(r.result)
+                    i += n
+                }
+                take(r.finalResult)
+                val text = WakeMatch.stripWake(parts.toString().trim().replace(Regex("\\s+"), " "))
+                Triple(text, if (confs.isEmpty()) 0f else confs.average().toFloat(), text.split(' ').count { it.isNotBlank() })
             }
-        } catch (_: Throwable) { "" }
+        } catch (_: Throwable) { Triple("", 0f, 0) }
     }
+
+    /** Pedido que veio junto com o chamado mas não estava claro (usado se depois do bip ninguém falar) */
+    private var pendingTail = ""
 
     /** O pedido veio na mesma frase do chamado: confirma com o bip e responde, sem pedir de novo. */
     private fun commandFromWake(text: String) {
@@ -288,6 +310,12 @@ class ListenService : Service() {
 
     /** Não ouviu nada: pergunta uma vez “Pode repetir?” e escuta de novo; na segunda, avisa e encerra. */
     private fun nothingHeard() {
+        // A pessoa já tinha falado o pedido junto com o “Oi, Luna”: usa o que deu para entender
+        if (pendingTail.isNotBlank()) {
+            val t = pendingTail
+            pendingTail = ""
+            return handleText(t)
+        }
         if (retries == 0) {
             retries++
             WebEvents.voice("listening")
@@ -355,7 +383,7 @@ class ListenService : Service() {
             // Dá tempo de começar a falar e de pausar no meio da frase sem cortar
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
             .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2500L)
+
         try { sr.startListening(intent) } catch (_: Exception) { recognizeWithVosk() }
     }
 

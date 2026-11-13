@@ -49,4 +49,12 @@ class WakeTest {
         assertEquals("que horas são", WakeMatch.stripWake("luna que horas são"))
         assertEquals("liga o ventilador", WakeMatch.stripWake("liga o ventilador"))
     }
+
+    @Test
+    fun trecho_depois_do_chamado_so_vale_se_claro() {
+        assertTrue(WakeMatch.tailIsClear("acende a luz da sala", 0.9f, 5))
+        // respiração/ruído depois do “Oi, Luna”: palavra solta ou confiança baixa
+        assertEquals(false, WakeMatch.tailIsClear("a", 0.95f, 1))
+        assertEquals(false, WakeMatch.tailIsClear("é o que", 0.4f, 3))
+    }
 }
