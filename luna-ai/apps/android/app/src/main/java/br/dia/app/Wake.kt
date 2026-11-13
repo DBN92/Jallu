@@ -49,6 +49,26 @@ object WakeMatch {
         else -> 0.5f
     }
 
+    /**
+     * “Oi Luna, acende a luz” num fôlego só: devolve em que segundo terminou o nome (“luna”) quando
+     * há mais fala depois dele na mesma frase; null quando a pessoa disse só “Oi, Luna”.
+     */
+    fun tailStart(json: String): Double? {
+        val words = JSONObject(json).optJSONArray("result") ?: return null
+        for (k in 0 until words.length() - 1) {
+            val a = words.getJSONObject(k)
+            val b = words.getJSONObject(k + 1)
+            if (a.optString("word") == "oi" && b.optString("word") in NAME) {
+                return if (k + 2 < words.length()) b.optDouble("end", -1.0).takeIf { it >= 0 } else null
+            }
+        }
+        return null
+    }
+
+    /** Tira o chamado e cortesias do começo do texto transcrito (“oi luna acende” → “acende”). */
+    fun stripWake(text: String): String =
+        text.trim().replace(Regex("^(oi\\s+)?(luna|lona)\\b[,\\s]*", RegexOption.IGNORE_CASE), "").trim()
+
     /** Lê o resultado do Vosk e devolve a confiança do “oi luna” (0 se não houver). */
     fun score(json: String): Float {
         val words = JSONObject(json).optJSONArray("result") ?: return 0f

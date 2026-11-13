@@ -179,6 +179,7 @@ class ListenService : Service() {
         val threshold = WakeMatch.threshold(prefs.sensitivity)
         audioThread = thread(name = "dia-escuta") {
             var triggered = false
+            var tail: ShortArray? = null
             var record: AudioRecord? = null
             var rec: Recognizer? = null
             try {
@@ -188,18 +189,32 @@ class ListenService : Service() {
                 record.startRecording()
                 val buf = ShortArray(1600) // 100 ms
                 val gain = AutoGain()
+                // Áudio da frase atual (até 15 s): se o pedido veio junto com o chamado, ele está aqui
+                val utter = java.io.ByteArrayOutputStream()
+                var fed = 0L
+                var uttStart = 0L
                 while (listening) {
                     val n = record.read(buf, 0, buf.size)
                     if (n <= 0) continue
                     gain.process(buf, n)
+                    if (utter.size() < 16000 * 2 * 15) for (k in 0 until n) { utter.write(buf[k].toInt() and 0xff); utter.write((buf[k].toInt() shr 8) and 0xff) }
+                    fed += n
                     if (rec.acceptWaveForm(buf, n)) {
-                        val score = WakeMatch.score(rec.result)
+                        val json = rec.result
+                        val score = WakeMatch.score(json)
                         val now = System.currentTimeMillis()
                         if (score >= threshold && now - lastWake > 2500) {
                             lastWake = now
                             triggered = true
+                            WakeMatch.tailStart(json)?.let { end ->
+                                val bytes = utter.toByteArray()
+                                val from = ((end * 16000).toLong() - uttStart).coerceIn(0, bytes.size / 2L).toInt()
+                                tail = ShortArray(bytes.size / 2 - from) { i -> ((bytes[(from + i) * 2].toInt() and 0xff) or (bytes[(from + i) * 2 + 1].toInt() shl 8)).toShort() }
+                            }
                             break
                         }
+                        utter.reset()
+                        uttStart = fed
                     }
                 }
             } catch (e: Throwable) {
@@ -210,9 +225,35 @@ class ListenService : Service() {
                 rec?.close()
                 listening = false
             }
-            if (triggered) main.post { beginCommand() }
+            val said = tail
+            if (triggered && said != null && said.size > 16000 / 2) {
+                // Pedido junto com o chamado: transcreve o que veio depois do “Luna” e já responde
+                val text = transcribe(said)
+                main.post { if (text.isNotBlank()) commandFromWake(text) else beginCommand() }
+            } else if (triggered) main.post { beginCommand() }
             else if (!paused && !inSession && prefs.wake && status == "erro no microfone") main.postDelayed({ startListening() }, 3000)
         }
+    }
+
+    /** Transcreve um trecho de áudio já gravado com o Vosk (off-line, sem a lista restrita do chamado). */
+    private fun transcribe(pcm: ShortArray): String {
+        val m = model ?: return ""
+        return try {
+            Recognizer(m, 16000f).use { r ->
+                var i = 0
+                while (i < pcm.size) { val n = minOf(1600, pcm.size - i); r.acceptWaveForm(pcm.copyOfRange(i, i + n), n); i += n }
+                WakeMatch.stripWake(JSONObject(r.finalResult).optString("text"))
+            }
+        } catch (_: Throwable) { "" }
+    }
+
+    /** O pedido veio na mesma frase do chamado: confirma com o bip e responde, sem pedir de novo. */
+    private fun commandFromWake(text: String) {
+        if (inSession) return
+        inSession = true
+        tts?.stop()
+        try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
+        handleText(text)
     }
 
     private fun stopListening() {
@@ -224,9 +265,13 @@ class ListenService : Service() {
 
     // ---------------- Pedido, resposta e fala ----------------
 
+    /** Quantas vezes já pediu para repetir nesta conversa (pede uma vez só) */
+    private var retries = 0
+
     private fun beginCommand() {
         if (inSession) return
         inSession = true
+        retries = 0
         stopListening()
         tts?.stop()
         status = "ouvindo o pedido"
@@ -234,28 +279,67 @@ class ListenService : Service() {
         try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
         WebEvents.voice("listening")
         // Espera o sinal sonoro acabar para não “ouvir” o próprio bip
-        main.postDelayed({
-            if (SpeechRecognizer.isRecognitionAvailable(this)) recognizeWithAndroid() else recognizeWithVosk()
-        }, 300)
+        main.postDelayed({ listenForCommand() }, 300)
     }
 
-    private fun recognizeWithAndroid() {
+    private fun listenForCommand() {
+        if (SpeechRecognizer.isRecognitionAvailable(this)) recognizeWithAndroid() else recognizeWithVosk()
+    }
+
+    /** Não ouviu nada: pergunta uma vez “Pode repetir?” e escuta de novo; na segunda, avisa e encerra. */
+    private fun nothingHeard() {
+        if (retries == 0) {
+            retries++
+            WebEvents.voice("listening")
+            sayThen("Não ouvi. Pode repetir?") {
+                try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
+                main.postDelayed({ listenForCommand() }, 300)
+            }
+        } else sayThen("Não consegui ouvir. É só me chamar de novo.") { endSession() }
+    }
+
+    /** Fala uma frase curta e depois segue (sem voz pronta, segue direto). */
+    private fun sayThen(text: String, next: () -> Unit) {
+        val t = tts
+        if (t == null || !ttsReady) return next()
+        t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(id: String?) {}
+            override fun onDone(id: String?) { main.post(next) }
+            @Deprecated("API antiga") override fun onError(id: String?) { main.post(next) }
+        })
+        t.speak(text, TextToSpeech.QUEUE_FLUSH, null, "aviso-escuta")
+    }
+
+    private fun recognizeWithAndroid(busyRetry: Boolean = false) {
         speech?.destroy()
         val sr = SpeechRecognizer.createSpeechRecognizer(this)
         speech = sr
         var lastPartial = ""
+        // O Android às vezes chama “erro” depois do resultado (ou duas vezes): só vale a primeira resposta
+        var done = false
         sr.setRecognitionListener(object : RecognitionListener {
             override fun onPartialResults(b: Bundle?) {
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
                 if (t.isNotBlank()) { lastPartial = t; WebEvents.voice("listening", heard = t) }
             }
             override fun onResults(b: Bundle?) {
+                if (done) return
+                done = true
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().ifBlank { lastPartial }
-                handleText(t)
+                if (t.isBlank()) nothingHeard() else handleText(t)
             }
             override fun onError(error: Int) {
-                // Sem fala ou não entendeu: volta a esperar o chamado “Oi, Luna” sem incomodar
-                if (lastPartial.isNotBlank()) handleText(lastPartial) else endSession()
+                if (done) return
+                done = true
+                when {
+                    lastPartial.isNotBlank() -> handleText(lastPartial)
+                    // Reconhecedor ainda preso na vez anterior: tenta de novo uma vez
+                    !busyRetry && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) ->
+                        main.postDelayed({ recognizeWithAndroid(busyRetry = true) }, 500)
+                    // Sem internet para o reconhecimento do Google: usa o off-line
+                    error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT || error == SpeechRecognizer.ERROR_SERVER -> recognizeWithVosk()
+                    else -> nothingHeard()
+                }
             }
             override fun onReadyForSpeech(p: Bundle?) {}
             override fun onBeginningOfSpeech() {}
@@ -268,7 +352,10 @@ class ListenService : Service() {
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
+            // Dá tempo de começar a falar e de pausar no meio da frase sem cortar
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2500L)
         try { sr.startListening(intent) } catch (_: Exception) { recognizeWithVosk() }
     }
 
@@ -300,13 +387,13 @@ class ListenService : Service() {
                 record?.release()
                 rec?.close()
             }
-            main.post { handleText(text) }
+            main.post { if (text.isBlank()) nothingHeard() else handleText(text) }
         }
     }
 
     private fun handleText(raw: String) {
         val text = raw.trim()
-        if (text.isBlank()) return endSession()
+        if (text.isBlank()) return nothingHeard()
         status = "pensando"
         update("Pensando…")
         WebEvents.voice("processing", heard = text)

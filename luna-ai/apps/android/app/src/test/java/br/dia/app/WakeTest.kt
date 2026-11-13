@@ -37,4 +37,16 @@ class WakeTest {
         assertTrue("não passa do limite", loud.all { it in -32768..32767 })
         assertEquals("fala alta não é amplificada", 30000, loud.last().toInt().let { kotlin.math.abs(it) })
     }
+
+    @Test
+    fun pedido_junto_com_o_chamado() {
+        // “oi luna [acende a luz]”: o reconhecedor do chamado marca o resto como [unk]
+        val junto = """{"result":[{"conf":0.9,"word":"oi","end":0.4},{"conf":0.8,"word":"luna","end":0.9},{"conf":1.0,"word":"[unk]","end":1.5}],"text":"oi luna [unk]"}"""
+        assertEquals(0.9, WakeMatch.tailStart(junto)!!, 0.001)
+        // só “oi luna”: espera o pedido depois do bip
+        assertEquals(null, WakeMatch.tailStart("""{"result":[{"conf":0.9,"word":"oi","end":0.4},{"conf":0.8,"word":"luna","end":0.9}]}"""))
+        assertEquals("acende a luz da sala", WakeMatch.stripWake("oi luna acende a luz da sala"))
+        assertEquals("que horas são", WakeMatch.stripWake("luna que horas são"))
+        assertEquals("liga o ventilador", WakeMatch.stripWake("liga o ventilador"))
+    }
 }
