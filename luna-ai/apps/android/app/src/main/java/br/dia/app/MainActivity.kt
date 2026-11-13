@@ -53,6 +53,15 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        // Android 15 desenha o app por baixo das barras do sistema: quando elas estão à vista (ou o teclado
+        // aberto), a tela recua para não ficar nada por baixo. Em tela cheia as barras somem e o recuo é zero.
+        if (Build.VERSION.SDK_INT >= 30) {
+            findViewById<View>(android.R.id.content).setOnApplyWindowInsetsListener { v, insets ->
+                val i = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+                v.setPadding(i.left, i.top, i.right, i.bottom)
+                WindowInsets.CONSUMED
+            }
+        }
         requestRuntimePermissions()
         if (prefs.url.isBlank()) showSetup() else showWeb()
         handleIntent(intent)
