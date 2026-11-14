@@ -15,6 +15,13 @@ object WebEvents {
         view = w?.let { WeakReference(it) }
     }
 
+    fun attached() = view?.get() != null
+
+    /** Ouviu “Oi, Luna” e a tela está com a voz em tempo real (OpenAI): a conversa segue na tela */
+    fun wakeWord() {
+        main.post { view?.get()?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wakeword'))", null) }
+    }
+
     /** state: listening | processing | speaking | idle | error */
     fun voice(state: String, heard: String = "", reply: String = "") {
         val detail = JSONObject().put("state", state).put("heard", heard).put("reply", reply).toString()

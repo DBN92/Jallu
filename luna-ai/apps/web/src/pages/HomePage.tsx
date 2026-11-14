@@ -72,6 +72,8 @@ export default function HomePage() {
   // Dentro do app Android (tablet) o próprio app escuta o chamado “Oi, Luna” e reconhece a fala
   const inApp = nativeApp() !== null;
   const localWake = !inApp && wakeWordSupport('basic').supported;
+  // No app com “Voz em tempo real”: a conversa é com a OpenAI, igual à Luna instalada no celular
+  const appRealtime = inApp && voiceMode === 'realtime' && settings?.aiMode !== 'local' && !!nativeApp()?.setVoiceHandoff;
 
   const realtime = useRealtimeVoice({
     onState: setState,
@@ -79,7 +81,8 @@ export default function HomePage() {
     conversationId,
     onConversation: setConversationId,
     wakeWord: !inApp && wakeEnabled && voiceMode === 'realtime' && !localWake,
-    autoStopMs: wakeEnabled && localWake ? 30_000 : undefined,
+    // No app a conversa termina sozinha depois de 30 s sem fala, devolvendo o microfone ao “Oi, Luna”
+    autoStopMs: (wakeEnabled && localWake) || appRealtime ? 30_000 : undefined,
     onAudioBlocked: () => setNeedsTap(true),
   });
 
@@ -207,7 +210,7 @@ export default function HomePage() {
   };
 
   const onMic = async () => {
-    if (inApp) return nativeApp()!.listen();
+    if (inApp && !appRealtime) return nativeApp()!.listen();
     if (state === 'speaking') {
       tts.cancel();
       if (realtime.active) realtime.interrupt();
@@ -312,6 +315,27 @@ export default function HomePage() {
     return () => clearInterval(t);
   }, [ambientEnabled, ambientDelay, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
+  // App Android: avisa se a tela conduz a conversa e pausa o “Oi, Luna” enquanto a conversa usa o microfone
+  useEffect(() => {
+    nativeApp()?.setVoiceHandoff?.(appRealtime);
+    return () => nativeApp()?.setVoiceHandoff?.(false);
+  }, [appRealtime]);
+  const rtBusy = realtime.active || realtime.connecting;
+  useEffect(() => {
+    if (!appRealtime) return;
+    nativeApp()?.pauseWake?.(rtBusy);
+  }, [rtBusy, appRealtime]);
+  useEffect(() => {
+    if (!appRealtime) return;
+    const onWakeWord = () => {
+      if (realtime.active || realtime.connecting) return;
+      setAmbient(false);
+      setVoiceFocus(true);
+      void realtime.start();
+    };
+    window.addEventListener('dia-native-wakeword', onWakeWord);
+    return () => window.removeEventListener('dia-native-wakeword', onWakeWord);
+  }, [appRealtime, realtime]);
   // Saiu do descanso de tela: se há recado novo, ele aparece para quem chegou
   const leaveAmbient = () => {
     lastUse.current = Date.now();

@@ -53,6 +53,9 @@ class ListenService : Service() {
         @Volatile var status: String = "parado"
             private set
 
+        /** A tela da Luna está aberta com a voz em tempo real (OpenAI): ela conduz a conversa */
+        @Volatile var handoff = false
+
         fun send(ctx: Context, action: String) {
             val i = Intent(ctx, ListenService::class.java).setAction(action)
             try {
@@ -292,6 +295,16 @@ class ListenService : Service() {
 
     private fun beginCommand() {
         if (inSession) return
+        // Voz em tempo real ligada e a Luna na frente: passa a conversa para a tela (mesma voz e IA do celular)
+        if (handoff && MainActivity.visible && WebEvents.attached()) {
+            stopListening()
+            tts?.stop()
+            try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
+            WebEvents.wakeWord()
+            // A tela pausa a escuta enquanto conversa; se ela não assumir, volta a escutar sozinho
+            main.postDelayed({ if (!paused && !inSession && !listening) startListening() }, 4000)
+            return
+        }
         inSession = true
         retries = 0
         stopListening()

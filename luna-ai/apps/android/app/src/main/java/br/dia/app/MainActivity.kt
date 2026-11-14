@@ -41,6 +41,11 @@ import kotlin.concurrent.thread
  * um WebView, mais a ponte “DiaAndroid” para a tela ligar a escuta do chamado “Oi, Luna” no tablet.
  */
 class MainActivity : Activity() {
+    companion object {
+        /** A Luna está na frente, com a tela acesa */
+        @Volatile var visible = false
+    }
+
     private lateinit var prefs: Prefs
     private var web: WebView? = null
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -75,8 +80,14 @@ class MainActivity : Activity() {
         handleIntent(intent)
     }
 
+    override fun onPause() {
+        visible = false
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        visible = true
         applyKeepOn()
         applyFullscreen()
         // Voltou para a frente (alguém chegou, ou tocaram/ligaram a tela): a câmera volta para a Luna
@@ -488,6 +499,9 @@ class MainActivity : Activity() {
             if (!allowed() || !prefs.wake) return
             runOnUiThread { ListenService.send(this@MainActivity, if (on) ListenService.ACTION_PAUSE else ListenService.ACTION_RESUME) }
         }
+
+        /** A tela usa a voz em tempo real (OpenAI): o “Oi, Luna” passa a conversa para ela */
+        @JavascriptInterface fun setVoiceHandoff(on: Boolean) { if (allowed()) ListenService.handoff = on }
 
         @JavascriptInterface fun setFullscreen(on: Boolean) { if (allowed()) { prefs.fullscreen = on; runOnUiThread { applyFullscreen() } } }
         @JavascriptInterface fun setKeepOn(on: Boolean) { if (allowed()) { prefs.keepOn = on; runOnUiThread { applyKeepOn() } } }
