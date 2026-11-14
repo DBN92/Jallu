@@ -39,3 +39,13 @@ describe('“Oi, Luna” falado baixo (vários palpites)', () => {
       expect(matchWake([t]), t).toBeNull();
   });
 });
+
+import { isThanks } from './text';
+describe('agradecimento encerra a conversa', () => {
+  it('reconhece agradecimentos e despedidas', () => {
+    for (const t of ['Obrigado', 'obrigada, Luna!', 'valeu', 'muito obrigado mesmo', 'brigado, era só isso', 'tchau Luna', 'ok, obrigado pela ajuda']) expect(isThanks(t), t).toBe(true);
+  });
+  it('agradecimento com outro pedido não encerra', () => {
+    for (const t of ['obrigado, agora apaga a luz', 'valeu, e amanhã vai chover?', 'acende a luz da sala', 'qual a temperatura']) expect(isThanks(t), t).toBe(false);
+  });
+});

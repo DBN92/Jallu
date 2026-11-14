@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssistantState } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
-import { isWakeCall } from '../lib/text';
+import { isThanks, isWakeCall } from '../lib/text';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { useCameras } from '../stores/cameras';
 import { useRecados } from '../stores/recados';
@@ -42,6 +42,8 @@ export function useRealtimeVoice(opts: {
   const pendingOutputs = useRef(0);
   /** A OpenAI só aceita uma resposta por vez: se uma estiver em andamento, a próxima espera ela acabar */
   const responseActive = useRef(false);
+  /** Agradeceu: encerra a conversa assim que a Luna terminar de responder */
+  const endAfterReply = useRef(false);
   const wantResponse = useRef(false);
   const followUntil = useRef(0);
   const idleTimer = useRef<number | null>(null);
@@ -82,6 +84,7 @@ export function useRealtimeVoice(opts: {
     speakingRef.current = false;
     responseActive.current = false;
     wantResponse.current = false;
+    endAfterReply.current = false;
     pendingOutputs.current = 0;
     if (wakeLockRef.current) {
       releaseScreen();
@@ -101,6 +104,9 @@ export function useRealtimeVoice(opts: {
     levelRef.current = 0;
     optsRef.current.onState('idle');
   }, []);
+  // Usado de dentro dos eventos da sessão (encerrar depois do agradecimento)
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
 
   /** Reinicia o contador de inatividade (somente com autoStopMs). */
   const bumpIdle = () => {
@@ -153,11 +159,21 @@ export function useRealtimeVoice(opts: {
         // Após a Luna falar, aceita continuação sem precisar dizer "Luna" de novo
         followUntil.current = Date.now() + 15_000;
         speakingRef.current = false;
+        if (endAfterReply.current) {
+          endAfterReply.current = false;
+          setTimeout(() => stopRef.current(), 400);
+          break;
+        }
         bumpIdle();
         optsRef.current.onState('listening');
         break;
       case 'conversation.item.input_audio_transcription.completed': {
         const text = typeof ev.transcript === 'string' ? ev.transcript.trim() : '';
+        if (text && isThanks(text)) {
+          endAfterReply.current = true;
+          // Se a resposta falada não vier, encerra mesmo assim
+          setTimeout(() => endAfterReply.current && stopRef.current(), 8000);
+        }
         if (!wakeRef.current) {
           if (text) void saveTranscript('user', text);
           break;

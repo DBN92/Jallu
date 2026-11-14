@@ -47,7 +47,7 @@ export async function voiceRoutes(app: FastifyInstance) {
       voice: true,
     });
     return voice.createRealtimeSecret({
-      instructions: `${instructions}\nFale com voz calorosa e natural, em português do Brasil. Seja breve: respostas faladas de no máximo 2 ou 3 frases, a menos que o usuário peça detalhes.${wakeWord ? ' O usuário chama você dizendo "Luna"; ignore a palavra de chamada e responda ao pedido.' : ''}`,
+      instructions: `${instructions}\nFale com voz calorosa e natural, em português do Brasil. Seja breve: respostas faladas de no máximo 2 ou 3 frases, a menos que o usuário peça detalhes. Se o usuário só agradecer ou se despedir, responda apenas algo curto como “De nada!”: a conversa termina em seguida.${wakeWord ? ' O usuário chama você dizendo "Luna"; ignore a palavra de chamada e responda ao pedido.' : ''}`,
       wakeWord,
       voice: VOICES.includes(s.realtimeVoice) ? s.realtimeVoice : 'marin',
       tools: [...TOOL_DEFINITIONS.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters })), LUNA_COMMAND],

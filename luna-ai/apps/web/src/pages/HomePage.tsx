@@ -25,7 +25,7 @@ import { api, errorMessage } from '../services/api';
 import { useAssistant } from '../stores/assistant';
 import { useAuth } from '../stores/auth';
 import { useSettings } from '../stores/settings';
-import { greeting, playChime, STATE_LABEL } from '../lib/text';
+import { greeting, playChime, STATE_LABEL, isThanks } from '../lib/text';
 import { takeSentences } from '../lib/speechText';
 
 function useViewport() {
@@ -151,7 +151,9 @@ export default function HomePage() {
       setState('speaking');
       tts.finishQueue(() => {
         if (useAssistant.getState().state === 'speaking') setState('idle');
-        if (continueAfter) setTimeout(() => startListeningRef.current(true), 450);
+        // Agradeceu (“obrigado”): a conversa termina; senão continua ouvindo
+        if (isThanks(t)) setTimeout(() => setVoiceFocus(false), 600);
+        else if (continueAfter) setTimeout(() => startListeningRef.current(true), 450);
       });
     },
     [send, muted, settings, tts, setState],

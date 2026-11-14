@@ -86,3 +86,16 @@ export function playChime() {
     /* sem áudio */
   }
 }
+
+/**
+ * “Obrigado”, “valeu, Luna”, “brigada, era só isso”, “tchau”: a pessoa encerrou a conversa.
+ * Agradecimento junto com outro pedido (“obrigado, agora apaga a luz”) não encerra.
+ */
+export function isThanks(text: string): boolean {
+  const t = normalize(text);
+  if (!/\b(obrigad[oa]s?|brigad[oa]|valeu|agradec\w*|tchau|falou|era so isso|e so isso|so isso|pode encerrar|encerra\w*|ate mais|ate logo)\b/.test(t)) return false;
+  const rest = t
+    .replace(/\b(oi|ola|ok|ta|ta bom|beleza|luna|muito|muitissimo|mesmo|viu|por tudo|pela ajuda|obrigad[oa]s?|brigad[oa]|valeu|agradec\w*|tchau|falou|era so isso|e so isso|so isso|pode encerrar|encerra\w*|ate mais|ate logo|de verdade|entao|bom|boa noite|bom dia|boa tarde|e|a|o|pra|por|voce|te)\b/g, ' ')
+    .trim();
+  return rest.length === 0;
+}

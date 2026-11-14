@@ -287,6 +287,10 @@ export class ChatService {
             actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
           };
         }
+        case 'thanks': {
+          const replies = ['De nada! Quando precisar, é só me chamar.', 'Por nada! Estou por aqui.', 'Imagina! Até mais.'];
+          return { reply: replies[Math.floor(Math.random() * replies.length)]!, actions: [] };
+        }
         case 'lists': {
           if (!this.lists) return null;
           return { reply: await this.lists.voice(intent), actions: [{ tool: 'lists', ok: true, summary: 'Lista da casa' }] };

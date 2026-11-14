@@ -72,3 +72,11 @@ describe('chamado “Luna”', () => {
     expect(parseIntent('Luna, acende a luz da sala')).toMatchObject({ type: 'device_power', action: 'turn_on' });
   });
 });
+
+describe('agradecimento', () => {
+  it('“obrigado” encerra; com outro pedido junto, não', () => {
+    expect(parseIntent('Obrigado, Luna!')).toEqual({ type: 'thanks' });
+    expect(parseIntent('valeu, era só isso')).toEqual({ type: 'thanks' });
+    expect(parseIntent('obrigado, agora apaga a luz da sala')?.type).not.toBe('thanks');
+  });
+});

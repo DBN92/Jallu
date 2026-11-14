@@ -18,6 +18,7 @@ export type Intent =
   | { type: 'vacuum'; command: VacuumIntentCommand; target: string }
   | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' }
   | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' }
+  | { type: 'thanks' }
   | { type: 'recado'; command: 'record' | 'play' }
   | { type: 'lists'; command: 'buy' | 'bought' | 'list_buy' | 'has' | 'note' | 'list_notes'; text: string };
 
@@ -34,6 +35,14 @@ function parseLitter(text: string): Intent | null {
   }
   if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
   return { type: 'litter', command: 'status' };
+}
+
+/** Só agradecimento/despedida (com outro pedido junto não conta). Recebe o texto já normalizado. */
+export function isThanks(t: string): boolean {
+  if (!/\b(obrigad[oa]s?|brigad[oa]|valeu|agradec\w*|tchau|falou|era so isso|e so isso|so isso|pode encerrar|encerra\w*|ate mais|ate logo)\b/.test(t)) return false;
+  return !t
+    .replace(/\b(oi|ola|ok|ta|ta bom|beleza|luna|muito|muitissimo|mesmo|viu|por tudo|pela ajuda|obrigad[oa]s?|brigad[oa]|valeu|agradec\w*|tchau|falou|era so isso|e so isso|so isso|pode encerrar|encerra\w*|ate mais|ate logo|de verdade|entao|bom|boa noite|bom dia|boa tarde|e|a|o|pra|por|voce|te)\b/g, ' ')
+    .trim();
 }
 
 /**
@@ -131,6 +140,9 @@ export function parseIntent(original: string): Intent | null {
   if (!text) return null;
 
   // Memória explícita
+  // “Obrigado”, “valeu, era só isso”, “tchau”: resposta curta e a conversa termina
+  if (isThanks(text)) return { type: 'thanks' };
+
   const remember = raw.match(/^(?:por favor,?\s*)?(?:lembre(?:-se)?|lembra|memorize|guarde|anote)\s+(?:que\s+|de que\s+|isso:?\s*)?(.{3,})$/i);
   if (remember && !/\b(de|para)\s+(ligar|desligar|acender|apagar)\b/i.test(remember[1]!)) {
     return { type: 'remember', content: remember[1]!.trim().replace(/[.!]+$/, '') };
