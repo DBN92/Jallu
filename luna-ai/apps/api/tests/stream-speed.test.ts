@@ -123,6 +123,8 @@ describe('velocidade do modelo local', () => {
 
   it('instruções iguais para voz e texto (um só cache); estilo de voz vai no fim', async () => {
     ctx = await makeApp();
+    // Modo local: voz e texto vão para o mesmo modelo (no híbrido, a voz vai para a OpenAI)
+    await ctx.inject('PATCH', '/api/settings', { aiMode: 'local' });
     ctx.llm.script = [{ content: 'Oi!' }, { content: 'Oi de novo!' }];
     await chat(ctx, 'oi');
     await chat(ctx, 'olá', { channel: 'voice' });
