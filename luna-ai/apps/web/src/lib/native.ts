@@ -33,6 +33,11 @@ interface Bridge {
   screenOffReady?(): boolean;
   enableScreenOff?(): void;
   sleepScreen?(): boolean;
+  /** Presença pela câmera feita pelo app (app 1.0.18 em diante) */
+  startPresence?(): void;
+  stopPresence?(): void;
+  pausePresence?(on: boolean): void;
+  disableScreenOff?(): void;
   wakeScreen?(): void;
   /** A tela conduz a conversa com a voz em tempo real ao ouvir “Oi, Luna” (app 1.0.15 em diante) */
   setVoiceHandoff?(on: boolean): void;

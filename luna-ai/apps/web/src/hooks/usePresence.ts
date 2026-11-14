@@ -117,6 +117,45 @@ export function usePresence(enabled: boolean) {
     };
     window.addEventListener('dia-native-undim', onUndim);
 
+    // No app Android a câmera da presença fica com o próprio app: no navegador interno do Android,
+    // abrir a câmera aqui na página deixava a tela inteira preta. A página só recebe o movimento.
+    const app = nativeApp();
+    if (app?.startPresence) {
+      store.setState({ status: 'olhando (pelo app)' });
+      app.startPresence();
+      const onMotion = (e: Event) => {
+        const { level, light } = (e as CustomEvent<{ level: number; light: number }>).detail ?? { level: 0, light: 0 };
+        const now = Date.now();
+        const s = store.getState();
+        const patch: Partial<PresenceState> = { level, light };
+        if (level > SEEN) {
+          patch.seenAt = now;
+          if (s.dimmed) s.setDimmed(false);
+        }
+        bigRun = level > NEAR ? bigRun + 1 : 0;
+        if (bigRun >= 2 && now - s.nearAt > 3000) patch.nearAt = now;
+        store.setState(patch);
+      };
+      window.addEventListener('dia-native-motion', onMotion);
+      const timer = setInterval(() => {
+        const s = store.getState();
+        if (dimAfter > 0 && !s.dimmed && !s.sleeping && Date.now() - s.seenAt > dimAfter * 60_000) {
+          // Com a permissão liberada o app apaga a tela de verdade (e acende quando alguém chegar)
+          if (app.sleepScreen && app.screenOffReady?.() && app.sleepScreen()) store.setState({ sleeping: true, status: 'tela apagada' });
+          else s.setDimmed(true);
+        }
+      }, 2000);
+      return () => {
+        window.removeEventListener('dia-native-motion', onMotion);
+        clearInterval(timer);
+        window.removeEventListener('pointerdown', touch);
+        window.removeEventListener('dia-native-wake', onWake);
+        window.removeEventListener('dia-native-undim', onUndim);
+        app.stopPresence?.();
+        if (store.getState().dimmed) store.getState().setDimmed(false);
+      };
+    }
+
     (async () => {
       let video: HTMLVideoElement;
       try {

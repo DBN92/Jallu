@@ -43,6 +43,21 @@ export function PresenceSettings() {
           </button>
         ))}
       </div>
+      {canOff && offReady && app?.disableScreenOff && (
+        <p className="mt-2 text-xs text-white/45">
+          A Luna tem permissão para apagar a tela.{' '}
+          <button
+            className="underline"
+            onClick={() => {
+              app.disableScreenOff?.();
+              setTimeout(() => setOffReady(!!nativeApp()?.screenOffReady?.()), 600);
+            }}
+          >
+            Tirar a permissão
+          </button>{' '}
+          (necessário antes de desinstalar o app).
+        </p>
+      )}
       {canOff && !offReady && (
         <div className="mt-3 rounded-sm border border-amber-300/30 bg-amber-400/5 p-3">
           <p className="text-xs text-amber-100/90">Para a tela apagar de verdade (e acender sozinha quando alguém chegar), o Android pede que a Luna seja “administrador do aparelho”. Ela usa isso só para apagar a tela. Sem isso, a tela fica preta com o brilho no mínimo.</p>
@@ -57,7 +72,7 @@ export function PresenceSettings() {
         {!ok
           ? 'Neste aparelho a câmera só funciona pelo app Android da Luna (1.0.8 ou mais nova) ou por um endereço https.'
           : presenceWake || dimAfter > 0
-            ? `Câmera: ${status}${status === 'olhando' ? (light < 6 ? ' · escuro demais: a câmera não enxerga, acende com toque' : level > 0.015 ? ' · movimento agora' : ' · parado') : ''}. Toque na tela ou passe na frente para acender.`
+            ? `Câmera: ${status}${status.startsWith('olhando') ? (light < 6 ? ' · escuro demais: a câmera não enxerga, acende com toque' : level > 0.015 ? ' · movimento agora' : ' · parado') : ''}. Toque na tela ou passe na frente para acender.`
             : 'Desligado: a câmera fica fechada.'}
       </p>
     </div>

@@ -8,6 +8,9 @@ let video: HTMLVideoElement | null = null;
 let users = 0;
 let opening: Promise<HTMLVideoElement> | null = null;
 
+/** No app Android, a vigia de presença do app usa a câmera: pede para ela soltar enquanto a página usa */
+const presenceApp = () => (window as unknown as { DiaAndroid?: { pausePresence?: (on: boolean) => void } }).DiaAndroid;
+
 export const cameraAvailable = () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && window.isSecureContext;
 
 export function acquireCamera(): Promise<HTMLVideoElement> {
@@ -16,7 +19,18 @@ export function acquireCamera(): Promise<HTMLVideoElement> {
   if (!opening) {
     opening = (async () => {
       if (!cameraAvailable()) throw new Error('A câmera só funciona pelo app Android da Luna (1.0.8 ou mais nova) ou por um endereço https.');
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      const app = presenceApp();
+      if (app?.pausePresence) {
+        app.pausePresence(true);
+        await new Promise((r) => setTimeout(r, 600));
+      }
+      let s: MediaStream;
+      try {
+        s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      } catch (err) {
+        app?.pausePresence?.(false);
+        throw err;
+      }
       const v = document.createElement('video');
       v.muted = true;
       v.playsInline = true;
@@ -46,6 +60,7 @@ export function releaseCamera() {
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
     video = null;
+    presenceApp()?.pausePresence?.(false);
   }, 1500);
 }
 

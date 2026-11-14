@@ -17,6 +17,12 @@ object WebEvents {
 
     fun attached() = view?.get() != null
 
+    /** Presença pela câmera do app: quanto a imagem mudou (0–1) e a claridade (0–255) */
+    fun motion(level: Float, light: Float) {
+        val js = "window.dispatchEvent(new CustomEvent('dia-native-motion',{detail:{level:$level,light:$light}}))"
+        main.post { view?.get()?.evaluateJavascript(js, null) }
+    }
+
     /** Ouviu “Oi, Luna” e a tela está com a voz em tempo real (OpenAI): a conversa segue na tela */
     fun wakeWord() {
         main.post { view?.get()?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wakeword'))", null) }

@@ -85,6 +85,12 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    /** Saiu do app (sem ser a Luna apagando a tela): solta a câmera para os outros apps */
+    override fun onStop() {
+        if (!sleeping) PresenceService.stop(this)
+        super.onStop()
+    }
+
     /** Devolve o brilho normal (a tela pode ter ficado escurecida sem ninguém por perto) */
     private fun restoreBrightness(): Boolean {
         val lp = window.attributes
@@ -108,8 +114,9 @@ class MainActivity : Activity() {
         if (restoreBrightness()) web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-undim'))", null)
         applyKeepOn()
         applyFullscreen()
-        // Voltou para a frente (alguém chegou, ou tocaram/ligaram a tela): a câmera volta para a Luna
-        if (PresenceService.running) PresenceService.stop(this)
+        // Voltou para a frente (alguém chegou, ou tocaram/ligaram a tela)
+        PresenceService.sleepMode = false
+        if (presenceWanted) PresenceService.start(this)
         if (sleeping) {
             sleeping = false
             web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wake'))", null)
@@ -342,6 +349,8 @@ class MainActivity : Activity() {
     private var moving = false
     /** A tela foi apagada pela Luna (avisa a página quando voltar) */
     @Volatile private var sleeping = false
+    /** A página pediu a presença pela câmera do app */
+    @Volatile private var presenceWanted = false
     private var movedPrefs: String? = null
 
     private fun copyCookies() {
@@ -460,6 +469,29 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface fun setAutostart(on: Boolean) { if (allowed()) prefs.autostart = on }
+        /** Presença pela câmera feita pelo app (a página recebe “dia-native-motion”) */
+        @JavascriptInterface
+        fun startPresence() {
+            if (!allowed()) return
+            runOnUiThread { presenceWanted = true; PresenceService.start(this@MainActivity) }
+        }
+
+        @JavascriptInterface
+        fun stopPresence() {
+            if (!allowed()) return
+            runOnUiThread { presenceWanted = false; PresenceService.stop(this@MainActivity) }
+        }
+
+        /** A tela precisa da câmera (recado em vídeo, gestos): a vigia do app solta a câmera enquanto isso */
+        @JavascriptInterface fun pausePresence(on: Boolean) { if (allowed()) PresenceService.setPaused(on) }
+
+        /** Tira a permissão de administrador (para desinstalar o app ou parar de apagar a tela) */
+        @JavascriptInterface
+        fun disableScreenOff() {
+            if (!allowed()) return
+            runOnUiThread { try { getSystemService(android.app.admin.DevicePolicyManager::class.java).removeActiveAdmin(ScreenAdmin.component(this@MainActivity)) } catch (_: Exception) {} }
+        }
+
         /** A Luna pode apagar a tela de verdade? (permissão de administrador liberada) */
         @JavascriptInterface fun screenOffReady(): Boolean = allowed() && ScreenAdmin.active(this@MainActivity)
 
@@ -485,8 +517,8 @@ class MainActivity : Activity() {
             if (!allowed() || !ScreenAdmin.active(this@MainActivity)) return false
             runOnUiThread {
                 sleeping = true
+                PresenceService.sleepMode = true
                 PresenceService.start(this@MainActivity)
-                // Espera o vigia abrir a câmera antes de apagar (o Android só libera a câmera com o app na frente)
                 Handler(mainLooper).postDelayed({
                     // Alguém tocou na tela nesse meio-tempo: não apaga
                     if (sleeping) try { getSystemService(android.app.admin.DevicePolicyManager::class.java).lockNow() } catch (_: Exception) {}
@@ -500,7 +532,7 @@ class MainActivity : Activity() {
         fun wakeScreen() {
             if (!allowed()) return
             runOnUiThread {
-                PresenceService.stop(this@MainActivity)
+                PresenceService.sleepMode = false
                 if (sleeping) {
                     sleeping = false
                     web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wake'))", null)
