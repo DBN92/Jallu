@@ -40,6 +40,9 @@ export function useRealtimeVoice(opts: {
   const rafRef = useRef<number | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const pendingOutputs = useRef(0);
+  /** A OpenAI só aceita uma resposta por vez: se uma estiver em andamento, a próxima espera ela acabar */
+  const responseActive = useRef(false);
+  const wantResponse = useRef(false);
   const followUntil = useRef(0);
   const idleTimer = useRef<number | null>(null);
   const speakingRef = useRef(false);
@@ -68,10 +71,18 @@ export function useRealtimeVoice(opts: {
     if (dcRef.current?.readyState === 'open') dcRef.current.send(JSON.stringify(event));
   };
 
+  const requestResponse = () => {
+    if (responseActive.current) wantResponse.current = true;
+    else send({ type: 'response.create' });
+  };
+
   const stop = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = null;
     speakingRef.current = false;
+    responseActive.current = false;
+    wantResponse.current = false;
+    pendingOutputs.current = 0;
     if (wakeLockRef.current) {
       releaseScreen();
       wakeLockRef.current = null;
@@ -155,7 +166,7 @@ export function useRealtimeVoice(opts: {
         if (text && (called || Date.now() < followUntil.current)) {
           optsRef.current.onState('processing');
           void saveTranscript('user', text);
-          send({ type: 'response.create' });
+          requestResponse();
         } else {
           // Fala não dirigida à Luna: descarta do contexto e não salva (privacidade)
           if (typeof ev.item_id === 'string') send({ type: 'conversation.item.delete', item_id: ev.item_id });
@@ -166,6 +177,16 @@ export function useRealtimeVoice(opts: {
       case 'response.output_audio_transcript.done':
       case 'response.audio_transcript.done':
         if (typeof ev.transcript === 'string' && ev.transcript.trim()) void saveTranscript('assistant', ev.transcript.trim());
+        break;
+      case 'response.created':
+        responseActive.current = true;
+        break;
+      case 'response.done':
+        responseActive.current = false;
+        if (wantResponse.current && pendingOutputs.current === 0) {
+          wantResponse.current = false;
+          send({ type: 'response.create' });
+        }
         break;
       case 'response.function_call_arguments.done': {
         optsRef.current.onState('acting');
@@ -190,10 +211,15 @@ export function useRealtimeVoice(opts: {
         }
         send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: ev.call_id, output: JSON.stringify(output) } });
         pendingOutputs.current--;
-        if (pendingOutputs.current === 0) send({ type: 'response.create' });
+        if (pendingOutputs.current === 0) requestResponse();
         break;
       }
       case 'error':
+        // Pediu resposta com outra ainda em andamento: tenta de novo quando ela acabar (não é erro para o usuário)
+        if ((ev.error as { code?: string })?.code === 'conversation_already_has_active_response') {
+          wantResponse.current = true;
+          break;
+        }
         setError(String((ev.error as { message?: string })?.message ?? 'Erro na sessão de voz.'));
         break;
     }
@@ -243,7 +269,7 @@ export function useRealtimeVoice(opts: {
         if (initialText) {
           void saveTranscript('user', initialText);
           send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: initialText }] } });
-          send({ type: 'response.create' });
+          requestResponse();
           optsRef.current.onState('processing');
         }
       };
