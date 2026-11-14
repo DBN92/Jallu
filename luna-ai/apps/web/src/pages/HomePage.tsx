@@ -322,6 +322,11 @@ export default function HomePage() {
     nativeApp()?.setVoiceHandoff?.(appRealtime);
     return () => nativeApp()?.setVoiceHandoff?.(false);
   }, [appRealtime]);
+  // Voz das respostas faladas pelo próprio app (escuta do “Oi, Luna”): a mesma escolhida nos ajustes
+  const voiceEngine = useSettings((s) => s.voiceEngine);
+  useEffect(() => {
+    nativeApp()?.setLunaVoice?.(voiceEngine === 'luna');
+  }, [voiceEngine]);
   const rtBusy = realtime.active || realtime.connecting;
   useEffect(() => {
     if (!appRealtime) return;

@@ -23,6 +23,8 @@ fi
 bash scripts/build.sh
 # Conversor de vídeo das câmeras diretas (só baixa se ainda não existir; falha aqui não impede a atualização)
 bash scripts/ffmpeg-setup.sh --if-missing || warn "ffmpeg não instalado — câmeras diretas indisponíveis (rode: sudo bash scripts/ffmpeg-setup.sh)"
+# Voz da Luna (Piper + Dii), gerada no próprio servidor
+bash scripts/piper-setup.sh --if-missing || warn "Voz da Luna não instalada — usando a voz do aparelho (rode: sudo bash scripts/piper-setup.sh)"
 node apps/api/scripts/migrate.mjs
 if has_systemd_unit; then as_root systemctl restart "$LUNA_SERVICE"
 elif has_user_unit; then systemctl --user restart "$LUNA_SERVICE"

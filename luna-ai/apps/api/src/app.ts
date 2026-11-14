@@ -52,6 +52,8 @@ import { photosRoutes } from './modules/photos/photos.routes';
 import { recadosRoutes } from './modules/recados/recados.routes';
 import { listsRoutes } from './modules/lists/lists.routes';
 import { pushRoutes } from './modules/push/push.routes';
+import { ttsRoutes } from './modules/tts/tts.routes';
+import { PiperTts } from './modules/tts/piper.service';
 import { PushService } from './modules/push/push.service';
 import { ListsService } from './modules/lists/lists.service';
 import { RecadosService } from './modules/recados/recados.service';
@@ -166,7 +168,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -266,6 +268,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(recadosRoutes);
   await app.register(listsRoutes);
   await app.register(pushRoutes);
+  await app.register(ttsRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 
@@ -314,6 +317,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     app.services.haWs.stop();
     app.services.watches.stop();
     app.services.litter.stop();
+    app.services.piper.stop();
     await app.services.directCameras.close();
     await db.$disconnect();
   });

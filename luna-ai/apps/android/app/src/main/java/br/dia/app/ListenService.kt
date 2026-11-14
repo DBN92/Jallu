@@ -357,6 +357,10 @@ class ListenService : Service() {
 
     /** Fala uma frase curta e depois segue (sem voz pronta, segue direto). */
     private fun sayThen(text: String, next: () -> Unit) {
+        LunaVoice.play(this, prefs, text, onDone = next, onFail = { sayThenAndroid(text, next) })
+    }
+
+    private fun sayThenAndroid(text: String, next: () -> Unit) {
         val t = tts
         if (t == null || !ttsReady) return next()
         t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -486,6 +490,11 @@ class ListenService : Service() {
         status = "falando"
         update("Respondendo…")
         WebEvents.voice("speaking", heard, reply)
+        // Voz da Luna (Dii, gerada no servidor); se não der, a voz do Android
+        LunaVoice.play(this, prefs, reply, onDone = { endSession(heard, reply) }, onFail = { speakAndroid(heard, reply) })
+    }
+
+    private fun speakAndroid(heard: String, reply: String) {
         val t = tts
         if (t == null || !ttsReady) return endSession(heard, reply)
         t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {

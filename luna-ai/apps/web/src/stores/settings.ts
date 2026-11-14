@@ -42,6 +42,8 @@ interface SettingsState {
   kioskMode: boolean;
   /** Tela ambiente (clima/casa alternando) quando a Luna fica sem uso. */
   ambientMode: boolean;
+  /** Voz das respostas neste aparelho: “luna” (Dii, gerada no servidor) ou a voz do aparelho */
+  voiceEngine: 'luna' | 'device';
   /** O que o descanso de tela alterna neste aparelho (vazio: só o relógio) */
   ambientSlides: AmbientSlide[];
   /** Segundos sem uso até o descanso de tela começar */
@@ -67,6 +69,7 @@ interface SettingsState {
   setKioskMode: (v: boolean) => void;
   setOrientation: (v: ScreenOrientationPref) => void;
   setAmbientMode: (v: boolean) => void;
+  setVoiceEngine: (v: 'luna' | 'device') => void;
   setAmbientSlides: (v: AmbientSlide[]) => void;
   setAmbientDelay: (v: number) => void;
   setPresenceWake: (v: boolean) => void;
@@ -84,6 +87,7 @@ export const useSettings = create<SettingsState>((set) => ({
   kioskMode: readLocal<boolean>('luna.kioskMode', false),
   orientation: readLocal<ScreenOrientationPref>('luna.orientation', 'auto'),
   ambientMode: readLocal<boolean>('luna.ambientMode', true),
+  voiceEngine: readLocal<'luna' | 'device'>('luna.voiceEngine', 'luna') === 'device' ? 'device' : 'luna',
   ambientSlides: ((v) => (Array.isArray(v) ? AMBIENT_SLIDES.filter((s) => v.includes(s)) : AMBIENT_DEFAULT))(readLocal<unknown>('luna.ambientSlides', null)),
   presenceWake: readLocal<boolean>('luna.presenceWake', false),
   dimAfter: ((v) => ([0, 2, 5, 10, 30] as number[]).includes(v) ? v : 0)(readLocal<number>('luna.dimAfter', 0)),
@@ -99,6 +103,10 @@ export const useSettings = create<SettingsState>((set) => ({
   setVoiceMode: (voiceMode) => {
     writeLocal('luna.voiceMode', voiceMode);
     set({ voiceMode });
+  },
+  setVoiceEngine: (voiceEngine) => {
+    writeLocal('luna.voiceEngine', voiceEngine);
+    set({ voiceEngine });
   },
   setAmbientMode: (ambientMode) => {
     writeLocal('luna.ambientMode', ambientMode);

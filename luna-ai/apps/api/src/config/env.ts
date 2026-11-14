@@ -67,6 +67,11 @@ const envSchema = z.object({
   LUNA_ANDROID_DIST: z.string().optional(),
   /** ffmpeg para câmeras diretas (RTSP). Vazio = runtime/ffmpeg/ffmpeg ou o do sistema. */
   FFMPEG_PATH: z.string().default(''),
+  /** Voz da Luna (Piper): por padrão runtime/piper, instalado por scripts/piper-setup.sh */
+  PIPER_PATH: z.string().default(''),
+  PIPER_MODEL: z.string().default(''),
+  /** Velocidade da fala: menor = mais rápida (0.88 = “Dii mais rápida”) */
+  PIPER_LENGTH_SCALE: z.coerce.number().min(0.5).max(1.5).default(0.88),
 });
 
 export type Env = z.infer<typeof envSchema>;

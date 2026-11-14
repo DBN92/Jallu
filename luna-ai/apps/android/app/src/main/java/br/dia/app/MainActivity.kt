@@ -362,6 +362,10 @@ class MainActivity : Activity() {
     }
 
     private fun speakNotice(text: String) {
+        LunaVoice.play(this, prefs, text, onDone = {}, onFail = { speakNoticeAndroid(text) })
+    }
+
+    private fun speakNoticeAndroid(text: String) {
         val t = tts
         if (t != null && ttsReady) {
             t.speak(text, TextToSpeech.QUEUE_ADD, null, "aviso")
@@ -501,6 +505,9 @@ class MainActivity : Activity() {
         }
 
         /** A tela usa a voz em tempo real (OpenAI): o “Oi, Luna” passa a conversa para ela */
+        /** Respostas faladas pelo app com a voz da Luna (Dii) ou com a voz do Android */
+        @JavascriptInterface fun setLunaVoice(on: Boolean) { if (allowed()) prefs.lunaVoice = on }
+
         @JavascriptInterface fun setVoiceHandoff(on: Boolean) { if (allowed()) ListenService.handoff = on }
 
         @JavascriptInterface fun setFullscreen(on: Boolean) { if (allowed()) { prefs.fullscreen = on; runOnUiThread { applyFullscreen() } } }

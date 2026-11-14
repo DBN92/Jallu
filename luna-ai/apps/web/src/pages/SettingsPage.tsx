@@ -3,7 +3,7 @@ import { CheckCircle2, LogOut, MapPin, Search, Share, Trash2, XCircle } from 'lu
 import type { ActionLogDto, AiMode, HealthDto, PublicUser } from '@luna/shared';
 import { Page } from '../components/Layout';
 import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '../components/ui';
-import { bestVoice, isHighQuality, isIOS, isStandalone, useSpeechSynthesis } from '../hooks/speech';
+import { bestVoice, isHighQuality, isIOS, isStandalone, lunaVoiceAvailable, useSpeechSynthesis } from '../hooks/speech';
 import { wakeWordSupport } from '../hooks/useWakeWord';
 import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
@@ -296,6 +296,12 @@ export default function SettingsPage() {
   };
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const tts = useSpeechSynthesis();
+  const voiceEngine = useSettings((s) => s.voiceEngine);
+  const setVoiceEngine = useSettings((s) => s.setVoiceEngine);
+  const [lunaVoice, setLunaVoice] = useState(false);
+  useEffect(() => {
+    void lunaVoiceAvailable().then(setLunaVoice);
+  }, []);
   const [caps, setCaps] = useState<{ realtime: boolean; realtimeVoices: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wake = wakeWordSupport(voiceMode);
@@ -365,6 +371,26 @@ export default function SettingsPage() {
           <Toggle label="Falar respostas" checked={settings.autoSpeak} onChange={(v) => void save({ autoSpeak: v })} />
         </Row>
         <div className="space-y-3 px-4 py-3">
+          {lunaVoice && (
+            <div>
+              <p className="mb-2 text-sm">Voz das respostas</p>
+              <div className="grid grid-cols-2 gap-1 rounded-sm bg-white/5 p-1">
+                {(
+                  [
+                    ['luna', 'Voz da Luna (Dii)'],
+                    ['device', 'Voz do aparelho'],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button key={v} onClick={() => setVoiceEngine(v)} className={`rounded-sm py-2 text-sm ${voiceEngine === v ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-white/45">A voz da Luna é gerada no servidor da sua casa: grátis, sem internet e igual em todos os aparelhos. Vale só para este aparelho.</p>
+            </div>
+          )}
+          {(!lunaVoice || voiceEngine === 'device') && (
+          <>
           <label className="block text-sm">
             Voz do aparelho
             <select className={`${inputClass} mt-1`} value={settings.voiceName ?? ''} onChange={(e) => void save({ voiceName: e.target.value || null })}>
@@ -393,11 +419,13 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+          </>
+          )}
           <label className="block text-sm">
             Velocidade da fala: {settings.voiceRate.toFixed(1)}x
             <input type="range" min={0.5} max={2} step={0.1} value={settings.voiceRate} onChange={(e) => void save({ voiceRate: Number(e.target.value) })} className="mt-2 w-full" />
           </label>
-          <Button variant="ghost" onClick={() => tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate })} disabled={!tts.supported}>
+          <Button variant="ghost" onClick={() => (tts.unlock(), tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate }))} disabled={!tts.supported}>
             Testar voz
           </Button>
           {caps?.realtime && (

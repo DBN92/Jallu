@@ -1,3 +1,4 @@
+import { useSettings } from '../stores/settings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toSpeech } from '../lib/speechText';
 
@@ -138,8 +139,33 @@ interface SpeakOpts {
  * Síntese de voz (respostas faladas) com fila de frases: durante o streaming, cada frase
  * pronta entra na fila e começa a ser falada enquanto a próxima ainda está sendo gerada.
  */
+/** A voz da Luna (Piper, no servidor) está instalada? Pergunta uma vez só. */
+let lunaVoiceCheck: Promise<boolean> | null = null;
+export function lunaVoiceAvailable(): Promise<boolean> {
+  lunaVoiceCheck ??= fetch('/api/tts/status', { credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.json() : { available: false }))
+    .then((d: { available?: boolean }) => !!d.available)
+    .catch(() => false);
+  return lunaVoiceCheck;
+}
+export const lunaVoiceUrl = (text: string) => `/api/tts?text=${encodeURIComponent(text.slice(0, 600))}`;
+
+/** Um tocador só, liberado no primeiro toque (iPhone e Android exigem um gesto antes de tocar áudio) */
+let player: HTMLAudioElement | null = null;
+const getPlayer = () => (player ??= typeof Audio !== 'undefined' ? new Audio() : null);
+/** Meio segundo de silêncio (WAV) para liberar o tocador no toque */
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+
 export function useSpeechSynthesis() {
-  const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const engine = useSettings((s) => s.voiceEngine);
+  const [lunaOk, setLunaOk] = useState(false);
+  useEffect(() => {
+    void lunaVoiceAvailable().then(setLunaOk);
+  }, []);
+  const useLuna = engine === 'luna' && lunaOk;
+  const lunaRef = useRef(useLuna);
+  lunaRef.current = useLuna;
+  const supported = (typeof window !== 'undefined' && 'speechSynthesis' in window) || useLuna;
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speaking, setSpeaking] = useState(false);
   const queue = useRef<string[]>([]);
@@ -156,17 +182,22 @@ export function useSpeechSynthesis() {
 
   /** iOS só libera a fala após um gesto do usuário: chame no toque do botão. */
   const unlock = useCallback(() => {
-    if (!supported) return;
+    const p = getPlayer();
+    if (p && lunaRef.current) {
+      p.src = SILENCE;
+      void p.play().catch(() => undefined);
+    }
+    if (!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     speechSynthesis.speak(u);
   }, [supported]);
 
-  /** Fala UMA frase; sempre chama done uma única vez (trava de segurança). */
-  const utter = useCallback(
+  /** Fala UMA frase com a voz do aparelho; sempre chama done uma única vez (trava de segurança). */
+  const utterDevice = useCallback(
     (text: string, opts: SpeakOpts, done: () => void) => {
       const clean = toSpeech(text);
-      if (!clean) return done();
+      if (!clean || !('speechSynthesis' in window)) return done();
       const u = new SpeechSynthesisUtterance(clean);
       u.lang = 'pt-BR';
       u.rate = opts.rate ?? 1;
@@ -210,6 +241,36 @@ export function useSpeechSynthesis() {
     [],
   );
 
+  /** Fala UMA frase com a voz da Luna (Dii); se falhar, cai para a voz do aparelho. */
+  const utter = useCallback(
+    (text: string, opts: SpeakOpts, done: () => void) => {
+      const clean = toSpeech(text);
+      const p = getPlayer();
+      if (!clean) return done();
+      if (!lunaRef.current || !p) return utterDevice(text, opts, done);
+      let finished = false;
+      const finish = (fallback = false) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(guard);
+        p.onended = p.onerror = null;
+        if (fallback) utterDevice(text, opts, done);
+        else done();
+      };
+      // Trava de segurança: se o áudio não terminar, segue a fila
+      const guard = window.setTimeout(() => finish(), 15_000 + clean.length * 120);
+      p.onended = () => finish();
+      p.onerror = () => finish(true);
+      p.playbackRate = opts.rate ?? 1;
+      p.src = lunaVoiceUrl(clean);
+      p.play().catch((err: DOMException) => {
+        if (err?.name === 'NotAllowedError') opts.onError?.('not-allowed');
+        finish(err?.name !== 'NotAllowedError');
+      });
+    },
+    [utterDevice],
+  );
+
   const pump = useCallback(() => {
     const sess = session.current;
     if (!sess || busy.current) return;
@@ -236,6 +297,11 @@ export function useSpeechSynthesis() {
       if (!supported || !text.trim()) return;
       if (!session.current) session.current = { opts, closed: false };
       queue.current.push(text);
+      // Voz da Luna: já pede o áudio desta frase enquanto a anterior está tocando
+      if (lunaRef.current) {
+        const clean = toSpeech(text);
+        if (clean) void fetch(lunaVoiceUrl(clean), { credentials: 'same-origin' }).catch(() => undefined);
+      }
       pump();
     },
     [supported, pump],
@@ -256,7 +322,11 @@ export function useSpeechSynthesis() {
     queue.current = [];
     busy.current = false;
     session.current = null;
-    if (supported) speechSynthesis.cancel();
+    if (player) {
+      player.onended = player.onerror = null;
+      player.pause();
+    }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
     setSpeaking(false);
   }, [supported]);
 

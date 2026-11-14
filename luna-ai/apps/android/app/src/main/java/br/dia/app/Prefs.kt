@@ -39,6 +39,11 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("localMoved", false)
         set(v) = p.edit().putBoolean("localMoved", v).apply()
 
+    /** Falar com a voz da Luna (Dii, gerada no servidor) em vez da voz do Android */
+    var lunaVoice: Boolean
+        get() = p.getBoolean("lunaVoice", true)
+        set(v) = p.edit().putBoolean("lunaVoice", v).apply()
+
     /** alta | normal | baixa */
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"

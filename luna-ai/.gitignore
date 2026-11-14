@@ -14,3 +14,6 @@ apps/api/prisma/*.db-journal
 # Baixados/copiados no build (reconhecedor de gestos)
 apps/web/public/models/
 apps/web/public/mediapipe/
+
+# Programas baixados pela Luna (ffmpeg, Piper e voz): ficam só no servidor
+runtime/

@@ -36,6 +36,8 @@ interface Bridge {
   wakeScreen?(): void;
   /** A tela conduz a conversa com a voz em tempo real ao ouvir “Oi, Luna” (app 1.0.15 em diante) */
   setVoiceHandoff?(on: boolean): void;
+  /** Respostas faladas pelo app com a voz da Luna (app 1.0.16 em diante) */
+  setLunaVoice?(on: boolean): void;
   /** Pausa a escuta do “Oi, Luna” enquanto a tela usa o microfone (app 1.0.8 em diante) */
   pauseWake?(on: boolean): void;
   listen(): void;
