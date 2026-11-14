@@ -18,11 +18,14 @@ export function classify(message: string): Complexity {
  * Decide a ordem de provedores a tentar.
  * - local: somente Ollama (nunca envia dados para a nuvem)
  * - cloud: OpenAI, com Ollama como contingência
- * - hybrid: tarefas complexas na OpenAI; casa/conversa simples no Ollama
+ * - hybrid: tarefas complexas na OpenAI; conversa simples no Ollama. Pela voz, a OpenAI vem primeiro:
+ *   quem fala espera a resposta em poucos segundos, e o modelo local num processador antigo demora.
+ *   (Comandos da casa nem chegam aqui: a NLU local resolve.)
  */
-export function routeProviders(message: string, mode: AiMode, providers: { ollama: AIProvider; openai: AIProvider }): AIProvider[] {
+export function routeProviders(message: string, mode: AiMode, providers: { ollama: AIProvider; openai: AIProvider }, channel: 'text' | 'voice' = 'text'): AIProvider[] {
   const { ollama, openai } = providers;
   if (mode === 'local') return [ollama];
   if (mode === 'cloud') return [openai, ollama];
+  if (channel === 'voice') return [openai, ollama];
   return classify(message) === 'complex' ? [openai, ollama] : [ollama, openai];
 }

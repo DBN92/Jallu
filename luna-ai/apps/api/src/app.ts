@@ -108,6 +108,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const chat = new ChatService(db, { ollama, openai }, tools, devices, weather, memory, settings, env.TZ, (userId, state, conversationId) =>
     hub.toUser(userId, { type: 'assistant_state', state, conversationId }),
   );
+  chat.hybridLocalMs = env.LUNA_HYBRID_LOCAL_TIMEOUT_MS;
   const auth = new AuthService(db, { setupCode: env.LUNA_SETUP_CODE, sessionTtlHours: env.LUNA_SESSION_TTL_HOURS });
 
   const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);

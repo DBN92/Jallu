@@ -54,6 +54,8 @@ describe('roteador de IA', () => {
     expect(routeProviders('organize minha semana', 'local', providers).map((p) => p.name)).toEqual(['ollama']);
     expect(routeProviders('oi', 'cloud', providers).map((p) => p.name)).toEqual(['openai', 'ollama']);
     expect(routeProviders('oi', 'hybrid', providers).map((p) => p.name)).toEqual(['ollama', 'openai']);
+    // pela voz o híbrido usa a OpenAI primeiro (resposta rápida)
+    expect(routeProviders('quem foi Santos Dumont?', 'hybrid', providers, 'voice').map((p) => p.name)).toEqual(['openai', 'ollama']);
     expect(routeProviders('Me ajude a organizar minha semana', 'hybrid', providers).map((p) => p.name)).toEqual(['openai', 'ollama']);
   });
 });

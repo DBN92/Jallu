@@ -37,6 +37,8 @@ export class ChatService {
   private pending = new Map<string, Pending>();
   /** Aquecimento em andamento: é cancelado assim que chega uma pergunta real. */
   private warming: AbortController | null = null;
+  /** Híbrido: tempo máximo para o modelo local começar a responder antes de passar para a OpenAI */
+  hybridLocalMs = 20_000;
   private cameras: { findByName: (q: string) => Promise<{ entityId: string; name: string }[]> } | null = null;
 
   setCameras(cameras: { findByName: (q: string) => Promise<{ entityId: string; name: string }[]> }) {
@@ -408,7 +410,7 @@ export class ChatService {
 
   private async llm(user: PublicUser, conversationId: string, summary: string | null, req: ChatRequest, onDelta?: (text: string) => void): Promise<TurnResult> {
     const settings = await this.settings.get(user.id);
-    const order = routeProviders(req.message, settings.aiMode, this.providers);
+    const order = routeProviders(req.message, settings.aiMode, this.providers, req.channel === 'voice' ? 'voice' : 'text');
     const notices: string[] = [];
 
     const history = await this.db.message.findMany({ where: { conversationId }, orderBy: { createdAt: 'desc' }, take: HISTORY_LIMIT });
@@ -428,14 +430,21 @@ export class ChatService {
       // Início estável (cacheável) + data/hora no fim
       const messages: ChatMessage[] = [{ role: 'system', content: system }, ...past.slice(0, -1), nowMessage(this.nowText(), req.channel === 'voice'), ...past.slice(-1)];
       const actions: ActionResult[] = [];
+      // Híbrido: se o modelo local não começar a responder a tempo, passa para a OpenAI em vez de
+      // deixar a pessoa esperando (processador antigo). Depois que o texto começa a sair, não corta.
+      const hasNext = order.indexOf(provider) < order.length - 1;
+      const deadline = settings.aiMode === 'hybrid' && !provider.isCloud && hasNext ? new AbortController() : null;
+      const timer = deadline ? setTimeout(() => deadline.abort(), this.hybridLocalMs) : null;
+      const providerDelta = onDelta && deadline ? (t: string) => (timer && clearTimeout(timer), onDelta(t)) : onDelta;
       try {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
           // Conversa simples no modelo local: sem a lista de ferramentas o prompt fica bem menor
           // e a resposta sai muito mais rápido em CPUs antigas.
           const lightweight = !provider.isCloud && classify(req.message) === 'simple';
           const res = await provider.chat(messages, round < MAX_TOOL_ROUNDS && !lightweight ? TOOL_DEFINITIONS : [], {
-            onDelta,
+            onDelta: providerDelta,
             maxTokens: req.channel === 'voice' ? 200 : 380,
+            ...(deadline ? { signal: deadline.signal } : {}),
           });
           if (!res.toolCalls.length) {
             const reply = res.content.trim() || this.fallbackReply(actions);
@@ -454,7 +463,9 @@ export class ChatService {
       } catch (err) {
         // Se algo já foi executado, NÃO repete em outro provedor (evita ações duplicadas)
         if (actions.length) return { reply: this.fallbackReply(actions), provider: provider.name, model: provider.model, actions, notices: [...notices, (err as Error).message] };
-        notices.push(err instanceof ProviderError ? err.message : `Falha em ${provider.name}.`);
+        notices.push(deadline?.signal.aborted ? `O modelo local demorou mais de ${Math.round(this.hybridLocalMs / 1000)} s; usei a OpenAI.` : err instanceof ProviderError ? err.message : `Falha em ${provider.name}.`);
+      } finally {
+        if (timer) clearTimeout(timer);
       }
     }
 

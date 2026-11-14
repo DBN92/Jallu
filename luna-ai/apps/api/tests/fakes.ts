@@ -113,9 +113,19 @@ export class FakeLlm {
     return this.script.shift() ?? { content: 'Olá! Como posso ajudar?' };
   }
 
+  /** Demora do modelo local (simula processador lento); respeita o cancelamento */
+  ollamaDelayMs = 0;
+
   ollamaFetch = makeFetch(async (url, init) => {
     if (!this.available) throw new TypeError('fetch failed');
     if (url.pathname === '/api/tags') return json({ models: [{ name: 'qwen2.5:3b', model: 'qwen2.5:3b' }] });
+    if (url.pathname === '/api/chat' && this.ollamaDelayMs) {
+      const signal = init?.signal;
+      await new Promise<void>((resolve, reject) => {
+        const t = setTimeout(resolve, this.ollamaDelayMs);
+        signal?.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason ?? new DOMException('aborted', 'AbortError'))));
+      });
+    }
     if (url.pathname === '/api/chat') {
       const body = JSON.parse(String(init?.body)) as { stream?: boolean };
       this.requests.push(body);

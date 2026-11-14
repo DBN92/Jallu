@@ -127,3 +127,22 @@ describe('conversa e controle da casa', () => {
     expect(r.reply).toMatch(/Home Assistant/);
   });
 });
+
+describe('Modo híbrido não fica esperando o modelo local', () => {
+  it('se o modelo local não começa a responder a tempo, responde pela OpenAI', async () => {
+    const ctx = await makeApp({ LUNA_HYBRID_LOCAL_TIMEOUT_MS: '3000' });
+    try {
+      await ctx.inject('PATCH', '/api/settings', { aiMode: 'hybrid' });
+      ctx.llm.ollamaDelayMs = 60_000;
+      ctx.llm.script = [{ content: 'Resposta da nuvem.' }];
+      const t0 = Date.now();
+      const r = await ctx.inject('POST', '/api/chat', { message: 'me conta uma curiosidade' });
+      expect(r.json.reply).toBe('Resposta da nuvem.');
+      expect(r.json.provider).toBe('openai');
+      expect(r.json.notices.join(' ')).toMatch(/demorou mais de 3 s; usei a OpenAI/);
+      expect(Date.now() - t0).toBeLessThan(8000);
+    } finally {
+      await ctx.app.close();
+    }
+  }, 15_000);
+});

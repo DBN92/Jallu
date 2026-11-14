@@ -54,6 +54,8 @@ const envSchema = z.object({
   OPENAI_TIMEOUT_MS: z.coerce.number().int().default(60_000),
 
   LUNA_AI_MODE: z.enum(['local', 'cloud', 'hybrid']).default('hybrid'),
+  /** Modo híbrido: segundos (em ms) que o modelo local tem para começar a responder antes de passar para a OpenAI */
+  LUNA_HYBRID_LOCAL_TIMEOUT_MS: z.coerce.number().int().min(3000).default(20_000),
 
   OPEN_METEO_URL: z.string().default('https://api.open-meteo.com/v1/forecast'),
   OPEN_METEO_GEOCODING_URL: z.string().default('https://geocoding-api.open-meteo.com/v1/search'),
