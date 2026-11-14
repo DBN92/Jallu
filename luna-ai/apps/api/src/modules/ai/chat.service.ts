@@ -151,6 +151,19 @@ export class ChatService {
     return this.llm(user, conversationId, summary, req, onDelta);
   }
 
+  /**
+   * Comando da casa vindo da voz em tempo real (OpenAI): usa o mesmo entendimento local da Luna
+   * (câmeras, listas, recados, lava e seca, caixa de areia, garagem…). handled = false quando não é
+   * um comando que a Luna conheça; aí o modelo responde por conta própria.
+   */
+  async quickCommand(user: PublicUser, text: string, location?: ChatRequest['location']): Promise<{ handled: boolean; reply: string; actions: ActionResult[] }> {
+    const intent = parseIntent(text);
+    if (!intent) return { handled: false, reply: '', actions: [] };
+    const ctx: ToolContext = { userId: user.id, source: 'voice', location, cloud: true };
+    const r = await this.handleIntent(intent, ctx, `voz-${user.id}`);
+    return r ? { handled: true, ...r } : { handled: false, reply: '', actions: [] };
+  }
+
   private local(r: { reply: string; actions: ActionResult[] }): TurnResult {
     return { ...r, provider: 'luna-nlu', model: null, notices: [] };
   }

@@ -146,3 +146,20 @@ describe('Modo híbrido não fica esperando o modelo local', () => {
     }
   }, 15_000);
 });
+
+describe('Voz em tempo real: comandos da casa', () => {
+  it('luna_comando abre câmera e usa as listas; pedido comum volta para o modelo', async () => {
+    const ctx = await makeApp();
+    try {
+      ctx.ha.states.set('camera.quintal', { entity_id: 'camera.quintal', state: 'idle', attributes: { friendly_name: 'Quintal' }, last_changed: new Date().toISOString() });
+      const tool = (pedido: string) => ctx.inject('POST', '/api/voice/tools', { name: 'luna_comando', arguments: { pedido } });
+      const cam = (await tool('abre a câmera do quintal')).json;
+      expect(cam).toMatchObject({ output: { ok: true, resposta: expect.stringMatching(/câmera Quintal/) }, ui: { cameraIds: ['camera.quintal'] } });
+      expect((await tool('põe leite na lista de compras')).json.output.resposta).toBe('Coloquei leite na lista de compras.');
+      expect((await tool('deixa um recado')).json.ui.open).toBe('recorder');
+      expect((await tool('quem descobriu o Brasil?')).json.output.ok).toBe(false);
+    } finally {
+      await ctx.app.close();
+    }
+  });
+});

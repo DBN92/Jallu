@@ -3,6 +3,8 @@ import type { AssistantState } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
 import { isWakeCall } from '../lib/text';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
+import { useCameras } from '../stores/cameras';
+import { useRecados } from '../stores/recados';
 import { useLocation } from '../stores/location';
 import { useSettings } from '../stores/settings';
 
@@ -178,8 +180,11 @@ export function useRealtimeVoice(opts: {
         try {
           const needsLocation = ev.name === 'get_weather' && useSettings.getState().useGps;
           const location = needsLocation ? ((await useLocation.getState().request()) ?? undefined) : undefined;
-          const r = await api<{ output: unknown }>('/api/voice/tools', { body: { name: ev.name, arguments: args, location } });
+          const r = await api<{ output: unknown; ui?: { cameraIds?: string[]; open?: 'recorder' | 'recados' } }>('/api/voice/tools', { body: { name: ev.name, arguments: args, location } });
           output = r.output;
+          // Comandos da casa com parte visual: abre a câmera ou os recados na tela
+          if (r.ui?.cameraIds?.length) useCameras.getState().open(r.ui.cameraIds);
+          if (r.ui?.open) useRecados.getState().open(r.ui.open === 'recorder' ? 'recorder' : 'player');
         } catch (err) {
           output = { ok: false, erro: errorMessage(err) };
         }

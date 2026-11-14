@@ -7,10 +7,22 @@ import { truncate } from '../../lib/text';
 import { TOOL_DEFINITIONS } from '../ai/tools';
 import { buildSystemPrompt } from '../ai/prompt';
 
+/**
+ * Na voz em tempo real, os comandos que só a Luna conhece (câmeras, listas, recados, lava e seca,
+ * caixa de areia, garagem) passam por esta ferramenta, que usa o mesmo entendimento do chat.
+ */
+const LUNA_COMMAND = {
+  type: 'function',
+  name: 'luna_comando',
+  description:
+    'Executa pedidos da casa que as outras ferramentas não cobrem: abrir ou mostrar câmeras; lista de compras, o que tem em casa e notas; recados em vídeo (gravar ou ver); lava e seca; caixa de areia dos gatos; garagem e portão (só consultar). Passe o pedido exatamente como o usuário falou, em português. Fale ao usuário a “resposta” devolvida.',
+  parameters: { type: 'object', properties: { pedido: { type: 'string', description: 'O pedido do usuário, como ele falou' } }, required: ['pedido'] },
+};
+
 const VOICES = ['marin', 'cedar', 'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'];
 
 export async function voiceRoutes(app: FastifyInstance) {
-  const { voice, settings, memory, tools } = app.services;
+  const { voice, settings, memory, tools, chat } = app.services;
 
   app.get('/api/voice/capabilities', { preHandler: requireAuth }, async () => ({
     realtime: voice.configured,
@@ -38,13 +50,22 @@ export async function voiceRoutes(app: FastifyInstance) {
       instructions: `${instructions}\nFale com voz calorosa e natural, em português do Brasil. Seja breve: respostas faladas de no máximo 2 ou 3 frases, a menos que o usuário peça detalhes.${wakeWord ? ' O usuário chama você dizendo "Luna"; ignore a palavra de chamada e responda ao pedido.' : ''}`,
       wakeWord,
       voice: VOICES.includes(s.realtimeVoice) ? s.realtimeVoice : 'marin',
-      tools: TOOL_DEFINITIONS.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters })),
+      tools: [...TOOL_DEFINITIONS.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters })), LUNA_COMMAND],
     });
   });
 
   /** O navegador repassa chamadas de função da sessão Realtime; o backend valida e executa. */
   app.post('/api/voice/tools', { preHandler: requireAuth, config: { rateLimit: { max: 40, timeWindow: '1 minute' } } }, async (req) => {
     const body = voiceToolSchema.parse(req.body);
+    if (body.name === LUNA_COMMAND.name) {
+      const pedido = String(body.arguments.pedido ?? '').slice(0, 500);
+      const r = await chat.quickCommand(req.user!, pedido, body.location);
+      if (!r.handled) return { output: { ok: false, resposta: 'Esse pedido não é um comando da casa; responda você mesma.' } };
+      // A tela faz a parte visual (abrir câmera, abrir recados) ao receber “ui”
+      const cameraIds = r.actions.filter((a) => a.tool === 'show_camera' && a.ok).flatMap((a) => a.entityIds ?? []);
+      const open = r.actions.some((a) => a.tool === 'record_message') ? 'recorder' : r.actions.some((a) => a.tool === 'show_recados') ? 'recados' : undefined;
+      return { output: { ok: true, resposta: r.reply }, ui: { cameraIds, open } };
+    }
     if (!TOOL_DEFINITIONS.some((t) => t.name === body.name)) throw new AppError(400, 'Ferramenta não permitida.', 'tool_not_allowed');
     const outcome = await tools.execute(body.name, body.arguments, { userId: req.user!.id, source: 'voice', location: body.location, cloud: true });
     return outcome;
