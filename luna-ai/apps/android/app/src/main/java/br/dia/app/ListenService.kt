@@ -304,8 +304,24 @@ class ListenService : Service() {
         main.postDelayed({ listenForCommand() }, 300)
     }
 
+    /**
+     * Quantas vezes seguidas o reconhecimento do Android falhou na hora (antes de a pessoa falar).
+     * Em alguns tablets ele recusa ser chamado por outro app; depois de 2 falhas, usa direto o off-line.
+     */
+    private var androidFastFails = 0
+
     private fun listenForCommand() {
-        if (SpeechRecognizer.isRecognitionAvailable(this)) recognizeWithAndroid() else recognizeWithVosk()
+        if (androidFastFails < 2 && SpeechRecognizer.isRecognitionAvailable(this)) recognizeWithAndroid() else recognizeWithVosk()
+    }
+
+    /** Prefere o reconhecimento do Google (o padrão de alguns tablets Samsung recusa outros apps) */
+    private fun createRecognizer(): SpeechRecognizer {
+        val google = try {
+            packageManager.queryIntentServices(Intent(android.speech.RecognitionService.SERVICE_INTERFACE), 0)
+                .firstOrNull { it.serviceInfo.packageName == "com.google.android.googlequicksearchbox" || it.serviceInfo.packageName == "com.google.android.tts" }
+                ?.serviceInfo?.let { android.content.ComponentName(it.packageName, it.name) }
+        } catch (_: Exception) { null }
+        return if (google != null) SpeechRecognizer.createSpeechRecognizer(this, google) else SpeechRecognizer.createSpeechRecognizer(this)
     }
 
     /** Não ouviu nada: pergunta uma vez “Pode repetir?” e escuta de novo; na segunda, avisa e encerra. */
@@ -340,9 +356,11 @@ class ListenService : Service() {
 
     private fun recognizeWithAndroid(busyRetry: Boolean = false) {
         speech?.destroy()
-        val sr = SpeechRecognizer.createSpeechRecognizer(this)
+        val sr = try { createRecognizer() } catch (_: Exception) { return recognizeWithVosk() }
         speech = sr
         var lastPartial = ""
+        val started = System.currentTimeMillis()
+        var heardVoice = false
         // O Android às vezes chama “erro” depois do resultado (ou duas vezes): só vale a primeira resposta
         var done = false
         sr.setRecognitionListener(object : RecognitionListener {
@@ -354,13 +372,21 @@ class ListenService : Service() {
                 if (done) return
                 done = true
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().ifBlank { lastPartial }
+                if (t.isNotBlank()) androidFastFails = 0
                 if (t.isBlank()) nothingHeard() else handleText(t)
             }
             override fun onError(error: Int) {
                 if (done) return
                 done = true
+                // Falhou antes de a pessoa falar (em menos de 2,5 s): o problema é o reconhecedor, não a fala
+                val fast = !heardVoice && System.currentTimeMillis() - started < 2500
+                status = "reconhecimento do Android: erro $error"
                 when {
                     lastPartial.isNotBlank() -> handleText(lastPartial)
+                    fast && !busyRetry && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) ->
+                        main.postDelayed({ recognizeWithAndroid(busyRetry = true) }, 600)
+                    // Não deu para usar o do Android: escuta com o off-line, sem dizer “não ouvi”
+                    fast -> { androidFastFails++; main.post { speech?.destroy(); speech = null; recognizeWithVosk() } }
                     // Reconhecedor ainda preso na vez anterior: tenta de novo uma vez
                     !busyRetry && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) ->
                         main.postDelayed({ recognizeWithAndroid(busyRetry = true) }, 500)
@@ -370,7 +396,7 @@ class ListenService : Service() {
                 }
             }
             override fun onReadyForSpeech(p: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
+            override fun onBeginningOfSpeech() { heardVoice = true }
             override fun onRmsChanged(v: Float) {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
@@ -396,19 +422,30 @@ class ListenService : Service() {
             var rec: Recognizer? = null
             try {
                 rec = Recognizer(m, 16000f)
-                record = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, 6400)
-                record.startRecording()
+                // O microfone pode levar um instante para ser solto pelo reconhecedor do Android
+                for (attempt in 0 until 6) {
+                    val r = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, 6400)
+                    if (r.state == AudioRecord.STATE_INITIALIZED) {
+                        r.startRecording()
+                        if (r.recordingState == AudioRecord.RECORDSTATE_RECORDING) { record = r; break }
+                        try { r.stop() } catch (_: Exception) {}
+                    }
+                    r.release()
+                    Thread.sleep(300)
+                }
+                if (record == null) throw IllegalStateException("microfone ocupado")
+                WebEvents.voice("listening")
                 val buf = ShortArray(1600)
                 val gain = AutoGain()
                 val until = System.currentTimeMillis() + 8000
                 while (System.currentTimeMillis() < until) {
-                    val n = record.read(buf, 0, buf.size)
+                    val n = record!!.read(buf, 0, buf.size)
                     if (n <= 0) continue
                     gain.process(buf, n)
-                    if (rec.acceptWaveForm(buf, n)) { text = JSONObject(rec.result).optString("text"); if (text.isNotBlank()) break }
+                    if (rec.acceptWaveForm(buf, n)) { text = WakeMatch.stripWake(JSONObject(rec.result).optString("text")); if (text.length >= 2) break }
                     else JSONObject(rec.partialResult).optString("partial").takeIf { it.isNotBlank() }?.let { WebEvents.voice("listening", heard = it) }
                 }
-                if (text.isBlank()) text = JSONObject(rec.finalResult).optString("text")
+                if (text.length < 2) text = WakeMatch.stripWake(JSONObject(rec.finalResult).optString("text"))
             } catch (_: Throwable) {
             } finally {
                 try { record?.stop() } catch (_: Exception) {}
