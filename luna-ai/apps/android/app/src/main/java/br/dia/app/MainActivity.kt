@@ -85,9 +85,27 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    /** Devolve o brilho normal (a tela pode ter ficado escurecida sem ninguém por perto) */
+    private fun restoreBrightness(): Boolean {
+        val lp = window.attributes
+        if (lp.screenBrightness == WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE) return false
+        window.attributes = lp.also { it.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+        return true
+    }
+
+    /** Qualquer toque com a tela escurecida acende de novo, mesmo se a página tiver esquecido que escureceu */
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN && restoreBrightness()) {
+            web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-undim'))", null)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
     override fun onResume() {
         super.onResume()
         visible = true
+        // Abriu o app: sempre com o brilho normal
+        if (restoreBrightness()) web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-undim'))", null)
         applyKeepOn()
         applyFullscreen()
         // Voltou para a frente (alguém chegou, ou tocaram/ligaram a tela): a câmera volta para a Luna

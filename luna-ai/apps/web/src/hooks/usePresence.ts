@@ -110,6 +110,12 @@ export function usePresence(enabled: boolean) {
     };
     window.addEventListener('pointerdown', touch, { passive: true });
     window.addEventListener('dia-native-wake', onWake);
+    // O app acendeu a tela (toque ou abertura): tira o escurecimento da página também
+    const onUndim = () => {
+      store.setState({ seenAt: Date.now() });
+      if (store.getState().dimmed) store.setState({ dimmed: false });
+    };
+    window.addEventListener('dia-native-undim', onUndim);
 
     (async () => {
       let video: HTMLVideoElement;
@@ -174,6 +180,7 @@ export function usePresence(enabled: boolean) {
       alive = false;
       window.removeEventListener('pointerdown', touch);
       window.removeEventListener('dia-native-wake', onWake);
+      window.removeEventListener('dia-native-undim', onUndim);
       if (have) releaseCamera();
       if (store.getState().dimmed) store.getState().setDimmed(false);
     };

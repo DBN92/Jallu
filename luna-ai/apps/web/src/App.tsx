@@ -15,6 +15,7 @@ import { tvActive, useSettings } from './stores/settings';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
 import { useLists } from './stores/lists';
+import { nativeApp } from './lib/native';
 import { RecadosLayer } from './components/Recados';
 import { DimOverlay } from './components/DimOverlay';
 import { usePresence } from './hooks/usePresence';
@@ -122,6 +123,9 @@ export default function App() {
   useRealtimeConnection(status === 'ready');
   useGestureWatcher(status === 'ready');
   usePresence(status === 'ready');
+  useEffect(() => {
+    nativeApp()?.setDim?.(false);
+  }, []);
   useEffect(() => {
     if (status !== 'ready') return;
     // Aberto pelo aviso do celular (“/?recado=…”): mostra o recado
