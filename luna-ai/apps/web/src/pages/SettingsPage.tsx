@@ -15,6 +15,7 @@ import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
 import { PushSettings } from '../components/PushSettings';
+import { AndroidVoiceSettings } from '../components/AndroidVoiceSettings';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
@@ -393,12 +394,13 @@ export default function SettingsPage() {
                 {voiceEngine === 'luna'
                   ? 'A voz da Luna é gerada no servidor da sua casa: grátis, sem internet e igual em todos os aparelhos.'
                   : inApp
-                    ? 'O app fala com a voz do Android, escolhida em Configurações › Gerenciamento geral › Saída de texto para fala.'
+                    ? 'O app fala com a voz do Android escolhida abaixo.'
                     : 'Usando a voz deste aparelho (escolha abaixo).'}{' '}
                 Vale só para este aparelho.
               </p>
             </div>
           )}
+          {inApp && (!lunaVoice || voiceEngine === 'device') && <AndroidVoiceSettings />}
           {/* No app do tablet não há lista de vozes na página: quem fala é o próprio app */}
           {!inApp && (!lunaVoice || voiceEngine === 'device') && (
           <>
@@ -438,9 +440,11 @@ export default function SettingsPage() {
             <input type="range" min={0.5} max={2} step={0.1} value={settings.voiceRate} onChange={(e) => void save({ voiceRate: Number(e.target.value) })} className="mt-2 w-full" />
           </label>
           )}
+          {!(inApp && voiceEngine === 'device') && (
           <Button variant="ghost" onClick={() => (tts.unlock(), tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate }))} disabled={!tts.supported}>
             Testar voz
           </Button>
+          )}
           {caps?.realtime && (
             <label className="block text-sm">
               Voz em tempo real

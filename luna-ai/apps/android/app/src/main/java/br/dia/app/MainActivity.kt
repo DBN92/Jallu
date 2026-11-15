@@ -416,12 +416,9 @@ class MainActivity : Activity() {
         }
         pendingSpeech = text
         if (t != null) return
-        tts = TextToSpeech(this) { st ->
-            if (st == TextToSpeech.SUCCESS) {
-                tts?.language = Locale("pt", "BR")
-                ttsReady = true
-                pendingSpeech?.let { tts?.speak(it, TextToSpeech.QUEUE_ADD, null, "aviso") }
-            }
+        tts = AndroidVoice.create(this, prefs) { t ->
+            ttsReady = true
+            pendingSpeech?.let { t.speak(it, TextToSpeech.QUEUE_ADD, null, "aviso") }
             pendingSpeech = null
         }
     }
@@ -575,6 +572,42 @@ class MainActivity : Activity() {
         /** A tela usa a voz em tempo real (OpenAI): o “Oi, Luna” passa a conversa para ela */
         /** Respostas faladas pelo app com a voz da Luna (Dii) ou com a voz do Android */
         @JavascriptInterface fun setLunaVoice(on: Boolean) { if (allowed()) prefs.lunaVoice = on }
+
+        /** Vozes do Android para escolher nos ajustes da Luna (JSON). A primeira chamada prepara a voz. */
+        @JavascriptInterface
+        fun androidVoices(): String {
+            if (!allowed()) return "{}"
+            if (tts == null) runOnUiThread { if (tts == null) tts = AndroidVoice.create(this@MainActivity, prefs) { ttsReady = true } }
+            return AndroidVoice.describe(this@MainActivity, if (ttsReady) tts else null, prefs)
+        }
+
+        @JavascriptInterface
+        fun setAndroidVoice(name: String, rate: Float) {
+            if (!allowed()) return
+            prefs.ttsVoice = name
+            prefs.ttsRate = rate.coerceIn(0.5f, 2f)
+            runOnUiThread { tts?.let { AndroidVoice.configure(it, prefs) } }
+        }
+
+        /** Ouve como fica a voz escolhida */
+        @JavascriptInterface
+        fun testAndroidVoice(text: String) {
+            if (!allowed()) return
+            runOnUiThread { val t = tts; if (t != null && ttsReady) { AndroidVoice.configure(t, prefs); t.speak(text.take(300), TextToSpeech.QUEUE_FLUSH, null, "teste") } }
+        }
+
+        /** Baixar mais vozes (Google) ou instalar o mecanismo de voz do Google pela Play Store */
+        @JavascriptInterface
+        fun installAndroidVoices() {
+            if (!allowed()) return
+            runOnUiThread {
+                val i = if (AndroidVoice.googleInstalled(this@MainActivity)) Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).setPackage(AndroidVoice.GOOGLE)
+                else Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${AndroidVoice.GOOGLE}"))
+                try { startActivity(i) } catch (_: Exception) {
+                    try { startActivity(Intent("com.android.settings.TTS_SETTINGS")) } catch (_: Exception) {}
+                }
+            }
+        }
 
         @JavascriptInterface fun setVoiceHandoff(on: Boolean) { if (allowed()) ListenService.handoff = on }
 

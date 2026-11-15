@@ -44,6 +44,15 @@ class Prefs(ctx: Context) {
         get() = p.getBoolean("lunaVoice", true)
         set(v) = p.edit().putBoolean("lunaVoice", v).apply()
 
+    /** Voz do Android escolhida nos ajustes da Luna (nome da voz; vazio = a melhor instalada) */
+    var ttsVoice: String
+        get() = p.getString("ttsVoice", "") ?: ""
+        set(v) = p.edit().putString("ttsVoice", v).apply()
+
+    var ttsRate: Float
+        get() = p.getFloat("ttsRate", 1.05f)
+        set(v) = p.edit().putFloat("ttsRate", v).apply()
+
     /** alta | normal | baixa */
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"

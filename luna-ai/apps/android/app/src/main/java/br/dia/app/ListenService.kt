@@ -122,12 +122,7 @@ class ListenService : Service() {
         AppDiag.log("escuta: serviço ligado")
         // Tablet na tomada: mantém o processador acordado para ouvir com a tela desligada
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dia:escuta").apply { acquire() }
-        tts = TextToSpeech(this) { st ->
-            if (st == TextToSpeech.SUCCESS) {
-                tts?.language = Locale("pt", "BR")
-                ttsReady = true
-            }
-        }
+        tts = AndroidVoice.create(this, prefs) { ttsReady = true }
         loadModel()
     }
 
@@ -511,6 +506,8 @@ class ListenService : Service() {
 
     private fun speakAndroid(heard: String, reply: String) {
         val t = tts
+        // Voz escolhida nos ajustes da Luna (pode ter mudado desde que a escuta ligou)
+        if (t != null && ttsReady) AndroidVoice.configure(t, prefs)
         if (t == null || !ttsReady) return endSession(heard, reply)
         t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) {}
