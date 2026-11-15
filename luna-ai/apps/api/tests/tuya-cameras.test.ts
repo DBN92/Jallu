@@ -4,6 +4,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { makeApp, type TestCtx } from './helpers';
 import { parseRtspUrl } from '../src/modules/cameras/direct.service';
 import { TuyaCloud } from '../src/integrations/tuya/cloud';
+import { Go2rtc } from '../src/integrations/go2rtc/go2rtc';
+import { existsSync, mkdtempSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+const GO2RTC = resolve(__dirname, '../../../runtime/go2rtc/go2rtc');
 
 let hasFfmpeg = true;
 try {
@@ -31,6 +38,7 @@ function fakeTuya(calls: string[]) {
     if (h.sign !== expected) return new Response(JSON.stringify({ success: false, code: 1004, msg: 'sign invalid' }));
     if (url.pathname === '/v1.0/token') return ok({ access_token: 'tok', expire_time: 7200, uid: 'u1' });
     if (h.access_token !== 'tok') return new Response(JSON.stringify({ success: false, code: 1010, msg: 'token invalid' }));
+    if (url.pathname === `/v1.0/devices/${DEVICE}`) return ok({ id: DEVICE, uid: 'dono-da-conta' });
     if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }] });
     if (url.pathname === `/v1.0/devices/${DEVICE}/stream/actions/allocate`)
       return ok({ url: JSON.parse(body).type === 'hls' ? 'https://camera.tuya.example/live/abc/index.m3u8' : 'rtsps://camera.tuya.example:443/live/abc' });
@@ -62,7 +70,7 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     const calls: string[] = [];
     const seen: string[] = [];
     ctx = await makeApp(
-      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo' },
+      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo', GO2RTC_PATH: '/nao/existe/go2rtc' },
       { login: true, tuyaFetch: fakeTuya(calls), cameraInput: (url, transport) => (seen.push(`${transport} ${url}`), ['-re', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=10']) },
     );
     const list = (await ctx.inject('GET', '/api/cameras/tuya')).json;
@@ -80,7 +88,7 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
   it.skipIf(!hasFfmpeg)('modelo que não entrega RTSP: tenta HLS sozinho e passa a usar o que funcionou', async () => {
     const seen: string[] = [];
     ctx = await makeApp(
-      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo' },
+      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo', GO2RTC_PATH: '/nao/existe/go2rtc' },
       {
         login: true,
         tuyaFetch: fakeTuya([]),
@@ -96,5 +104,39 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     const snap = await ctx.app.inject({ method: 'GET', url: `/api/cameras/${created.json.entityId}/snapshot`, headers: { cookie: ctx.cookies } });
     expect(snap.statusCode).toBe(200);
     expect(seen[0]).toBe('https://camera.tuya.example/live/abc/index.m3u8');
+  }, 60_000);
+
+  it('WebRTC (como o site): monta a fonte do go2rtc com o dono do aparelho', async () => {
+    const cloud = new TuyaCloud('id123', 'segredo', 'https://openapi.tuyaus.com', fakeTuya([]));
+    const src = new URL((await cloud.webrtcSource(DEVICE)).replace('tuya://', 'https://'));
+    expect(src.host).toBe('openapi.tuyaus.com');
+    expect(Object.fromEntries(src.searchParams)).toEqual({ device_id: DEVICE, uid: 'dono-da-conta', client_id: 'id123', client_secret: 'segredo' });
+  });
+
+  it.skipIf(!hasFfmpeg || !existsSync(GO2RTC))('go2rtc local: só em 127.0.0.1, configuração protegida e o ffmpeg lê o vídeo', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'luna-g2r-'));
+    const g = new Go2rtc(GO2RTC, dir, 18999);
+    try {
+      const url = await g.streamUrl('teste', 'ffmpeg:virtual?video&size=320x240#video=h264');
+      expect(url).toBe('rtsp://127.0.0.1:18999/teste');
+      expect(statSync(join(dir, 'go2rtc.json')).mode & 0o777).toBe(0o600);
+      const r = spawnSync('ffmpeg', ['-hide_banner', '-rtsp_transport', 'tcp', '-timeout', '30000000', '-i', url, '-frames:v', '1', '-f', 'null', '-'], { encoding: 'utf8', timeout: 40_000 });
+      expect(r.status).toBe(0);
+      expect(r.stderr).toMatch(/Video: h264/);
+    } finally {
+      g.stop();
+    }
+  }, 60_000);
+
+  it.skipIf(!hasFfmpeg || !existsSync(GO2RTC))('com o go2rtc instalado, a primeira tentativa é WebRTC (pelo go2rtc local)', async () => {
+    const seen: string[] = [];
+    ctx = await makeApp(
+      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo', GO2RTC_PATH: GO2RTC },
+      { login: true, tuyaFetch: fakeTuya([]), cameraInput: (url) => (seen.push(url), ['-re', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=10']) },
+    );
+    const test = await ctx.inject('POST', '/api/cameras/direct/test', { url: `tuya://${DEVICE}`, transport: 'udp' });
+    expect(test.json.ok).toBe(true);
+    expect(test.json.detail).toMatch(/nuvem Tuya \(WEBRTC\)/);
+    expect(seen[0]).toBe(`rtsp://127.0.0.1:18554/tuya_${DEVICE}`);
   }, 60_000);
 });

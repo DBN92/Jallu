@@ -77,6 +77,8 @@ const envSchema = z.object({
   TUYA_ACCESS_SECRET: z.string().default(''),
   /** Data center do projeto: Américas = https://openapi.tuyaus.com */
   TUYA_ENDPOINT: z.string().url().default('https://openapi.tuyaus.com'),
+  /** go2rtc (vídeo WebRTC das câmeras Smart Life). Vazio = runtime/go2rtc/go2rtc */
+  GO2RTC_PATH: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -40,6 +40,7 @@ import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
 import { WebCamerasService } from './modules/cameras/web.service';
 import { TuyaCloud } from './integrations/tuya/cloud';
+import { Go2rtc } from './integrations/go2rtc/go2rtc';
 import { GesturesService } from './modules/gestures/gestures.service';
 import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
@@ -120,14 +121,19 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
 
   const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);
   cameras.setDirect(directCameras);
+  const dataDir = env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.';
   // Nuvem Tuya: vídeo de câmeras Smart Life que o Home Assistant não suporta (ex.: babá eletrônica)
   const tuya = new TuyaCloud(env.TUYA_ACCESS_ID, env.TUYA_ACCESS_SECRET, env.TUYA_ENDPOINT.replace(/\/+$/, ''), deps.fetch?.tuya);
-  directCameras.setTuyaStream((id, kind) => tuya.streamUrl(id, kind));
+  // WebRTC (como o site/app) pelo go2rtc local quando instalado; depois RTSP e HLS direto da nuvem
+  const go2rtc = new Go2rtc(env.GO2RTC_PATH, dataDir);
+  directCameras.setTuyaStream(
+    async (id, kind) => (kind === 'webrtc' ? go2rtc.streamUrl(`tuya_${id}`, await tuya.webrtcSource(id)) : tuya.streamUrl(id, kind)),
+    () => (go2rtc.available ? ['webrtc', 'rtsp', 'hls'] : ['rtsp', 'hls']),
+  );
   const gestures = new GesturesService(db, devices);
   // Vigias da garagem: foto da câmera direta (1 quadro) ou do Home Assistant
   const frame = deps.watchFrame ??
     (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
-  const dataDir = env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.';
   const vacuumPhotos = new VacuumPhotos(dataDir, devices);
   const webCameras = new WebCamerasService(dataDir);
   cameras.setWeb(webCameras);
@@ -188,7 +194,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, go2rtc, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -336,6 +342,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
   });
   app.addHook('onClose', async () => {
+    app.services.go2rtc.stop();
     app.services.haWs.stop();
     app.services.watches.stop();
     app.services.litter.stop();

@@ -98,7 +98,7 @@ const rtspInput: InputArgs = (url, transport) => [
   '-rtsp_transport',
   transport,
   '-timeout',
-  '10000000', // 10 s sem dados = erro (microssegundos)
+  url.startsWith('rtsp://127.0.0.1') ? '30000000' : '10000000', // sem dados por 10 s (30 s no go2rtc local) = erro (µs)
   '-use_wallclock_as_timestamps',
   '1',
   '-fflags',
@@ -118,7 +118,7 @@ const httpInput: InputArgs = (url) => [
   '-i', url,
 ];
 
-type TuyaKind = 'rtsp' | 'hls';
+type TuyaKind = 'webrtc' | 'rtsp' | 'hls';
 interface Source {
   url: string;
   tcp: boolean;
@@ -160,9 +160,13 @@ export class DirectCamerasService {
 
   /** Nuvem Tuya: devolve o endereço de vídeo atual de uma câmera Smart Life (ligado pelo app) */
   private tuyaStream: ((deviceId: string, kind: TuyaKind) => Promise<string>) | null = null;
-  setTuyaStream(fn: (deviceId: string, kind: TuyaKind) => Promise<string>) {
+  /** Formatos tentados, em ordem (WebRTC pelo go2rtc quando instalado; depois RTSP e HLS da nuvem) */
+  private tuyaKinds: TuyaKind[] = ['rtsp', 'hls'];
+  setTuyaStream(fn: (deviceId: string, kind: TuyaKind) => Promise<string>, kinds?: () => TuyaKind[]) {
     this.tuyaStream = fn;
+    if (kinds) this.kindsFn = kinds;
   }
+  private kindsFn: () => TuyaKind[] = () => this.tuyaKinds;
   /** Formato que funcionou por último em cada aparelho Tuya (alguns só entregam HLS) */
   private tuyaKind = new Map<string, TuyaKind>();
 
@@ -172,7 +176,7 @@ export class DirectCamerasService {
     if (!tuya) return { url: withCredentials(url, username, password), tcp: false };
     if (!this.tuyaStream) throw new AppError(503, 'Nuvem Tuya não configurada no servidor.', 'no_tuya');
     const id = tuya[1]!;
-    const k = kind ?? this.tuyaKind.get(id) ?? 'rtsp';
+    const k = kind ?? this.tuyaKind.get(id) ?? this.kindsFn()[0] ?? 'rtsp';
     try {
       return { url: await this.tuyaStream(id, k), tcp: true, tuya: { id, kind: k } };
     } catch (e) {
@@ -258,7 +262,7 @@ export class DirectCamerasService {
     if (!password && input.id) password = (await this.row(DIRECT_PREFIX + input.id)).password;
     // Câmera Smart Life (nuvem Tuya): tenta RTSP e, se não vier imagem, HLS — e lembra o que funcionou
     const tuyaId = p.url.match(/^tuya:\/\/([a-z0-9]+)$/i)?.[1];
-    const kinds: (TuyaKind | undefined)[] = tuyaId ? [...new Set([this.tuyaKind.get(tuyaId) ?? 'rtsp', 'rtsp', 'hls'] as TuyaKind[])] : [undefined];
+    const kinds: (TuyaKind | undefined)[] = tuyaId ? [...new Set([...(this.tuyaKind.has(tuyaId) ? [this.tuyaKind.get(tuyaId)!] : []), ...this.kindsFn()])] : [undefined];
     const fails: string[] = [];
     for (const kind of kinds) {
       let src: Source;
@@ -285,7 +289,8 @@ export class DirectCamerasService {
       const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'info', ...this.input(url, transport), '-map', '0:v:0', '-frames:v', '1', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
       let err = '';
       proc.stderr!.on('data', (d: Buffer) => (err = (err + d.toString()).slice(-6000)));
-      const timer = setTimeout(() => proc.kill('SIGKILL'), 20_000);
+      // WebRTC pelo go2rtc local leva mais para conectar na nuvem
+      const timer = setTimeout(() => proc.kill('SIGKILL'), url.startsWith('rtsp://127.0.0.1') ? 40_000 : 20_000);
       proc.on('close', (code) => {
         clearTimeout(timer);
         const ms = Date.now() - started;
@@ -293,7 +298,7 @@ export class DirectCamerasService {
           const s = summarizeVideo(err);
           if (s) return done({ ok: true, detail: s, ms });
         }
-        if (/tuya|m3u8/i.test(url)) console.warn(`[câmera Tuya] sem imagem (${/^https?:/.test(url) ? 'HLS' : 'RTSP'}): ${redact(err).split('\n').filter((l) => l.trim()).slice(-4).join(' | ')}`);
+        if (/tuya|m3u8|127\.0\.0\.1/i.test(url)) console.warn(`[câmera Tuya] sem imagem (${/^https?:/.test(url) ? 'HLS' : 'RTSP'}): ${redact(err).split('\n').filter((l) => l.trim()).slice(-4).join(' | ')}`);
         done({ ok: false, detail: explain(err, code), ms });
       });
     });
@@ -416,8 +421,10 @@ export class DirectCamerasService {
       if (this.sessions.get(entityId) === s) this.sessions.delete(entityId);
       // Nuvem Tuya sem nenhuma imagem neste formato: a próxima tentativa (automática) usa o outro
       if (src.tuya && !existsSync(join(dir, 'latest.jpg'))) {
-        this.tuyaKind.set(src.tuya.id, src.tuya.kind === 'rtsp' ? 'hls' : 'rtsp');
-        console.warn(`[câmera Tuya] ${src.tuya.kind.toUpperCase()} sem imagem; próxima tentativa em ${src.tuya.kind === 'rtsp' ? 'HLS' : 'RTSP'}: ${redact(s.stderr.slice(-4).join(' | '))}`);
+        const list = this.kindsFn();
+        const next = list[(list.indexOf(src.tuya.kind) + 1) % list.length] ?? src.tuya.kind;
+        this.tuyaKind.set(src.tuya.id, next);
+        console.warn(`[câmera Tuya] ${src.tuya.kind.toUpperCase()} sem imagem; próxima tentativa em ${next.toUpperCase()}: ${redact(s.stderr.slice(-4).join(' | '))}`);
       }
       void rm(dir, { recursive: true, force: true });
     });

@@ -75,6 +75,24 @@ export class TuyaCloud {
       .map((d) => ({ id: d.id as string, name: String(d.name ?? d.id), category: String(d.category ?? ''), online: d.online !== false && d.is_online !== false }));
   }
 
+  private owners = new Map<string, string>();
+
+  /** Fonte para o go2rtc buscar o vídeo WebRTC (o mesmo do site/app) com a chave do projeto */
+  async webrtcSource(deviceId: string): Promise<string> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    let uid = this.owners.get(deviceId);
+    if (!uid) {
+      // dono do aparelho (a conta Smart Life ligada); sem isso, o usuário do token
+      const d = await this.raw<{ uid?: string }>('GET', `/v1.0/devices/${deviceId}`).catch(() => null);
+      await this.accessToken();
+      uid = d?.uid || this.token?.uid || '';
+      if (!uid) throw new TuyaCloudError('Não achei a conta dona deste aparelho na nuvem Tuya.');
+      this.owners.set(deviceId, uid);
+    }
+    const q = new URLSearchParams({ device_id: deviceId, uid, client_id: this.accessId, client_secret: this.secret });
+    return `tuya://${new URL(this.endpoint).host}?${q.toString()}`;
+  }
+
   /**
    * Endereço de vídeo ao vivo, válido por alguns minutos — pedido a cada vez que o vídeo abre.
    * rtsp (rtsps://, mais rápido) ou hls (https://…m3u8, alguns modelos só entregam este).
