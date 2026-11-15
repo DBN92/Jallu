@@ -165,7 +165,9 @@ export function useSpeechSynthesis() {
   const useLuna = engine === 'luna' && lunaOk;
   const lunaRef = useRef(useLuna);
   lunaRef.current = useLuna;
-  const supported = (typeof window !== 'undefined' && 'speechSynthesis' in window) || useLuna;
+  // Voz do aparelho (speechSynthesis): não existe no navegador interno do app Android
+  const deviceVoice = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const supported = deviceVoice || useLuna;
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [speaking, setSpeaking] = useState(false);
   const queue = useRef<string[]>([]);
@@ -173,12 +175,12 @@ export function useSpeechSynthesis() {
   const session = useRef<{ opts: SpeakOpts; onIdle?: () => void; closed: boolean } | null>(null);
 
   useEffect(() => {
-    if (!supported) return;
+    if (!deviceVoice) return;
     const load = () => setVoices(speechSynthesis.getVoices().filter((v) => rankVoice(v) > 0).sort((a, b) => rankVoice(b) - rankVoice(a)));
     load();
     speechSynthesis.addEventListener('voiceschanged', load);
     return () => speechSynthesis.removeEventListener('voiceschanged', load);
-  }, [supported]);
+  }, [deviceVoice]);
 
   /** iOS só libera a fala após um gesto do usuário: chame no toque do botão. */
   const unlock = useCallback(() => {
