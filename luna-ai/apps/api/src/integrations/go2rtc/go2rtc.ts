@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { connect } from 'node:net';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { connect, createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { PROJECT_ROOT } from '../../config/env';
 
@@ -16,10 +16,14 @@ export class Go2rtc {
   private written = '';
   private log: string[] = [];
 
+  /** Porta local em uso (escolhida livre a cada início; 0 = ainda não iniciou) */
+  private port = 0;
+
   constructor(
     private readonly setting: string,
     private readonly dataDir: string,
-    private readonly port = 18554,
+    /** Porta preferida (testes); se estiver ocupada, usa outra livre */
+    private readonly preferredPort = 18554,
   ) {}
 
   path(): string | null {
@@ -66,18 +70,22 @@ export class Go2rtc {
     if (!bin) throw new Error('go2rtc não está instalado no servidor. Rode: sudo bash scripts/go2rtc-setup.sh');
     if (!/^[a-z0-9_]+$/.test(name)) throw new Error('Nome de câmera inválido.');
     this.streams.set(name, source);
-    const cfg = this.config();
+    const cfg = JSON.stringify([...this.streams]);
     if (cfg !== this.written || !this.proc || this.proc.exitCode !== null) {
       mkdirSync(this.dataDir, { recursive: true });
+      await this.stopRunning();
+      this.port = await freePort(this.preferredPort);
+      const full = this.config();
       const file = join(this.dataDir, 'go2rtc.json');
-      writeFileSync(file, cfg, { mode: 0o600 }); // tem a chave da nuvem Tuya: só o dono lê
+      writeFileSync(file, full, { mode: 0o600 }); // tem a chave da nuvem Tuya: só o dono lê
       this.written = cfg;
       await this.restart(bin, file);
     }
     return `rtsp://127.0.0.1:${this.port}/${name}`;
   }
 
-  private async restart(bin: string, file: string) {
+  /** Encerra o go2rtc desta Luna e um que tenha sobrado de uma execução anterior (pelo arquivo de pid) */
+  private async stopRunning() {
     if (this.proc && this.proc.exitCode === null) {
       const old = this.proc;
       await new Promise<void>((done) => {
@@ -86,6 +94,21 @@ export class Go2rtc {
         setTimeout(done, 3000);
       });
     }
+    const pidFile = join(this.dataDir, 'go2rtc.pid');
+    try {
+      const pid = Number(readFileSync(pidFile, 'utf8'));
+      const cmd = readFileSync(`/proc/${pid}/cmdline`, 'utf8');
+      if (pid > 1 && cmd.includes('go2rtc')) {
+        process.kill(pid);
+        for (let i = 0; i < 15 && existsSync(`/proc/${pid}`); i++) await new Promise((r) => setTimeout(r, 200));
+      }
+    } catch {
+      /* não havia go2rtc sobrando */
+    }
+    rmSync(pidFile, { force: true });
+  }
+
+  private async restart(bin: string, file: string) {
     const proc = spawn(bin, ['-config', file], { stdio: ['ignore', 'pipe', 'pipe'] });
     // A Luna encerrou de repente: o go2rtc vai junto
     const onExit = () => proc.kill();
@@ -107,6 +130,7 @@ export class Go2rtc {
     proc.stderr!.on('data', keep);
     proc.on('error', (e) => this.log.push(e.message));
     this.proc = proc;
+    if (proc.pid) writeFileSync(join(this.dataDir, 'go2rtc.pid'), String(proc.pid));
     // Espera a porta local abrir (até 6 s)
     for (let i = 0; i < 30; i++) {
       if (proc.exitCode !== null) throw new Error(`go2rtc não iniciou: ${this.recentLog().join(' | ') || 'sem mensagem'}`);
@@ -127,5 +151,20 @@ export class Go2rtc {
   stop() {
     this.proc?.kill();
     this.proc = null;
+    rmSync(join(this.dataDir, 'go2rtc.pid'), { force: true });
   }
+}
+
+/** Porta livre em 127.0.0.1 (a preferida, se estiver livre) */
+function freePort(preferred: number): Promise<number> {
+  const tryPort = (port: number) =>
+    new Promise<number | null>((done) => {
+      const srv = createServer();
+      srv.once('error', () => done(null));
+      srv.listen(port, '127.0.0.1', () => {
+        const got = (srv.address() as { port: number }).port;
+        srv.close(() => done(got));
+      });
+    });
+  return tryPort(preferred).then((p) => p ?? tryPort(0).then((q) => q ?? preferred));
 }

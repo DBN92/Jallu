@@ -5,7 +5,8 @@ import { makeApp, type TestCtx } from './helpers';
 import { parseRtspUrl } from '../src/modules/cameras/direct.service';
 import { TuyaCloud } from '../src/integrations/tuya/cloud';
 import { Go2rtc } from '../src/integrations/go2rtc/go2rtc';
-import { existsSync, mkdtempSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -138,5 +139,29 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     expect(test.json.ok).toBe(true);
     expect(test.json.detail).toMatch(/nuvem Tuya \(WEBRTC\)/);
     expect(seen[0]).toBe(`rtsp://127.0.0.1:18554/tuya_${DEVICE}`);
+  }, 60_000);
+
+  it.skipIf(!hasFfmpeg || !existsSync(GO2RTC))('go2rtc que sobrou de antes (porta ocupada): encerra o antigo ou usa outra porta', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'luna-g2r-'));
+    // um go2rtc “esquecido” ocupando a porta, como no servidor
+    const first = new Go2rtc(GO2RTC, dir, 18998);
+    await first.streamUrl('velho', 'ffmpeg:virtual?video&size=320x240#video=h264');
+    const orphanPid = Number(readFileSync(join(dir, 'go2rtc.pid'), 'utf8'));
+    expect(existsSync(`/proc/${orphanPid}`)).toBe(true);
+    // outra porta também ocupada por outro programa
+    const blocker = createServer().listen(18997, '127.0.0.1');
+    const g = new Go2rtc(GO2RTC, dir, 18997);
+    try {
+      const url = await g.streamUrl('teste', 'ffmpeg:virtual?video&size=320x240#video=h264');
+      await new Promise((r) => setTimeout(r, 300));
+      expect(existsSync(`/proc/${orphanPid}`) && !readFileSync(`/proc/${orphanPid}/stat`, 'utf8').includes(' Z ')).toBe(false); // o antigo foi encerrado
+      expect(url).not.toContain(':18997/');
+      const r = spawnSync('ffmpeg', ['-hide_banner', '-rtsp_transport', 'tcp', '-timeout', '30000000', '-i', url, '-frames:v', '1', '-f', 'null', '-'], { encoding: 'utf8', timeout: 40_000 });
+      expect(r.status).toBe(0);
+    } finally {
+      g.stop();
+      first.stop();
+      blocker.close();
+    }
   }, 60_000);
 });
