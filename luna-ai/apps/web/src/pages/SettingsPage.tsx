@@ -12,6 +12,7 @@ import { AMBIENT_DELAYS, useSettings, type AmbientSlide, type ScreenOrientationP
 import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { WebCameras } from '../components/WebCameras';
+import { TuyaCameras } from '../components/TuyaCameras';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -487,6 +488,12 @@ export default function SettingsPage() {
       {isAdmin && (
         <Section title="Câmeras diretas">
           <DirectCameras />
+        </Section>
+      )}
+
+      {isAdmin && (
+        <Section title="Câmeras Smart Life (nuvem Tuya)">
+          <TuyaCameras />
         </Section>
       )}
 

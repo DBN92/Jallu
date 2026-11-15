@@ -74,6 +74,17 @@ export async function cameraRoutes(app: FastifyInstance) {
     directCameras.test(directBody.omit({ name: true }).extend({ id: z.string().regex(/^[a-z0-9]{8,40}$/).optional() }).parse(req.body)),
   );
 
+  // Nuvem Tuya (Smart Life): está configurada? e quais aparelhos a conta tem (para adicionar como câmera direta)
+  const { tuya } = app.services;
+  app.get('/api/cameras/tuya', { preHandler: requireAdmin, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async () => {
+    if (!tuya.configured) return { configured: false, devices: [], error: null };
+    try {
+      return { configured: true, devices: await tuya.devices(), error: null };
+    } catch (e) {
+      return { configured: true, devices: [], error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
   // Atalhos para câmeras que abrem no site do fabricante (ex.: babá eletrônica Smart Life)
   const { webCameras } = app.services;
   app.get('/api/cameras/web', { preHandler: requireAdmin }, async () => webCameras.list());

@@ -72,6 +72,11 @@ const envSchema = z.object({
   PIPER_MODEL: z.string().default(''),
   /** Velocidade da fala: menor = mais rápida (0.88 = “Dii mais rápida”) */
   PIPER_LENGTH_SCALE: z.coerce.number().min(0.5).max(1.5).default(0.88),
+  /** Nuvem Tuya (Smart Life): vídeo de câmeras que o Home Assistant não suporta. Projeto em iot.tuya.com */
+  TUYA_ACCESS_ID: z.string().default(''),
+  TUYA_ACCESS_SECRET: z.string().default(''),
+  /** Data center do projeto: Américas = https://openapi.tuyaus.com */
+  TUYA_ENDPOINT: z.string().url().default('https://openapi.tuyaus.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -73,13 +73,16 @@ export function withCredentials(url: string, username?: string | null, password?
 
 /** Valida o endereço: só rtsp/rtsps, sem credenciais embutidas (vão nos campos próprios). */
 export function parseRtspUrl(raw: string): { url: string; username?: string; password?: string } {
+  // Câmera Smart Life pela nuvem Tuya: tuya://<id do aparelho> (o endereço RTSP é pedido na hora)
+  const tuya = raw.trim().match(/^tuya:\/\/([a-z0-9]{10,40})\/?$/i);
+  if (tuya) return { url: `tuya://${tuya[1]}` };
   let u: URL;
   try {
     u = new URL(raw.trim());
   } catch {
     throw badRequest('Endereço inválido. Exemplo: rtsp://192.168.15.112:554/onvif1');
   }
-  if (u.protocol !== 'rtsp:' && u.protocol !== 'rtsps:') throw badRequest('O endereço deve começar com rtsp://');
+  if (u.protocol !== 'rtsp:' && u.protocol !== 'rtsps:') throw badRequest('O endereço deve começar com rtsp:// (ou tuya:// para câmeras Smart Life)');
   if (!u.hostname) throw badRequest('Falta o IP da câmera no endereço.');
   const username = u.username ? decodeURIComponent(u.username) : undefined;
   const password = u.password ? decodeURIComponent(u.password) : undefined;
@@ -136,6 +139,24 @@ export class DirectCamerasService {
 
   isDirect(entityId: string) {
     return entityId.startsWith(DIRECT_PREFIX);
+  }
+
+  /** Nuvem Tuya: devolve o endereço RTSP atual de uma câmera Smart Life (ligado pelo app) */
+  private tuyaStream: ((deviceId: string) => Promise<string>) | null = null;
+  setTuyaStream(fn: (deviceId: string) => Promise<string>) {
+    this.tuyaStream = fn;
+  }
+
+  /** Endereço que o ffmpeg abre: RTSP com usuário/senha, ou o pedido na hora à nuvem Tuya */
+  private async sourceUrl(url: string, username?: string | null, password?: string | null): Promise<{ url: string; tcp: boolean }> {
+    const tuya = url.match(/^tuya:\/\/([a-z0-9]+)$/i);
+    if (!tuya) return { url: withCredentials(url, username, password), tcp: false };
+    if (!this.tuyaStream) throw new AppError(503, 'Nuvem Tuya não configurada no servidor.', 'no_tuya');
+    try {
+      return { url: await this.tuyaStream(tuya[1]!), tcp: true };
+    } catch (e) {
+      throw new AppError(502, e instanceof Error ? e.message : 'A nuvem Tuya não respondeu.', 'tuya_error');
+    }
   }
 
   private async row(entityId: string): Promise<Row> {
@@ -208,10 +229,17 @@ export class DirectCamerasService {
     const p = parseRtspUrl(input.url);
     let password = input.password || p.password || null;
     if (!password && input.id) password = (await this.row(DIRECT_PREFIX + input.id)).password;
-    const url = withCredentials(p.url, input.username || p.username, password);
+    let src: { url: string; tcp: boolean };
+    try {
+      src = await this.sourceUrl(p.url, input.username || p.username, password);
+    } catch (e) {
+      return { ok: false, detail: e instanceof Error ? e.message : String(e), ms: 0 };
+    }
+    const url = src.url;
+    const transport = src.tcp ? 'tcp' : input.transport;
     const started = Date.now();
     return new Promise<{ ok: boolean; detail: string; ms: number }>((done) => {
-      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'info', ...this.inputArgs(url, input.transport), '-map', '0:v:0', '-frames:v', '1', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
+      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'info', ...this.inputArgs(url, transport), '-map', '0:v:0', '-frames:v', '1', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
       let err = '';
       proc.stderr!.on('data', (d: Buffer) => (err = (err + d.toString()).slice(-6000)));
       const timer = setTimeout(() => proc.kill('SIGKILL'), 20_000);
@@ -243,6 +271,7 @@ export class DirectCamerasService {
    */
   async detectOnvif(id: string, preferred?: number) {
     const r = await this.row(DIRECT_PREFIX + id);
+    if (r.url.startsWith('tuya://')) throw badRequest('Câmeras Smart Life pela nuvem Tuya não têm controle de movimento pela Luna.');
     const ports = [...new Set([preferred, r.onvifPort, ...ONVIF_PORTS].filter((p): p is number => !!p))];
     const tried: string[] = [];
     for (const port of ports) {
@@ -308,14 +337,18 @@ export class DirectCamerasService {
     if (!ff) throw new AppError(503, 'ffmpeg não está instalado no servidor. Rode: sudo bash scripts/ffmpeg-setup.sh', 'no_ffmpeg');
     const r = await this.row(entityId);
     const dir = await mkdtemp(join(tmpdir(), 'luna-cam-'));
-    const url = withCredentials(r.url, r.username, r.password);
+    const src = await this.sourceUrl(r.url, r.username, r.password).catch(async (e) => {
+      await rm(dir, { recursive: true, force: true });
+      throw e;
+    });
+    const url = src.url;
     const scale = "scale=w='min(960,iw)':h=-2";
     const args = [
       '-hide_banner',
       '-nostdin',
       '-loglevel',
       'error',
-      ...this.inputArgs(url, r.transport === 'tcp' ? 'tcp' : 'udp'),
+      ...this.inputArgs(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'),
       // Vídeo H.264 leve (toca em tudo); 10 quadros/s, largura até 960 px
       '-map', '0:v:0', '-an',
       '-vf', `fps=10,${scale}`,
@@ -382,9 +415,10 @@ export class DirectCamerasService {
     const ff = this.ffmpegPath();
     if (!ff) throw new AppError(503, 'ffmpeg não está instalado no servidor.', 'no_ffmpeg');
     const r = await this.row(entityId);
-    const url = withCredentials(r.url, r.username, r.password);
+    const src = await this.sourceUrl(r.url, r.username, r.password);
+    const url = src.url;
     return new Promise<Buffer>((done, fail) => {
-      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...this.inputArgs(url, r.transport === 'tcp' ? 'tcp' : 'udp'), '-map', '0:v:0', '-frames:v', '1', '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], {
+      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...this.inputArgs(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'), '-map', '0:v:0', '-frames:v', '1', '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       const chunks: Buffer[] = [];

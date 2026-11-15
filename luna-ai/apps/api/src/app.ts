@@ -39,6 +39,7 @@ import { CamerasService } from './modules/cameras/cameras.service';
 import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
 import { WebCamerasService } from './modules/cameras/web.service';
+import { TuyaCloud } from './integrations/tuya/cloud';
 import { GesturesService } from './modules/gestures/gestures.service';
 import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
@@ -73,7 +74,7 @@ export interface AppDeps {
   env: Env;
   db?: Db;
   /** fetch usado pelas integrações externas (substituível em testes) */
-  fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike };
+  fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike; tuya?: FetchLike };
   /** Desativa a conexão WebSocket com o HA (testes) */
   disableHaWs?: boolean;
   /** Entrada do ffmpeg das câmeras diretas (testes usam uma fonte sintética no lugar do RTSP) */
@@ -119,6 +120,9 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
 
   const directCameras = new DirectCamerasService(db, env.FFMPEG_PATH, deps.cameraInput);
   cameras.setDirect(directCameras);
+  // Nuvem Tuya: vídeo de câmeras Smart Life que o Home Assistant não suporta (ex.: babá eletrônica)
+  const tuya = new TuyaCloud(env.TUYA_ACCESS_ID, env.TUYA_ACCESS_SECRET, env.TUYA_ENDPOINT.replace(/\/+$/, ''), deps.fetch?.tuya);
+  directCameras.setTuyaStream((id) => tuya.streamUrl(id));
   const gestures = new GesturesService(db, devices);
   // Vigias da garagem: foto da câmera direta (1 quadro) ou do Home Assistant
   const frame = deps.watchFrame ??
@@ -184,7 +188,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
