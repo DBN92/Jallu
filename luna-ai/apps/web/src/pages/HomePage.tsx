@@ -14,8 +14,6 @@ import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
 import { photoAmbientActive } from '../components/PhotoAmbient';
-import { greetNames } from '../components/PeopleCard';
-import { usePeople } from '../stores/people';
 import { RecadoAlert, RecadoButton, RecadosChips, useRecadoAnnounce } from '../components/Recados';
 import { usePresenceStore } from '../hooks/usePresence';
 import { unseenRecados, useRecados } from '../stores/recados';
@@ -366,8 +364,7 @@ export default function HomePage() {
     lastUse.current = Date.now();
     if (!ambient) return;
     if (!photoAmbientActive() || greet) return leaveAmbient();
-    const name = greetNames(usePeople.getState().list, user?.displayName?.split(' ')[0] ?? '');
-    setGreet(`${greeting(new Date())}${name ? `, ${name}` : ''}`);
+    setGreet(greeting(new Date()));
     const t = setTimeout(() => {
       setGreet(null);
       leaveAmbient();
@@ -419,12 +416,6 @@ export default function HomePage() {
     : Math.round(wide ? Math.min(vh * 0.46, 430) : short ? Math.min(vh * 0.36, 190) : Math.min(vw * 0.72, vh * 0.36, 360));
   const err = voiceError ?? realtime.error ?? wake.error;
   const theme = useSettings((s) => s.theme);
-  // Saudação para todos que estão em casa (pessoas do Home Assistant), não só quem entrou no app
-  const peopleList = usePeople((s) => s.list);
-  useEffect(() => {
-    if (!usePeople.getState().list) void usePeople.getState().load();
-  }, []);
-  const homeGreet = greetNames(peopleList, user?.displayName?.split(' ')[0] ?? '');
   const gestureWatch = useSettings((s) => s.gestureWatch);
   const micIcon = realtime.connecting ? (
     <AudioLines className="h-6 w-6 animate-pulse" />
@@ -445,7 +436,6 @@ export default function HomePage() {
           now={now}
           greeting={greeting(now)}
           userName={user?.displayName?.split(' ')[0] ?? ''}
-          greetName={homeGreet}
           state={state}
           stateLabel={state !== 'idle' ? STATE_LABEL[state] : wake.armed || (realtime.active && settings?.wakeWordEnabled) ? 'Ouvindo “Oi, Luna”' : 'Disponível'}
           aiTag={settings?.aiMode === 'local' ? 'IA local' : settings?.aiMode === 'cloud' ? 'IA nuvem' : 'IA híbrida'}
