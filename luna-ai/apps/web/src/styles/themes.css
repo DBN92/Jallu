@@ -239,3 +239,124 @@ html[data-theme='vidro'] .m-dots button.on i { background: #fff; }
 }
 html[data-theme='vidro'] .dock-row { padding-left: 14px; padding-right: 14px; }
 html[data-theme='vidro'] .dock-btn i { border-radius: 999px; }
+
+/* ======================================================================
+ * Sereno: calmo, cartões sólidos, aparelhos animados e fotos em tela cheia.
+ * Desempenho (tablet): só transform/opacity se mexem; nada de desfoque ao vivo;
+ * animações contínuas pausam quando o descanso de tela cobre a tela ou com “Reduzir animações”.
+ * ====================================================================== */
+html[data-theme='sereno'] {
+  --bg: #0b0d12; --tx: #eef1f6; --muted: rgba(226, 232, 245, 0.56); --card: #151922; --card-solid: #151922;
+  --line: rgba(255, 255, 255, 0.07); --accent-1: #7dd3fc; --accent-2: #a78bfa; --warm: #fbbf24; --glow-3: #a78bfa;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Inter', ui-sans-serif, system-ui, sans-serif; --font-display: 'Sora', 'Inter', sans-serif;
+  --card-r: 22px; --blob-o: 0.12;
+  --sv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --color-cyan-50: #f0f9ff; --color-cyan-100: #e0f2fe; --color-cyan-200: #bae6fd; --color-cyan-300: #7dd3fc; --color-cyan-400: #38bdf8;
+}
+html[data-theme='sereno'] .app-bg { background: radial-gradient(120% 80% at 0% 0%, #131826 0%, var(--bg) 55%), var(--bg); }
+html[data-theme='sereno'] :is(.hud-panel, .glass, .m-card) { box-shadow: none; }
+html[data-theme='sereno'] .m-num { font-weight: 300; letter-spacing: -0.02em; }
+html[data-theme='sereno'] .m-label { font-weight: 600; letter-spacing: 0.14em; font-size: 11.5px; }
+html[data-theme='sereno'] .m-chip { background: #10131a; }
+html[data-theme='sereno'] .m-chip.act { background: var(--tx); color: #0b0d12; }
+html[data-theme='sereno'] .m-input { background: #10131a; }
+html[data-theme='sereno'] .m-mic { box-shadow: 0 0 0 6px rgba(125, 211, 252, 0.13), 0 4px 12px rgba(125, 211, 252, 0.3); }
+html[data-theme='sereno'] .m-switch { width: 46px; height: 28px; transition: background 450ms var(--sv-ease); }
+html[data-theme='sereno'] .m-switch::after { width: 22px; height: 22px; transition: transform 450ms var(--sv-ease); }
+html[data-theme='sereno'] .m-card { transition: border-color 600ms var(--sv-ease), transform 120ms ease-out; }
+
+/* Cartões entram um depois do outro */
+html[data-theme='sereno'] .sv-tile { animation: sv-rise 700ms var(--sv-ease) both; animation-delay: calc(var(--i, 0) * 45ms); }
+@keyframes sv-rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* Tom do cartão ligado (quente: luz · frio: ventilador · colorido: fita de LED) */
+.sv-tile { overflow: hidden; }
+.sv-tile > * { position: relative; }
+.sv-tile::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 900ms var(--sv-ease); pointer-events: none; }
+.sv-tile.sv-warm::before { background: linear-gradient(160deg, rgba(251, 191, 36, 0.17), transparent 62%); }
+.sv-tile.sv-cool::before { background: linear-gradient(160deg, rgba(103, 232, 249, 0.15), transparent 62%); }
+.sv-tile.sv-led::before { background: linear-gradient(160deg, rgba(167, 139, 250, 0.2), rgba(244, 114, 182, 0.08) 45%, transparent 70%); }
+.sv-tile.is-on::before { opacity: 1; }
+.sv-tile.is-on.sv-warm { border-color: rgba(251, 191, 36, 0.32); }
+.sv-tile.is-on.sv-cool { border-color: rgba(103, 232, 249, 0.3); }
+.sv-tile.is-on.sv-led { border-color: rgba(167, 139, 250, 0.35); }
+html[data-theme='sereno'] .sv-tile.sv-cool .m-switch.on { background: #67e8f9; }
+html[data-theme='sereno'] .sv-tile.sv-warm .m-switch.on { background: var(--warm); }
+html[data-theme='sereno'] .sv-tile.sv-led .m-switch.on { background: linear-gradient(90deg, #f472b6, #a78bfa, #67e8f9); }
+
+/* Desenhos dos aparelhos */
+.sv-art { position: relative; display: grid; place-items: center; width: 46px; height: 46px; flex: none; color: var(--muted); }
+.sv-art svg { width: 46px; height: 46px; }
+.sv-halo { position: absolute; inset: -12px; border-radius: 50%; opacity: 0; transform: scale(0.8); transition: opacity 800ms var(--sv-ease), transform 800ms var(--sv-ease);
+  background: radial-gradient(closest-side, rgba(251, 191, 36, 0.55), rgba(251, 191, 36, 0)); }
+.sv-art.on .sv-halo { opacity: 1; transform: scale(1); animation: sv-glow 3.6s ease-in-out infinite; }
+@keyframes sv-glow { 50% { transform: scale(1.12); opacity: 0.8; } }
+/* Lâmpada */
+.sv-bulb .sv-glass { fill: #2a303d; transition: fill 600ms var(--sv-ease); }
+.sv-bulb.on .sv-glass { fill: #fde68a; }
+.sv-bulb.led .sv-halo { background: conic-gradient(from 0deg, rgba(244, 114, 182, 0.55), rgba(167, 139, 250, 0.55), rgba(103, 232, 249, 0.55), rgba(244, 114, 182, 0.55)); -webkit-mask: radial-gradient(closest-side, #000 30%, transparent); mask: radial-gradient(closest-side, #000 30%, transparent); }
+.sv-bulb.led.on .sv-halo { animation: sv-spin 6s linear infinite; }
+.sv-bulb.led.on .sv-glass { fill: #e9d5ff; }
+/* Tomada / outros */
+.sv-plain.on { color: #fde68a; }
+/* Ventilador: a hélice gira de verdade quando está ligado */
+.sv-fan-ring { position: absolute; inset: 1px; border-radius: 50%; border: 2px solid #2a303d; transition: border-color 600ms; }
+.sv-blades { position: absolute; inset: 3px; width: 40px !important; height: 40px !important; fill: #3a4252; transition: fill 600ms; will-change: transform; }
+.sv-hub { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #6b7385; }
+.sv-fan.on .sv-fan-ring { border-color: rgba(103, 232, 249, 0.35); }
+.sv-fan.on .sv-blades { fill: #a5f3fc; animation: sv-spin 0.55s linear infinite; }
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+.sv-wind { position: absolute; inset: 0; pointer-events: none; }
+.sv-wind i { position: absolute; right: 100%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(165, 243, 252, 0.7)); opacity: 0; }
+.sv-wind i:nth-child(1) { top: 12px; width: 14px; }
+.sv-wind i:nth-child(2) { top: 22px; width: 20px; animation-delay: -0.5s !important; }
+.sv-wind i:nth-child(3) { top: 32px; width: 12px; animation-delay: -1s !important; }
+.sv-fan.on .sv-wind i { animation: sv-wind 1.6s linear infinite; }
+@keyframes sv-wind { 0% { transform: translateX(14px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(-16px); opacity: 0; } }
+
+/* ---------- Descanso de tela com fotos ---------- */
+.sv-amb { background: #000; color: #fff; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; --sv-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+.sv-ph { position: absolute; inset: 0; overflow: hidden; animation: sv-fade 1.8s ease-in-out both; }
+.sv-ph img { position: absolute; left: -6%; top: -6%; width: 112%; height: 112%; max-width: none; object-fit: cover; will-change: transform; animation: 11.5s linear both; }
+.sv-ph.kb0 img { animation-name: sv-kb0; } .sv-ph.kb1 img { animation-name: sv-kb1; } .sv-ph.kb2 img { animation-name: sv-kb2; }
+@keyframes sv-fade { from { opacity: 0; } }
+@keyframes sv-kb0 { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.08) translate(-2.5%, -1.5%); } }
+@keyframes sv-kb1 { from { transform: scale(1.09) translate(2.5%, 0); } to { transform: scale(1.01) translate(-1%, 1%); } }
+@keyframes sv-kb2 { from { transform: scale(1.01) translate(-2%, 1.5%); } to { transform: scale(1.09) translate(2%, -1%); } }
+.sv-shade { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px 200px at 100% 0%, rgba(0, 0, 0, 0.5), transparent 70%), linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.15) 55%, transparent 100%), linear-gradient(0deg, rgba(0, 0, 0, 0.6), transparent 45%); }
+.sv-dim { position: absolute; inset: 0; background: rgba(5, 6, 10, 0.72); opacity: 0; transition: opacity 900ms var(--sv-ease); pointer-events: none; }
+.sv-dots { position: absolute; top: max(env(safe-area-inset-top), 28px); right: 34px; display: flex; gap: 6px; }
+.sv-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.35); transition: width 600ms var(--sv-ease), background 600ms; }
+.sv-dots i.on { width: 20px; background: #fff; }
+.sv-info { position: absolute; left: clamp(20px, 5vw, 64px); right: clamp(20px, 5vw, 64px); bottom: calc(max(env(safe-area-inset-bottom), 0px) + clamp(40px, 7vh, 64px)); display: flex; gap: 24px; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; transition: opacity 900ms var(--sv-ease), transform 900ms var(--sv-ease); }
+.sv-date { font-size: clamp(16px, 2.2vw, 20px); color: rgba(255, 255, 255, 0.85); }
+.sv-clock { display: flex; font-size: clamp(84px, 13vw, 150px); font-weight: 300; letter-spacing: -0.03em; line-height: 1; margin-top: 4px; }
+.sv-roll { display: inline-block; overflow: hidden; height: 1em; line-height: 1; }
+.sv-roll-in { display: inline-block; animation: sv-roll 900ms var(--sv-ease) both; }
+@keyframes sv-roll { from { transform: translateY(100%); } }
+.sv-colon { animation: sv-blink 2s steps(1) infinite; }
+@keyframes sv-blink { 50% { opacity: 0.3; } }
+.sv-row { display: flex; gap: 10px; align-items: center; font-size: clamp(14px, 1.8vw, 17px); color: rgba(255, 255, 255, 0.9); margin-top: 16px; min-width: 0; }
+.sv-cards { display: flex; flex-direction: column; gap: 10px; width: min(330px, 100%); }
+.sv-glass { background: rgba(20, 22, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 18px; padding: 14px 16px; }
+.sv-rec { border-color: rgba(251, 191, 36, 0.55); background: rgba(80, 58, 10, 0.5); animation: sv-soft 3s ease-in-out infinite; }
+@keyframes sv-soft { 50% { border-color: rgba(251, 191, 36, 0.95); } }
+.sv-hint { position: absolute; left: 0; right: 0; bottom: calc(max(env(safe-area-inset-bottom), 0px) + 12px); text-align: center; font-size: 12px; color: rgba(255, 255, 255, 0.45); transition: opacity 600ms; }
+.sv-hello { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; opacity: 0; transform: scale(0.96); transition: opacity 900ms var(--sv-ease), transform 900ms var(--sv-ease); pointer-events: none; }
+.sv-hello-orb { width: 96px; height: 96px; border-radius: 50%; margin-bottom: 14px; background: conic-gradient(from 200deg, #7dd3fc, #a78bfa, #f0abfc, #7dd3fc); box-shadow: 0 0 60px rgba(125, 211, 252, 0.4); animation: sv-spin 6s linear infinite; }
+.sv-hello h1 { font-family: 'Sora', 'Inter', sans-serif; font-weight: 600; font-size: clamp(30px, 4.5vw, 46px); letter-spacing: -0.01em; }
+.sv-hello p { font-size: 18px; color: rgba(255, 255, 255, 0.75); }
+.sv-amb.greet .sv-dim { opacity: 1; }
+.sv-amb.greet :is(.sv-info, .sv-hint, .sv-dots) { opacity: 0; transform: translateY(14px); }
+.sv-amb.greet .sv-hello { opacity: 1; transform: none; }
+
+/* ---------- Desempenho ---------- */
+/* Descanso de tela aberto: o que está por baixo para de se mexer */
+html.ambient-on :is(.sv-anim, .sv-wind i, .sv-tile) { animation-play-state: paused !important; }
+html.ambient-on .sv-amb .sv-anim { animation-play-state: running !important; }
+/* “Reduzir animações” (Ajustes › Tema) ou o sistema pedindo menos movimento */
+html.calm-motion :is(.sv-anim, .sv-wind i, .sv-ph img, .sv-colon, .sv-rec, .sv-tile) { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.sv-anim, .sv-wind i, .sv-ph img, .sv-colon, .sv-rec, .sv-tile) { animation: none !important; }
+}

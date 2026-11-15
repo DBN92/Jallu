@@ -3,7 +3,7 @@ import type { SettingsDto, SettingsUpdate } from '@luna/shared';
 import { api } from '../services/api';
 import { isTvDevice } from '../lib/tv';
 import type { Sensitivity } from '../gestures/stabilizer';
-import { applyTheme, DEFAULT_THEME, isTheme, type ThemeId } from '../lib/theme';
+import { applyCalmMotion, applyTheme, DEFAULT_THEME, isTheme, type ThemeId } from '../lib/theme';
 
 export type VoiceMode = 'basic' | 'realtime';
 export type ScreenOrientationPref = 'auto' | 'landscape' | 'portrait';
@@ -61,6 +61,8 @@ interface SettingsState {
   gestureSensitivity: Sensitivity;
   /** Tema visual deste aparelho */
   theme: ThemeId;
+  /** Reduzir animações neste aparelho */
+  calmMotion: boolean;
   load: () => Promise<void>;
   update: (patch: SettingsUpdate) => Promise<void>;
   setHome: (home: { name: string; latitude: number; longitude: number } | null) => Promise<void>;
@@ -78,6 +80,7 @@ interface SettingsState {
   setGestureWatch: (v: boolean) => void;
   setGestureSensitivity: (v: Sensitivity) => void;
   setTheme: (v: ThemeId) => void;
+  setCalmMotion: (v: boolean) => void;
 }
 
 export const useSettings = create<SettingsState>((set) => ({
@@ -96,6 +99,7 @@ export const useSettings = create<SettingsState>((set) => ({
   gestureWatch: readLocal<boolean>('luna.gestureWatch', false),
   gestureSensitivity: readLocal<Sensitivity>('luna.gestureSensitivity', 'normal'),
   theme: ((t) => (isTheme(t) ? t : DEFAULT_THEME))(readLocal<string>('luna.theme', DEFAULT_THEME)),
+  calmMotion: readLocal<boolean>('luna.calmMotion', false),
   load: async () => set({ settings: await api<SettingsDto>('/api/settings') }),
   update: async (patch) => set({ settings: await api<SettingsDto>('/api/settings', { method: 'PATCH', body: patch }) }),
   setHome: async (home) =>
@@ -133,6 +137,11 @@ export const useSettings = create<SettingsState>((set) => ({
     writeLocal('luna.theme', theme);
     applyTheme(theme);
     set({ theme });
+  },
+  setCalmMotion: (calmMotion) => {
+    writeLocal('luna.calmMotion', calmMotion);
+    applyCalmMotion(calmMotion);
+    set({ calmMotion });
   },
   setGestureSensitivity: (gestureSensitivity) => {
     writeLocal('luna.gestureSensitivity', gestureSensitivity);

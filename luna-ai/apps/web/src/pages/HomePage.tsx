@@ -13,6 +13,7 @@ import { useCameras } from '../stores/cameras';
 import { useAutomations, useHealth } from '../hooks/useHudData';
 import { useDevices } from '../stores/devices';
 import { AmbientMode } from '../components/AmbientMode';
+import { photoAmbientActive } from '../components/PhotoAmbient';
 import { RecadoAlert, RecadoButton, RecadosChips, useRecadoAnnounce } from '../components/Recados';
 import { usePresenceStore } from '../hooks/usePresence';
 import { unseenRecados, useRecados } from '../stores/recados';
@@ -356,11 +357,24 @@ export default function HomePage() {
   const nearAt = usePresenceStore((s) => s.nearAt);
   const presenceWake = useSettings((s) => s.presenceWake);
   useRecadoAnnounce(nearAt);
+  // Tema Sereno com fotos: antes de sair, a foto escurece e a Luna cumprimenta quem chegou
+  const [greet, setGreet] = useState<string | null>(null);
   useEffect(() => {
     if (!nearAt || !presenceWake) return;
     lastUse.current = Date.now();
-    if (ambient) leaveAmbient();
+    if (!ambient) return;
+    if (!photoAmbientActive() || greet) return leaveAmbient();
+    const name = user?.displayName?.split(' ')[0];
+    setGreet(`${greeting(new Date())}${name ? `, ${name}` : ''}`);
+    const t = setTimeout(() => {
+      setGreet(null);
+      leaveAmbient();
+    }, 2600);
+    return () => clearTimeout(t);
   }, [nearAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ambient) setGreet(null);
+  }, [ambient]);
 
   // ---- Dados dos painéis HUD ----
   const health = useHealth();
@@ -619,6 +633,7 @@ export default function HomePage() {
           now={now}
           weather={weather.data}
           hint={wake.armed ? 'Diga “Oi, Luna” ou toque na tela' : 'Toque na tela para voltar'}
+          greet={greet}
           onExit={() => {
             leaveAmbient();
             tts.unlock();

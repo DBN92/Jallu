@@ -332,6 +332,7 @@ export default function SettingsPage() {
 
       <Section title="Tema">
         <ThemePicker />
+        <CalmMotionToggle />
       </Section>
 
       <Section title="Inteligência artificial">
@@ -630,5 +631,20 @@ export default function SettingsPage() {
         <Account />
       </Section>
     </Page>
+  );
+}
+
+/** Ajustes › Tema: desliga os movimentos contínuos (hélice, brilho, fotos se mexendo) em aparelhos mais lentos. */
+function CalmMotionToggle() {
+  const calm = useSettings((s) => s.calmMotion);
+  const set = useSettings((s) => s.setCalmMotion);
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-white/5 px-4 py-3">
+      <div>
+        <p className="text-sm text-white">Reduzir animações</p>
+        <p className="text-xs text-white/45">Para tablets mais lentos ou se esquentar: os aparelhos e as fotos param de se mexer, as trocas continuam suaves.</p>
+      </div>
+      <Toggle label="Reduzir animações" checked={calm} onChange={set} />
+    </div>
   );
 }

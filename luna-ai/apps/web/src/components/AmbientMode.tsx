@@ -14,6 +14,7 @@ import { AnimatedBackground } from './AnimatedBackground';
 import { LunaOrb } from './LunaOrb';
 import { HouseShow } from './HouseShow';
 import { WeatherIcon } from './WeatherIcon';
+import { PhotoAmbient } from './PhotoAmbient';
 
 const SLIDE_MS = 10_000;
 /** A casa em 3D fica mais tempo na tela (dá uma volta devagar) */
@@ -153,7 +154,7 @@ function HomeSlide() {
  * Modo ambiente: tela cheia exibida quando a Luna fica sem uso. Alterna automaticamente
  * entre o que foi escolhido nos ajustes (previsão do tempo, aparelhos, casa em 3D, câmeras, fotos). Qualquer toque (ou “Oi, Luna”) volta ao normal.
  */
-export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string }) {
+export function AmbientMode({ now, weather, onExit, hint, greet }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string; greet?: string | null }) {
   const chosen = useSettings((s) => s.ambientSlides);
   const cameras = useCameras((s) => s.cameras);
   const hasCameras = !!cameras?.some((c) => c.available);
@@ -173,6 +174,15 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
   const on = useDevices((s) => Object.values(s.devices).filter((d) => !d.hidden && d.controllable && d.isOn).length);
   const fresh = unseenRecados(useRecados((s) => s.list));
   const people = peopleLine(usePeople((s) => s.list));
+  const theme = useSettings((s) => s.theme);
+  // Enquanto o descanso cobre a tela, as animações da tela inicial (por baixo) ficam pausadas
+  useEffect(() => {
+    document.documentElement.classList.add('ambient-on');
+    return () => document.documentElement.classList.remove('ambient-on');
+  }, []);
+
+  // Tema Sereno: fotos em tela cheia
+  if (theme === 'sereno' && chosen.includes('photos') && hasPhotos) return <PhotoAmbient now={now} weather={weather} onExit={onExit} hint={hint} greet={greet} />;
 
   return createPortal(
     <div

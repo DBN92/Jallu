@@ -16,6 +16,8 @@ import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
 import { LitterCard } from './LitterCard';
 import { WasherCard } from './WasherCard';
+import { DeviceArt, artKind, artTone } from './DeviceArt';
+import { useSettings } from '../stores/settings';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -66,6 +68,7 @@ export function ModernHome(p: ModernHomeProps) {
   const navigate = useNavigate();
   const devicesMap = useDevices((s) => s.devices);
   const busy = useDevices((s) => s.busy);
+  const sereno = useSettings((s) => s.theme) === 'sereno';
   const openCameras = useCameras((s) => s.open);
   const toBuy = useLists((s) => s.items?.filter((i) => i.status === 'buy').length ?? 0);
   useEffect(() => {
@@ -342,14 +345,24 @@ export function ModernHome(p: ModernHomeProps) {
         ))}
       </div>
       <div className={`grid gap-3 ${p.wide ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        {shown.map((d) => {
+        {shown.map((d, i) => {
           const Icon = iconFor(d);
           return (
-            <button key={d.entityId} className={`m-card m-tile ${d.available ? '' : 'opacity-50'}`} onClick={() => void useDevices.getState().toggle(d)} disabled={!d.available || busy[d.entityId]}>
+            <button
+              key={d.entityId}
+              className={`m-card m-tile ${d.available ? '' : 'opacity-50'} ${sereno ? `sv-tile sv-${artTone(artKind(d))} ${d.isOn ? 'is-on' : ''}` : ''}`}
+              style={sereno ? { ['--i' as string]: Math.min(i, 12) } : undefined}
+              onClick={() => void useDevices.getState().toggle(d)}
+              disabled={!d.available || busy[d.entityId]}
+            >
               <div className="flex items-center justify-between">
-                <span className={`m-iconbox ${d.isOn ? 'on' : ''}`}>
-                  <Icon className="h-5 w-5" />
-                </span>
+                {sereno ? (
+                  <DeviceArt device={d} on={d.isOn === true} />
+                ) : (
+                  <span className={`m-iconbox ${d.isOn ? 'on' : ''}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                )}
                 <span className={`m-switch ${d.isOn ? 'on' : ''}`} />
               </div>
               <div className="min-w-0">

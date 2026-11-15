@@ -6,7 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { installViewportFix } from './lib/viewport';
 import './styles/index.css';
 import './styles/themes.css';
-import { applyTheme } from './lib/theme';
+import { applyCalmMotion, applyTheme } from './lib/theme';
 import { useSettings } from './stores/settings';
 import { diag, startDiag } from './lib/diag';
 import { usePresenceStore } from './hooks/usePresence';
@@ -24,6 +24,7 @@ navigator.serviceWorker?.addEventListener('controllerchange', () => diag('versã
 registerSW({ immediate: true });
 // Tema antes do primeiro desenho (sem “piscar” o tema antigo)
 applyTheme(useSettings.getState().theme);
+applyCalmMotion(useSettings.getState().calmMotion);
 installViewportFix();
 
 createRoot(document.getElementById('root')!).render(
