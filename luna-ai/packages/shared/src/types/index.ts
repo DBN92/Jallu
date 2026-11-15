@@ -272,6 +272,8 @@ export type ServerEvent =
   | { type: 'recados_update' }
   /** Lista de compras, itens de casa ou notas mudaram */
   | { type: 'lists_update' }
+  /** Alguém chegou ou saiu de casa */
+  | { type: 'people_update' }
   /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
   | { type: 'camera_event'; event: CameraEventDto }
   | { type: 'litter_update' }
@@ -279,6 +281,25 @@ export type ServerEvent =
   | { type: 'washer_update' }
   /** A lava e seca terminou (ou outro aviso dela). speak = falar no tablet. */
   | { type: 'washer_done'; text: string; speech: string; speak: boolean };
+
+/** Pessoa do Home Assistant (person.*): está em casa ou não */
+export interface PersonDto {
+  id: string;
+  name: string;
+  home: boolean;
+  /** “Em casa”, “Fora” ou o nome do lugar (zona do Home Assistant, ex.: “Trabalho”) */
+  place: string;
+  /** Desde quando está assim */
+  since: string | null;
+  /** Tem foto no Home Assistant */
+  picture: boolean;
+}
+
+export interface PeopleConfigDto {
+  arriveLight: string | null;
+  leaveLightsOff: boolean;
+  leaveNotify: boolean;
+}
 
 /** Item da casa: tem em casa (have) ou falta comprar (buy) */
 export interface PantryItemDto {

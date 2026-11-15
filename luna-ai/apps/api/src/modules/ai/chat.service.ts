@@ -46,6 +46,10 @@ export class ChatService {
   }
 
   private litter: import('../litter/litter.service').LitterService | null = null;
+  private people: import('../people/people.service').PeopleService | null = null;
+  setPeople(p: import('../people/people.service').PeopleService) {
+    this.people = p;
+  }
   private lists: import('../lists/lists.service').ListsService | null = null;
   setLists(l: import('../lists/lists.service').ListsService) {
     this.lists = l;
@@ -286,6 +290,11 @@ export class ChatService {
             reply: on ? `Limpeza automática da caixa de areia ligada${wait}.` : 'Limpeza automática da caixa de areia desligada.',
             actions: [{ tool: 'litter_auto', ok: true, summary: on ? 'Limpeza automática ligada' : 'Limpeza automática desligada' }],
           };
+        }
+        case 'people': {
+          if (!this.people) return null;
+          const reply = await this.people.voice(intent.name);
+          return reply ? { reply, actions: [] } : null; // nome que não é de ninguém da casa: segue para a IA
         }
         case 'thanks': {
           const replies = ['De nada! Quando precisar, é só me chamar.', 'Por nada! Estou por aqui.', 'Imagina! Até mais.'];

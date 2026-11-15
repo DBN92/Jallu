@@ -9,6 +9,7 @@ import { LunaOrb } from './LunaOrb';
 import { MessageList } from './Messages';
 import { CameraThumb } from './CameraPlayer';
 import { RecadoAlert, RecadoButton, RecadosChips } from './Recados';
+import { PeopleCard } from './PeopleCard';
 import { useLists } from '../stores/lists';
 import { WeatherIcon } from './WeatherIcon';
 import { GarageCard } from './GarageCard';
@@ -414,6 +415,7 @@ export function ModernHome(p: ModernHomeProps) {
         </div>
         <div className="dock-pad m-scroll flex min-h-0 flex-col gap-3 overflow-y-auto pb-1 [&>*]:shrink-0">
           {quick}
+          <PeopleCard />
           <GarageCard />
           <VacuumCard />
           <LitterCard />
@@ -437,6 +439,7 @@ export function ModernHome(p: ModernHomeProps) {
             {cameraCard}
           </div>
           <div className="dock-pad m-scroll flex min-h-0 flex-col gap-4 overflow-y-auto pb-2 [&>*]:shrink-0">
+            <PeopleCard />
             {weatherCard}
             <GarageCard />
           <VacuumCard />
@@ -456,6 +459,7 @@ export function ModernHome(p: ModernHomeProps) {
       {!p.hasChat && (
         <>
           {quick}
+          <PeopleCard />
           <GarageCard />
           <VacuumCard />
           <LitterCard />

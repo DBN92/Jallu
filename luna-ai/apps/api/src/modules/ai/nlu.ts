@@ -19,6 +19,7 @@ export type Intent =
   | { type: 'litter'; command: 'clean' | 'auto_on' | 'auto_off' | 'status' }
   | { type: 'washer'; command: 'status' | 'start' | 'pause' | 'on' | 'off' }
   | { type: 'thanks' }
+  | { type: 'people'; name: string | null }
   | { type: 'recado'; command: 'record' | 'play' }
   | { type: 'lists'; command: 'buy' | 'bought' | 'list_buy' | 'has' | 'note' | 'list_notes'; text: string };
 
@@ -35,6 +36,22 @@ function parseLitter(text: string): Intent | null {
   }
   if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
   return { type: 'litter', command: 'status' };
+}
+
+/** Coisas que “chegam” ou “saem” mas não são pessoas */
+const NOT_PERSON = /\b(carro|portao|robo|aspirador|maquina|roupa|recado|luz|luzes|encomenda|pacote|entrega|chuva|frio|calor|lava|caixa|gato|gatos|cachorro|onibus|uber|pedido|comida)\b/;
+
+/** “Quem está em casa?”, “tem alguém em casa?”, “o Daniel já chegou?”, “a Ana está em casa?”, “onde está o Daniel?” */
+function parsePeople(t: string): Intent | null {
+  if (/\bquem\b.*\b(em casa|aqui em casa|chegou|saiu|esta aqui)\b/.test(t) || /\btem (alguem|gente|alguma pessoa|ninguem)\b.*\b(em casa|aqui)\b/.test(t) || /\b(alguem|ninguem) (esta |ta )?em casa\b/.test(t)) {
+    return { type: 'people', name: null };
+  }
+  const m =
+    t.match(/^(?:o |a )?([a-z]+(?: (?!ja\b)[a-z]+)?) (?:ja )?(?:chegou|saiu|esta em casa|ta em casa|esta fora|ta fora|esta aqui|ta aqui)\b/) ??
+    t.match(/^(?:o |a )?([a-z]+(?: (?!ja\b)[a-z]+)?) (?:ja )?(?:chegou em casa|saiu de casa)\b/) ??
+    t.match(/^onde (?:esta|ta) (?:o |a )?([a-z]+(?: [a-z]+)?)\??$/);
+  if (m && !NOT_PERSON.test(m[1]!) && !/^(ele|ela|voce|eu|todo mundo|alguem|ninguem|quem)$/.test(m[1]!)) return { type: 'people', name: m[1]! };
+  return null;
 }
 
 /** Só agradecimento/despedida (com outro pedido junto não conta). Recebe o texto já normalizado. */
@@ -164,6 +181,9 @@ export function parseIntent(original: string): Intent | null {
 
   const vacuum = parseVacuum(text, raw);
   if (vacuum) return vacuum;
+
+  const people = parsePeople(text);
+  if (people) return people;
 
   const lists = parseLists(raw);
   if (lists) return lists;

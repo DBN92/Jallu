@@ -332,3 +332,14 @@ model PushSubscription {
   label     String?
   createdAt DateTime @default(now())
 }
+
+/// Quem está em casa: o que a Luna faz quando alguém chega ou quando sai o último (linha única “main”)
+model PeopleConfig {
+  id            String  @id @default("main")
+  /// Luz que acende quando alguém chega à noite (null = nenhuma)
+  arriveLight   String?
+  /// Quando sai o último: apagar as luzes
+  leaveLightsOff Boolean @default(true)
+  /// Quando sai o último: avisar no celular o que ficou ligado
+  leaveNotify   Boolean @default(true)
+}

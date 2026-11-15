@@ -15,6 +15,7 @@ import { tvActive, useSettings } from './stores/settings';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
 import { useLists } from './stores/lists';
+import { usePeople } from './stores/people';
 import { nativeApp } from './lib/native';
 import { RecadosLayer } from './components/Recados';
 import { DimOverlay } from './components/DimOverlay';
@@ -66,6 +67,7 @@ function useRealtimeConnection(enabled: boolean) {
         else if (e.type === 'litter_alert') useGestureToast.getState().show(e.text, false);
         else if (e.type === 'recados_update') void useRecados.getState().load();
         else if (e.type === 'lists_update') void useLists.getState().load();
+        else if (e.type === 'people_update') void usePeople.getState().load();
         else if (e.type === 'washer_update') reloadWasher();
         else if (e.type === 'washer_done') {
           reloadWasher();

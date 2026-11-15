@@ -5,6 +5,8 @@ import type { DeviceCategory, WeatherDto } from '@luna/shared/types';
 import { useCameras } from '../stores/cameras';
 import { useDevices } from '../stores/devices';
 import { usePhotos } from '../stores/photos';
+import { usePeople } from '../stores/people';
+import { peopleLine } from './PeopleCard';
 import { unseenRecados, useRecados } from '../stores/recados';
 import { CameraThumb } from './CameraPlayer';
 import { useSettings } from '../stores/settings';
@@ -170,6 +172,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
   const current = slides.length ? slides[index % slides.length] : null;
   const on = useDevices((s) => Object.values(s.devices).filter((d) => !d.hidden && d.controllable && d.isOn).length);
   const fresh = unseenRecados(useRecados((s) => s.list));
+  const people = peopleLine(usePeople((s) => s.list));
 
   return createPortal(
     <div
@@ -190,6 +193,7 @@ export function AmbientMode({ now, weather, onExit, hint }: { now: Date; weather
               {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </p>
             <p className="hud-label mt-2 text-xs md:text-sm">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
+            {people && <p className="font-hud mt-2 text-sm text-cyan-100/70">{people}</p>}
             <div className="mt-4">
               <LunaOrb state="idle" size={Math.min(240, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.38))} />
             </div>

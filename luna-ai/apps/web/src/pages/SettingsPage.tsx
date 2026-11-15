@@ -15,6 +15,7 @@ import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
 import { PushSettings } from '../components/PushSettings';
+import { PeopleSettings } from '../components/PeopleSettings';
 import { AndroidVoiceSettings } from '../components/AndroidVoiceSettings';
 import { GarageSettings } from '../components/GarageSettings';
 import { GestureSettings } from '../gestures/GestureSettings';
@@ -492,6 +493,10 @@ export default function SettingsPage() {
           <GarageSettings />
         </Section>
       )}
+
+      <Section title="Quem está em casa">
+        <PeopleSettings isAdmin={isAdmin} />
+      </Section>
 
       <Section title="Gestos (comandos por mão)">
         <GestureSettings isAdmin={isAdmin} />

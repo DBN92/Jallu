@@ -54,6 +54,8 @@ import { listsRoutes } from './modules/lists/lists.routes';
 import { pushRoutes } from './modules/push/push.routes';
 import { ttsRoutes } from './modules/tts/tts.routes';
 import { diagRoutes } from './modules/diag/diag.routes';
+import { peopleRoutes } from './modules/people/people.routes';
+import { PeopleService } from './modules/people/people.service';
 import { PiperTts } from './modules/tts/piper.service';
 import { PushService } from './modules/push/push.service';
 import { ListsService } from './modules/lists/lists.service';
@@ -137,6 +139,11 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   // Lista da casa (em casa / comprar) e notas
   const lists = new ListsService(db, () => hub.broadcast({ type: 'lists_update' }));
   chat.setLists(lists);
+  // Quem está em casa (pessoas do Home Assistant)
+  const people = new PeopleService(db, ha, devices, env.TZ);
+  chat.setPeople(people);
+  people.on('update', () => hub.broadcast({ type: 'people_update' }));
+  people.notify = (title, body) => void push.broadcast({ title, body, url: '/', tag: 'pessoas' }).catch(() => undefined);
   // Caixa de areia: entidades com cartão próprio (ficam fora da lista de aparelhos)
   const litter = new LitterService(db, ha, actionLogs, env.TZ);
   chat.setLitter(litter);
@@ -144,6 +151,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   litter.on('alert', (text: string) => hub.broadcast({ type: 'litter_alert', text }));
   // Lava e seca: cartão próprio e aviso “Roupa pronta!” em todas as telas
   const washer = new WasherService(db, ha, actionLogs, env.TZ);
+  // Aviso “todos saíram”: a lava e seca ligada também entra na lista
+  people.extraOn = async () => (await washer.list()).filter((w) => w.power && (w.status === 'start' || w.status === 'pause')).map((w) => w.name);
   chat.setWasher(washer);
   washer.on('update', () => hub.broadcast({ type: 'washer_update' }));
   washer.on('done', (e: { text: string; speech: string; speak: boolean }) => hub.broadcast({ type: 'washer_done', ...e }));
@@ -162,6 +171,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     devices.handleStateChanged(evt);
     void litter.handleStateChanged(evt).catch(() => undefined);
     void washer.handleStateChanged(evt).catch(() => undefined);
+    void people.handleStateChanged(evt).catch(() => undefined);
   });
   haWs.on('connected', () => {
     hub.broadcast({ type: 'ha_status', connected: true });
@@ -169,7 +179,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -271,6 +281,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(pushRoutes);
   await app.register(ttsRoutes);
   await app.register(diagRoutes);
+  await app.register(peopleRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 

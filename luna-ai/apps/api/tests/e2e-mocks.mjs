@@ -10,6 +10,8 @@ add('light.luz_do_quarto', 'on', { friendly_name: 'Luz do Quarto', supported_col
 add('light.luz_da_varanda', 'off', { friendly_name: 'Luz da Varanda', supported_color_modes: ['onoff'] });
 add('switch.tomada_cafeteira', 'off', { friendly_name: 'Tomada Cafeteira', device_class: 'outlet' });
 add('switch.ventilador', 'on', { friendly_name: 'Ventilador do Escritório' });
+add('person.daniel', 'home', { friendly_name: 'Daniel' });
+add('person.ana', 'Trabalho', { friendly_name: 'Ana' });
 add('sensor.temperatura_sala', '24.6', { friendly_name: 'Temperatura da Sala', unit_of_measurement: '°C', device_class: 'temperature' });
 add('binary_sensor.porta_entrada', 'off', { friendly_name: 'Porta de Entrada', device_class: 'door' });
 add('person.dono', 'home', { friendly_name: 'Dono' });
