@@ -59,6 +59,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
+        AppDiag.init(prefs)
+        AppDiag.log("app aberto (onCreate) · Android ${Build.VERSION.RELEASE} · WebView ${try { android.webkit.WebView.getCurrentWebViewPackage()?.versionName } catch (_: Exception) { "?" }}")
         // Ao chegar alguém com a tela apagada, a Luna aparece por cima do bloqueio e acende a tela
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
         // Android 15 desenha o app por baixo das barras do sistema: quando elas estão à vista (ou o teclado
@@ -81,12 +83,14 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        AppDiag.log("onPause")
         visible = false
         super.onPause()
     }
 
     /** Saiu do app (sem ser a Luna apagando a tela): solta a câmera para os outros apps */
     override fun onStop() {
+        AppDiag.log("onStop (sleeping=$sleeping)")
         if (!sleeping) PresenceService.stop(this)
         super.onStop()
     }
@@ -109,6 +113,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        AppDiag.log("onResume · brilho=${window.attributes.screenBrightness} · sleeping=$sleeping · web=${web != null}")
         visible = true
         // Abriu o app: sempre com o brilho normal
         if (restoreBrightness()) web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-undim'))", null)
@@ -279,10 +284,17 @@ class MainActivity : Activity() {
                 try { startActivity(Intent(Intent.ACTION_VIEW, req.url)) } catch (_: Exception) {}
                 return true
             }
-            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { currentUrl = url }
-            override fun onPageFinished(view: WebView, url: String) { if (moving) moveStep(view, url) }
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { currentUrl = url; AppDiag.log("página começou: ${url.take(80)}") }
+            override fun onPageFinished(view: WebView, url: String) { AppDiag.log("página carregou: ${url.take(80)}"); if (moving) moveStep(view, url) }
+            /** O navegador interno travou ou foi fechado pelo Android: recria a tela em vez de ficar preta */
+            override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                AppDiag.log("navegador interno caiu (crash=${detail.didCrash()}): recriando a tela")
+                if (web === view) { web = null; view.destroy(); runOnUiThread { showWeb() } }
+                return true
+            }
             override fun onReceivedError(view: WebView, req: WebResourceRequest, err: android.webkit.WebResourceError) {
                 if (!req.isForMainFrame) return
+                AppDiag.log("erro ao carregar ${req.url.toString().take(80)}: ${err.errorCode} ${err.description}")
                 // A ponte local não respondeu: abre a Luna pelo endereço direto (só a câmera fica indisponível)
                 if (req.url.host == "127.0.0.1" && !LocalRelay.broken && prefs.url.startsWith("http://")) {
                     LocalRelay.broken = true
@@ -294,6 +306,10 @@ class MainActivity : Activity() {
             }
         }
         w.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) AppDiag.log("console: ${m.message().take(200)} @${m.sourceId().substringAfterLast('/')}:${m.lineNumber()}")
+                return false
+            }
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread {
                     if (!sameOrigin(request.origin.toString())) return@runOnUiThread request.deny()
@@ -515,6 +531,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun sleepScreen(): Boolean {
             if (!allowed() || !ScreenAdmin.active(this@MainActivity)) return false
+            AppDiag.log("sleepScreen: apagando a tela")
             runOnUiThread {
                 sleeping = true
                 PresenceService.sleepMode = true
@@ -544,6 +561,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun setDim(on: Boolean) {
             if (!allowed()) return
+            AppDiag.log("setDim($on)")
             runOnUiThread { window.attributes = window.attributes.also { it.screenBrightness = if (on) 0f else WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE } }
         }
 

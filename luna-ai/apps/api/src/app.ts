@@ -53,6 +53,7 @@ import { recadosRoutes } from './modules/recados/recados.routes';
 import { listsRoutes } from './modules/lists/lists.routes';
 import { pushRoutes } from './modules/push/push.routes';
 import { ttsRoutes } from './modules/tts/tts.routes';
+import { diagRoutes } from './modules/diag/diag.routes';
 import { PiperTts } from './modules/tts/piper.service';
 import { PushService } from './modules/push/push.service';
 import { ListsService } from './modules/lists/lists.service';
@@ -269,6 +270,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(listsRoutes);
   await app.register(pushRoutes);
   await app.register(ttsRoutes);
+  await app.register(diagRoutes);
   await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
   await app.register(wsRoutes);
 

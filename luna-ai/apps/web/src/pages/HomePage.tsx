@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom';
 import { AudioLines, Mic, MicOff, SendHorizontal, ShoppingCart, Square, Volume2, VolumeX, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { diag } from '../lib/diag';
 import { LunaOrb } from '../components/LunaOrb';
 import { ModernHome } from '../components/ModernHome';
 import { nativeApp, type NativeVoiceEvent } from '../lib/native';
@@ -317,6 +318,8 @@ export default function HomePage() {
     return () => clearInterval(t);
   }, [ambientEnabled, ambientDelay, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
+  useEffect(() => diag(`conversa por voz em tela cheia: ${voiceFocus}`), [voiceFocus]);
+  useEffect(() => diag(`descanso de tela: ${ambient}`), [ambient]);
   // App Android: avisa se a tela conduz a conversa e pausa o “Oi, Luna” enquanto a conversa usa o microfone
   useEffect(() => {
     nativeApp()?.setVoiceHandoff?.(appRealtime);

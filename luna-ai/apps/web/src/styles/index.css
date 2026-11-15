@@ -333,8 +333,13 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .washer-spin, .washer-pulse, .washer-shirt { animation: none; } .washer-pop { animation-duration: .01s; } }
 
 /* Recado novo: o aviso pulsa (borda e ícone) para chamar a atenção de quem passa */
-@keyframes recado-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); } 50% { box-shadow: 0 0 28px 6px rgba(251, 191, 36, 0.45); } }
+/* Brilho fixo numa camada à parte; só a opacidade pulsa (leve para a placa de vídeo do tablet).
+   Antes a sombra grande era redesenhada a cada quadro, e no app Android a tela podia ficar preta. */
+@keyframes recado-fade { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @keyframes recado-ring { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
-.recado-alert { animation: recado-glow 1.8s ease-in-out infinite; }
+.recado-alert { position: relative; }
+.recado-alert::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 22px 4px rgba(251, 191, 36, 0.45); pointer-events: none; animation: recado-fade 1.8s ease-in-out infinite; }
 .recado-alert-icon { animation: recado-ring 1.8s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .recado-alert, .recado-alert-icon { animation: none; } }
+/* No app Android: aviso parado (sem animação) */
+html.in-app .recado-alert::after, html.in-app .recado-alert-icon { animation: none; opacity: 0.8; }
+@media (prefers-reduced-motion: reduce) { .recado-alert::after, .recado-alert-icon { animation: none; } }
