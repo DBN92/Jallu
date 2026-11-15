@@ -162,10 +162,13 @@ export class DirectCamerasService {
   private tuyaStream: ((deviceId: string, kind: TuyaKind) => Promise<string>) | null = null;
   /** Formatos tentados, em ordem (WebRTC pelo go2rtc quando instalado; depois RTSP e HLS da nuvem) */
   private tuyaKinds: TuyaKind[] = ['rtsp', 'hls'];
-  setTuyaStream(fn: (deviceId: string, kind: TuyaKind) => Promise<string>, kinds?: () => TuyaKind[]) {
+  setTuyaStream(fn: (deviceId: string, kind: TuyaKind) => Promise<string>, kinds?: () => TuyaKind[], localError?: () => string | null) {
     this.tuyaStream = fn;
     if (kinds) this.kindsFn = kinds;
+    if (localError) this.localError = localError;
   }
+  /** Motivo do go2rtc local quando o WebRTC falha */
+  private localError: () => string | null = () => null;
   private kindsFn: () => TuyaKind[] = () => this.tuyaKinds;
   /** Formato que funcionou por último em cada aparelho Tuya (alguns só entregam HLS) */
   private tuyaKind = new Map<string, TuyaKind>();
@@ -277,7 +280,8 @@ export class DirectCamerasService {
         return src.tuya ? { ...r, detail: `${r.detail} · nuvem Tuya (${src.tuya.kind.toUpperCase()})` } : r;
       }
       if (!src.tuya) return r;
-      fails.push(`${src.tuya.kind.toUpperCase()}: ${r.detail}`);
+      const why = src.tuya.kind === 'webrtc' ? this.localError() : null;
+      fails.push(`${src.tuya.kind.toUpperCase()}: ${why ? `go2rtc: ${why}` : r.detail}`);
     }
     return { ok: false, detail: `nuvem Tuya sem imagem — ${fails.join(' · ')}`, ms: 0 };
   }

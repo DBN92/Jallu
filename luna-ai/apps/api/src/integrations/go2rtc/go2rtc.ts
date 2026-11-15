@@ -39,6 +39,14 @@ export class Go2rtc {
     return this.log.slice(-6);
   }
 
+  /** O motivo mais recente de erro do go2rtc (para mostrar no Testar) */
+  lastError(): string | null {
+    const l = [...this.log].reverse().find((x) => /err|fail/i.test(x));
+    if (!l) return null;
+    const m = l.match(/error="?([^"]+)"?/i);
+    return (m ? m[1]! : l).slice(0, 240);
+  }
+
   /** Configuração: só RTSP local; API, WebRTC servidor, SRTP, RTMP e HomeKit desligados */
   private config() {
     return JSON.stringify({
@@ -47,7 +55,7 @@ export class Go2rtc {
       webrtc: { listen: '' },
       srtp: { listen: '' },
       rtmp: { listen: '' },
-      log: { level: 'warn' },
+      log: { level: 'info' },
       streams: Object.fromEntries([...this.streams].map(([k, v]) => [k, [v]])),
     });
   }
@@ -84,8 +92,16 @@ export class Go2rtc {
     process.once('exit', onExit);
     proc.once('close', () => process.removeListener('exit', onExit));
     const keep = (d: Buffer) => {
-      this.log.push(...d.toString().replace(/client_secret=[^&\s"]+/g, 'client_secret=…').split('\n').filter(Boolean));
+      const lines = d
+        .toString()
+        .replace(/(client_secret|password|access_token|token)=[^&\s"]+/gi, '$1=…')
+        .replace(/\x1b\[[0-9;]*m/g, '')
+        .split('\n')
+        .filter(Boolean);
+      this.log.push(...lines);
       if (this.log.length > 40) this.log.splice(0, this.log.length - 40);
+      // Erros e avisos vão para o log da Luna (journalctl), sem a chave
+      for (const l of lines) if (/err|warn|fail|tuya|webrtc/i.test(l)) console.warn(`[go2rtc] ${l.slice(0, 400)}`);
     };
     proc.stdout!.on('data', keep);
     proc.stderr!.on('data', keep);

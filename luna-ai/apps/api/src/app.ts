@@ -129,6 +129,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   directCameras.setTuyaStream(
     async (id, kind) => (kind === 'webrtc' ? go2rtc.streamUrl(`tuya_${id}`, await tuya.webrtcSource(id)) : tuya.streamUrl(id, kind)),
     () => (go2rtc.available ? ['webrtc', 'rtsp', 'hls'] : ['rtsp', 'hls']),
+    () => go2rtc.lastError(),
   );
   const gestures = new GesturesService(db, devices);
   // Vigias da garagem: foto da câmera direta (1 quadro) ou do Home Assistant
