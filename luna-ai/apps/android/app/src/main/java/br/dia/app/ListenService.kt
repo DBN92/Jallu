@@ -51,17 +51,28 @@ class ListenService : Service() {
         private const val NOTIF_ID = 7
 
         @Volatile var status: String = "parado"
-            private set
+            private set(v) {
+                if (field != v && (v.startsWith("erro") || v.startsWith("sem ") || v == "parado" || v == "ouvindo" || v.startsWith("reconhecimento"))) AppDiag.log("escuta: $v")
+                field = v
+            }
 
         /** A tela da Luna está aberta com a voz em tempo real (OpenAI): ela conduz a conversa */
         @Volatile var handoff = false
 
         fun send(ctx: Context, action: String) {
             val i = Intent(ctx, ListenService::class.java).setAction(action)
+            // Sem o microfone liberado o Android nem deixa o serviço ligar: mostra o motivo em vez de “parado”
+            if (action != ACTION_STOP && ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                status = "sem permissão de microfone"
+                AppDiag.log("escuta: sem permissão de microfone")
+                return
+            }
             try {
                 if (action == ACTION_STOP) ctx.startService(i) else ctx.startForegroundService(i)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // Android 12+ não deixa iniciar o microfone em segundo plano: abre o app para iniciar
+                status = "erro ao ligar a escuta: ${e.javaClass.simpleName}"
+                AppDiag.log("escuta: não ligou (${e.javaClass.simpleName}: ${e.message})")
             }
         }
     }
@@ -85,6 +96,7 @@ class ListenService : Service() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
+        AppDiag.init(prefs)
         // Rede de segurança: erro numa rotina de fundo (escuta, voz, download) não fecha o app —
         // só para a escuta e mostra o motivo no aviso. Erros na tela principal seguem o normal.
         val previous = Thread.getDefaultUncaughtExceptionHandler()
@@ -101,10 +113,13 @@ class ListenService : Service() {
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, notification("Preparando…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             else startForeground(NOTIF_ID, notification("Preparando…"))
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            status = "erro ao ligar a escuta: ${e.javaClass.simpleName}"
+            AppDiag.log("escuta: o Android recusou (${e.javaClass.simpleName}: ${e.message})")
             stopSelf()
             return
         }
+        AppDiag.log("escuta: serviço ligado")
         // Tablet na tomada: mantém o processador acordado para ouvir com a tela desligada
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dia:escuta").apply { acquire() }
         tts = TextToSpeech(this) { st ->
@@ -118,7 +133,7 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_PAUSE -> { paused = true; speech?.cancel(); stopListening(); update() }
+            ACTION_PAUSE -> { paused = true; status = "pausado"; AppDiag.log("escuta: pausada pela tela"); speech?.cancel(); stopListening(); update() }
             ACTION_RESUME -> { paused = false; startListening() }
             ACTION_LISTEN_NOW -> if (model != null) main.post { beginCommand() } else pendingManual = true
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }

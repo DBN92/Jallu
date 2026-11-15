@@ -125,6 +125,8 @@ export default function App() {
   usePresence(status === 'ready');
   useEffect(() => {
     nativeApp()?.setDim?.(false);
+    // Página nova: se a escuta do “Oi, Luna” ficou pausada por uma tela anterior (gravação, conversa), retoma
+    nativeApp()?.pauseWake?.(false);
   }, []);
   useEffect(() => {
     if (status !== 'ready') return;
