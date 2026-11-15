@@ -1,4 +1,5 @@
-import type { CameraDto, PtzAction } from '@luna/shared';
+import type { CameraDto, CameraInfoItem, PtzAction } from '@luna/shared';
+import type { HaState, HaStateChangedEvent } from '../../integrations/home-assistant/types';
 import { AppError, badRequest, notFound } from '../../lib/errors';
 import { normalize, significantTokens } from '../../lib/text';
 import type { HomeAssistantRestClient } from '../../integrations/home-assistant/rest-client';
@@ -6,11 +7,40 @@ import type { ActionLogService } from '../devices/action-log.service';
 import { randomBytes } from 'node:crypto';
 import type { DirectCamerasService } from './direct.service';
 
-type Registry = () => Promise<Map<string, { platform: string; hidden: boolean }>>;
+type Registry = () => Promise<Map<string, { platform: string; hidden: boolean; deviceId?: string | null; category?: string | null }>>;
 type WsCommand = <T>(payload: Record<string, unknown>) => Promise<T>;
 
 const STREAM_FEATURE = 2; // CameraEntityFeature.STREAM
 const ENTITY_RE = /^camera\.[a-z0-9_]+$/;
+
+/** Tipo da informação, pelo device_class ou pelo nome (a integração Tuya usa nomes em inglês ou português). */
+function infoKind(s: HaState): CameraInfoItem['kind'] {
+  const id = `${s.entity_id} ${String(s.attributes.friendly_name ?? '')}`.toLowerCase();
+  const dc = String(s.attributes.device_class ?? '');
+  if (/cry|choro/.test(id)) return 'cry';
+  if (dc === 'temperature' || /temperat/.test(id)) return 'temperature';
+  if (dc === 'humidity' || /humid|umidade/.test(id)) return 'humidity';
+  if (dc === 'battery' || /battery|bateria|electricity/.test(id)) return 'battery';
+  if (dc === 'sound' || /sound|decibel|\bsom\b|ruido|ruído/.test(id)) return 'sound';
+  if (dc === 'motion' || dc === 'occupancy' || /motion|movement|movimento/.test(id)) return 'motion';
+  if (/privacy|privat|privacidade/.test(id)) return 'privacy';
+  if (/night|noturna/.test(id)) return 'night';
+  return 'other';
+}
+const KIND_LABEL: Record<CameraInfoItem['kind'], string> = {
+  temperature: 'Temperatura',
+  humidity: 'Umidade',
+  battery: 'Bateria',
+  cry: 'Detecção de choro',
+  sound: 'Detecção de som',
+  motion: 'Detecção de movimento',
+  privacy: 'Modo privacidade',
+  night: 'Visão noturna',
+  other: '',
+};
+const ALERT_TEXT: Partial<Record<CameraInfoItem['kind'], string>> = { cry: 'choro detectado', sound: 'som detectado', motion: 'movimento detectado' };
+/** Mesmo aviso no máximo a cada 3 minutos */
+const ALERT_EVERY_MS = 3 * 60_000;
 
 /**
  * Câmeras via Home Assistant (ex.: Yoosee pela integração ONVIF ou “câmera genérica” RTSP).
@@ -53,21 +83,90 @@ export class CamerasService {
 
   private async haList(): Promise<CameraDto[]> {
     const [states, reg] = await Promise.all([this.ha.getStates(), this.registry().catch(() => new Map())]);
-    return states
+    // Entidades do mesmo aparelho físico da câmera (ex.: babá eletrônica Smart Life/Tuya)
+    const byDevice = new Map<string, HaState[]>();
+    for (const s of states) {
+      const r = reg.get(s.entity_id);
+      if (!r?.deviceId || r.hidden || s.entity_id.startsWith('camera.')) continue;
+      byDevice.set(r.deviceId, [...(byDevice.get(r.deviceId) ?? []), s]);
+    }
+    const watch = new Map<string, string>();
+    const list = states
       .filter((s) => s.entity_id.startsWith('camera.') && !reg.get(s.entity_id)?.hidden)
       .map((s) => {
         const platform = reg.get(s.entity_id)?.platform ?? null;
+        const name = (s.attributes.friendly_name as string | undefined) ?? s.entity_id;
+        const dev = reg.get(s.entity_id)?.deviceId;
+        const info = dev ? this.cameraInfo(name, byDevice.get(dev) ?? []) : [];
+        for (const i of info) if (ALERT_TEXT[i.kind] && i.entityId.startsWith('binary_sensor.')) watch.set(i.entityId, name);
         return {
           entityId: s.entity_id,
-          name: (s.attributes.friendly_name as string | undefined) ?? s.entity_id,
+          name,
           state: s.state,
           available: s.state !== 'unavailable',
           stream: ((Number(s.attributes.supported_features) || 0) & STREAM_FEATURE) !== 0,
           ptz: platform === 'onvif',
           platform,
+          ...(info.length ? { info } : {}),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    this.alertWatch = watch;
+    return list;
+  }
+
+  /**
+   * Informações do aparelho da câmera: sensores (temperatura, umidade, bateria), detecções
+   * (choro, som, movimento) e as chaves de privacidade/visão noturna. Só lê; nada é inventado.
+   */
+  private cameraInfo(cameraName: string, related: HaState[]): CameraInfoItem[] {
+    const prefix = cameraName.toLowerCase();
+    const items: CameraInfoItem[] = [];
+    for (const s of related) {
+      if (s.state === 'unavailable' || s.state === 'unknown') continue;
+      const domain = s.entity_id.split('.')[0]!;
+      const kind = infoKind(s);
+      let raw = String(s.attributes.friendly_name ?? s.entity_id);
+      if (raw.toLowerCase().startsWith(prefix)) raw = raw.slice(prefix.length).trim();
+      const label = KIND_LABEL[kind] || raw || s.entity_id;
+      if (domain === 'sensor') {
+        const unit = typeof s.attributes.unit_of_measurement === 'string' ? s.attributes.unit_of_measurement : '';
+        const n = Number(s.state);
+        if (!Number.isFinite(n) || (kind === 'other' && !unit)) continue;
+        const v = kind === 'temperature' ? n.toFixed(1).replace('.', ',') : String(Math.round(n * 10) / 10).replace('.', ',');
+        items.push({ entityId: s.entity_id, kind, label, value: `${v}${unit === '%' ? '%' : unit ? ` ${unit}` : ''}` });
+      } else if (domain === 'binary_sensor') {
+        const on = s.state === 'on';
+        items.push({ entityId: s.entity_id, kind, label: ALERT_TEXT[kind] ? label.replace('Detecção de', 'Detectando') : label, value: on ? (ALERT_TEXT[kind] ?? 'sim') : 'nada agora', active: on && !!ALERT_TEXT[kind] });
+      } else if ((domain === 'switch' || domain === 'select') && kind !== 'other') {
+        items.push({ entityId: s.entity_id, kind, label, value: domain === 'switch' ? (s.state === 'on' ? 'ligada' : 'desligada') : s.state });
+      }
+    }
+    const order: CameraInfoItem['kind'][] = ['cry', 'sound', 'motion', 'temperature', 'humidity', 'battery', 'night', 'privacy', 'other'];
+    return items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind)).slice(0, 10);
+  }
+
+  /** Sensores de detecção das câmeras (binary_sensor → nome da câmera), atualizados a cada listagem */
+  private alertWatch = new Map<string, string>();
+  private alertedAt = new Map<string, number>();
+  private watchLoadedAt = 0;
+  /** Aviso no celular (Web Push) — ligado pelo app */
+  notify: (title: string, body: string) => void = () => {};
+
+  /** Babá eletrônica detectou choro/som/movimento: avisa no celular (no máximo a cada 3 min). */
+  async handleStateChanged(evt: HaStateChangedEvent) {
+    if (!evt.entity_id.startsWith('binary_sensor.') || evt.new_state?.state !== 'on' || evt.old_state?.state === 'on') return;
+    if (Date.now() - this.watchLoadedAt > 10 * 60_000) {
+      this.watchLoadedAt = Date.now();
+      await this.haList().catch(() => undefined);
+    }
+    const camera = this.alertWatch.get(evt.entity_id);
+    if (!camera) return;
+    const last = this.alertedAt.get(evt.entity_id) ?? 0;
+    if (Date.now() - last < ALERT_EVERY_MS) return;
+    this.alertedAt.set(evt.entity_id, Date.now());
+    const what = ALERT_TEXT[infoKind(evt.new_state)] ?? 'detecção';
+    this.notify(camera, `${what.charAt(0).toUpperCase()}${what.slice(1)} — toque para ver a câmera.`);
   }
 
   async get(entityId: string): Promise<CameraDto> {

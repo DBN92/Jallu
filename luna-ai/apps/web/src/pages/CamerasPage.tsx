@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Cctv, Move3d, RefreshCw } from 'lucide-react';
 import { Page } from '../components/Layout';
 import { CameraThumb } from '../components/CameraPlayer';
+import { CameraInfo } from '../components/CameraInfo';
 import { Banner, Card, PageHeader, Spinner } from '../components/ui';
 import { useCameras } from '../stores/cameras';
 
@@ -9,6 +10,8 @@ export default function CamerasPage() {
   const { cameras, error, load, open } = useCameras();
   useEffect(() => {
     void load();
+    const t = setInterval(() => void load(), 30_000);
+    return () => clearInterval(t);
   }, [load]);
 
   return (
@@ -45,6 +48,7 @@ export default function CamerasPage() {
                   {!c.available ? 'offline' : c.stream ? 'vídeo ao vivo' : 'imagens'}
                 </span>
               </div>
+              {c.info && <div className="px-2 pb-2"><CameraInfo info={c.info} compact /></div>}
             </button>
           ))}
         </div>

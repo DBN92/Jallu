@@ -100,3 +100,44 @@ describe('câmeras (via Home Assistant)', () => {
     expect(replies[0]!.event).toMatchObject({ type: 'assistant_reply', userText: 'mostre a câmera da garagem', reply: 'Abrindo a câmera Garagem.', cameraIds: ['camera.garagem'] });
   });
 });
+
+describe('babá eletrônica (câmera Smart Life/Tuya com sensores no mesmo aparelho)', () => {
+  async function withMonitor() {
+    ctx = await makeApp();
+    const set = (id: string, state: string, attributes: Record<string, unknown>) => ctx.ha.states.set(id, { entity_id: id, state, attributes });
+    set('camera.baba_eletronica', 'idle', { friendly_name: 'Babá eletrônica', supported_features: 2 });
+    set('sensor.baba_eletronica_temperature', '23.44', { friendly_name: 'Babá eletrônica Temperature', unit_of_measurement: '°C', device_class: 'temperature' });
+    set('sensor.baba_eletronica_humidity', '61', { friendly_name: 'Babá eletrônica Humidity', unit_of_measurement: '%', device_class: 'humidity' });
+    set('binary_sensor.baba_eletronica_cry', 'off', { friendly_name: 'Babá eletrônica Choro' });
+    set('switch.baba_eletronica_privacy_mode', 'off', { friendly_name: 'Babá eletrônica Privacy mode' });
+    set('switch.baba_eletronica_flip', 'off', { friendly_name: 'Babá eletrônica Flip' });
+    set('sensor.outra_coisa', '5', { friendly_name: 'Outra coisa', unit_of_measurement: 'W' });
+    const reg = new Map(
+      ['camera.baba_eletronica', 'sensor.baba_eletronica_temperature', 'sensor.baba_eletronica_humidity', 'binary_sensor.baba_eletronica_cry', 'switch.baba_eletronica_privacy_mode', 'switch.baba_eletronica_flip'].map((id) => [id, { platform: 'tuya', hidden: false, deviceId: 'dev1' }] as const),
+    );
+    ctx.app.services.cameras.setBackends(async () => new Map([...reg, ['sensor.outra_coisa', { platform: 'x', hidden: false, deviceId: 'dev2' }]]), async <T,>() => ({}) as T);
+    return ctx;
+  }
+
+  it('mostra o que o aparelho informa, sem misturar outros aparelhos', async () => {
+    await withMonitor();
+    const [cam] = (await ctx.inject('GET', '/api/cameras')).json;
+    expect(cam.info).toEqual([
+      expect.objectContaining({ kind: 'cry', label: 'Detectando choro', value: 'nada agora', active: false }),
+      expect.objectContaining({ kind: 'temperature', value: '23,4 °C' }),
+      expect.objectContaining({ kind: 'humidity', value: '61%' }),
+      expect.objectContaining({ kind: 'privacy', label: 'Modo privacidade', value: 'desligada' }),
+    ]);
+  });
+
+  it('choro detectado avisa no celular, no máximo a cada 3 minutos', async () => {
+    await withMonitor();
+    const sent: string[] = [];
+    ctx.app.services.cameras.notify = (t, b) => sent.push(`${t}: ${b}`);
+    await ctx.inject('GET', '/api/cameras');
+    const on = (old: string) => ({ entity_id: 'binary_sensor.baba_eletronica_cry', old_state: { entity_id: 'binary_sensor.baba_eletronica_cry', state: old, attributes: {} }, new_state: { entity_id: 'binary_sensor.baba_eletronica_cry', state: 'on', attributes: { friendly_name: 'Babá eletrônica Choro' } } });
+    await ctx.app.services.cameras.handleStateChanged(on('off'));
+    await ctx.app.services.cameras.handleStateChanged(on('off'));
+    expect(sent).toEqual(['Babá eletrônica: Choro detectado — toque para ver a câmera.']);
+  });
+});

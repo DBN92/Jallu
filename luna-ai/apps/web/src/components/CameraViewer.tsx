@@ -5,6 +5,7 @@ import type { CameraDto, PtzAction } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useCameras } from '../stores/cameras';
 import { CameraPlayer, CameraThumb } from './CameraPlayer';
+import { CameraInfo } from './CameraInfo';
 
 /** Botão de movimento: segura para mover, solta para parar. */
 function PtzButton({ camera, action, label, children, onError }: { camera: CameraDto; action: PtzAction; label: string; children: React.ReactNode; onError: (m: string) => void }) {
@@ -106,7 +107,7 @@ export function CameraControls({ camera, containerRef }: { camera: CameraDto; co
         </div>
       </div>
       <Diagnose camera={camera} />
-      {!camera.ptz && (
+      {!camera.ptz && camera.platform !== 'tuya' && (
         <p className="font-hud text-center text-xs text-cyan-100/45">
           {camera.platform === 'luna'
             ? 'Para girar/inclinar: Ajustes › Câmeras diretas › Ativar movimento.'
@@ -135,6 +136,12 @@ export function CameraViewer() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [viewing, close]);
+  // Informações da babá eletrônica (temperatura, choro…) atualizadas enquanto a câmera está aberta
+  useEffect(() => {
+    if (!viewing) return;
+    const t = setInterval(() => void load(), 20_000);
+    return () => clearInterval(t);
+  }, [viewing, load]);
 
   if (!viewing) return null;
   const list = (cameras ?? []).filter((c) => viewing.includes(c.entityId));
@@ -157,6 +164,7 @@ export function CameraViewer() {
             <CameraPlayer key={cam.entityId} camera={cam} className="h-full min-h-[220px] w-full" />
           </div>
           <div className="flex shrink-0 flex-col gap-3 md:w-64">
+            <CameraInfo info={cam.info} />
             <CameraControls camera={cam} containerRef={box} />
             {list.length > 1 && (
               <div className="grid grid-cols-3 gap-2 md:grid-cols-2">

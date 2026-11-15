@@ -143,6 +143,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const people = new PeopleService(db, ha, devices, env.TZ);
   chat.setPeople(people);
   people.on('update', () => hub.broadcast({ type: 'people_update' }));
+  cameras.notify = (title, body) => void push.broadcast({ title, body, url: '/cameras', tag: 'camera-alerta' }).catch(() => undefined);
   people.notify = (title, body) => void push.broadcast({ title, body, url: '/', tag: 'pessoas' }).catch(() => undefined);
   // Caixa de areia: entidades com cartão próprio (ficam fora da lista de aparelhos)
   const litter = new LitterService(db, ha, actionLogs, env.TZ);
@@ -172,6 +173,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     void litter.handleStateChanged(evt).catch(() => undefined);
     void washer.handleStateChanged(evt).catch(() => undefined);
     void people.handleStateChanged(evt).catch(() => undefined);
+    void cameras.handleStateChanged(evt).catch(() => undefined);
   });
   haWs.on('connected', () => {
     hub.broadcast({ type: 'ha_status', connected: true });

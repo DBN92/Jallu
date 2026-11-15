@@ -339,6 +339,17 @@ export interface CameraDto {
   ptz: boolean;
   /** Integração de origem no HA (ex.: onvif, generic) */
   platform: string | null;
+  /** O que o próprio aparelho informa pelo HA (babá eletrônica: temperatura, umidade, som, movimento…) */
+  info?: CameraInfoItem[];
+}
+
+export interface CameraInfoItem {
+  entityId: string;
+  kind: 'temperature' | 'humidity' | 'battery' | 'cry' | 'sound' | 'motion' | 'privacy' | 'night' | 'other';
+  label: string;
+  value: string;
+  /** Detecção acontecendo agora (choro, som, movimento) */
+  active?: boolean;
 }
 
 export type PtzAction = 'up' | 'down' | 'left' | 'right' | 'zoom_in' | 'zoom_out' | 'stop';

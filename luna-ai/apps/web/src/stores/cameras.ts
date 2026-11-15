@@ -12,7 +12,7 @@ interface CamerasState {
   close: () => void;
 }
 
-export const useCameras = create<CamerasState>((set) => ({
+export const useCameras = create<CamerasState>((set, get) => ({
   cameras: null,
   error: null,
   viewing: null,
@@ -20,7 +20,8 @@ export const useCameras = create<CamerasState>((set) => ({
     try {
       set({ cameras: await api<CameraDto[]>('/api/cameras'), error: null });
     } catch (err) {
-      set({ cameras: [], error: errorMessage(err) });
+      // Falha passageira na atualização automática: mantém a lista que já estava na tela
+      set({ cameras: get().cameras ?? [], error: errorMessage(err) });
     }
   },
   open: (ids) => set({ viewing: ids }),
