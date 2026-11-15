@@ -20,6 +20,7 @@ import { GestureSettings } from '../gestures/GestureSettings';
 import { SiriSettings } from '../components/SiriSettings';
 import { AndroidSettings } from '../components/AndroidSettings';
 import { useWakeLog } from '../hooks/useWakeWord';
+import { nativeApp } from '../lib/native';
 
 /** O que o chamado “Oi, Luna” ouviu por último: ajuda a ver se o celular está entendendo a frase. */
 function WakeHeard() {
@@ -296,6 +297,8 @@ export default function SettingsPage() {
   };
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
   const tts = useSpeechSynthesis();
+  // Dentro do app Android do tablet (as respostas faladas saem pelo próprio app)
+  const inApp = nativeApp() !== null;
   const voiceEngine = useSettings((s) => s.voiceEngine);
   const setVoiceEngine = useSettings((s) => s.setVoiceEngine);
   const [lunaVoice, setLunaVoice] = useState(false);
@@ -378,7 +381,7 @@ export default function SettingsPage() {
                 {(
                   [
                     ['luna', 'Voz da Luna (Dii)'],
-                    ['device', 'Voz do aparelho'],
+                    ['device', inApp ? 'Voz do Android' : 'Voz do aparelho'],
                   ] as const
                 ).map(([v, label]) => (
                   <button key={v} onClick={() => setVoiceEngine(v)} className={`rounded-sm py-2 text-sm ${voiceEngine === v ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50' : 'text-white/70'}`}>
@@ -386,10 +389,18 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-white/45">A voz da Luna é gerada no servidor da sua casa: grátis, sem internet e igual em todos os aparelhos. Vale só para este aparelho.</p>
+              <p className="mt-1.5 text-xs text-white/45">
+                {voiceEngine === 'luna'
+                  ? 'A voz da Luna é gerada no servidor da sua casa: grátis, sem internet e igual em todos os aparelhos.'
+                  : inApp
+                    ? 'O app fala com a voz do Android, escolhida em Configurações › Gerenciamento geral › Saída de texto para fala.'
+                    : 'Usando a voz deste aparelho (escolha abaixo).'}{' '}
+                Vale só para este aparelho.
+              </p>
             </div>
           )}
-          {(!lunaVoice || voiceEngine === 'device') && (
+          {/* No app do tablet não há lista de vozes na página: quem fala é o próprio app */}
+          {!inApp && (!lunaVoice || voiceEngine === 'device') && (
           <>
           <label className="block text-sm">
             Voz do aparelho
@@ -421,10 +432,12 @@ export default function SettingsPage() {
           )}
           </>
           )}
+          {!inApp && (
           <label className="block text-sm">
             Velocidade da fala: {settings.voiceRate.toFixed(1)}x
             <input type="range" min={0.5} max={2} step={0.1} value={settings.voiceRate} onChange={(e) => void save({ voiceRate: Number(e.target.value) })} className="mt-2 w-full" />
           </label>
+          )}
           <Button variant="ghost" onClick={() => (tts.unlock(), tts.speak('Olá! Eu sou a Luna, sua assistente pessoal. Agora faz 26° e a chance de chuva é de 70%.', { voiceName: settings.voiceName, rate: settings.voiceRate }))} disabled={!tts.supported}>
             Testar voz
           </Button>
