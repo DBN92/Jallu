@@ -53,6 +53,11 @@ class Prefs(ctx: Context) {
         get() = p.getFloat("ttsRate", 1.05f)
         set(v) = p.edit().putFloat("ttsRate", v).apply()
 
+    /** Atualizar o app sozinho quando houver versão nova no servidor */
+    var autoUpdate: Boolean
+        get() = p.getBoolean("autoUpdate", true)
+        set(v) = p.edit().putBoolean("autoUpdate", v).apply()
+
     /** alta | normal | baixa */
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"

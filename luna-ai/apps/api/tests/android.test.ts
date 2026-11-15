@@ -17,6 +17,11 @@ describe('App Android (tablet)', () => {
     expect(apk.rawPayload.subarray(0, 2).toString()).toBe('PK'); // APK é um zip
     const anon = await ctx.app.inject({ method: 'GET', url: '/api/android/apk' });
     expect(anon.statusCode).toBe(401);
+    // O próprio app (atualização automática) usa o token dele, sem cookie
+    const token = (await ctx.inject('POST', '/api/siri/tokens', { name: 'Tablet' })).json.token as string;
+    const byToken = await ctx.app.inject({ method: 'GET', url: '/api/android/version', headers: { authorization: `Bearer ${token}` } });
+    expect(byToken.json().versionCode).toBe(v.json.versionCode);
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/android/apk', headers: { authorization: 'Bearer luna_tokeninvalido0000000000000' } })).statusCode).toBe(401);
   });
 
   it('avisa quando o servidor não tem o APK', async () => {

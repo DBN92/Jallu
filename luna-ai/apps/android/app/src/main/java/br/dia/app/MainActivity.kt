@@ -126,6 +126,8 @@ class MainActivity : Activity() {
             sleeping = false
             web?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-wake'))", null)
         }
+        // Versão nova no servidor? (no máximo a cada 3 h)
+        AppUpdater.check(this, prefs)
         // App em primeiro plano: o Android permite (re)ligar o microfone em segundo plano a partir daqui
         if (prefs.wake && hasMic()) ListenService.send(this, ListenService.ACTION_START)
     }
@@ -607,6 +609,22 @@ class MainActivity : Activity() {
                     try { startActivity(Intent("com.android.settings.TTS_SETTINGS")) } catch (_: Exception) {}
                 }
             }
+        }
+
+        /** Atualização automática: estado, ligar/desligar, verificar agora e liberar a instalação */
+        @JavascriptInterface
+        fun updateStatus(): String = if (!allowed()) "{}" else JSONObject()
+            .put("auto", prefs.autoUpdate).put("canInstall", AppUpdater.canInstall(this@MainActivity))
+            .put("status", AppUpdater.status).put("version", BuildConfig.VERSION_NAME).toString()
+
+        @JavascriptInterface fun setAutoUpdate(on: Boolean) { if (allowed()) { prefs.autoUpdate = on; if (on) AppUpdater.check(this@MainActivity, prefs, force = true) } }
+
+        @JavascriptInterface fun checkUpdate() { if (allowed()) AppUpdater.check(this@MainActivity, prefs, force = true) }
+
+        @JavascriptInterface
+        fun allowInstall() {
+            if (!allowed()) return
+            runOnUiThread { try { startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))) } catch (_: Exception) {} }
         }
 
         @JavascriptInterface fun setVoiceHandoff(on: Boolean) { if (allowed()) ListenService.handoff = on }

@@ -43,6 +43,11 @@ interface Bridge {
   setVoiceHandoff?(on: boolean): void;
   /** Respostas faladas pelo app com a voz da Luna (app 1.0.16 em diante) */
   setLunaVoice?(on: boolean): void;
+  /** Atualização automática do app (1.0.22 em diante) */
+  updateStatus?(): string;
+  setAutoUpdate?(on: boolean): void;
+  checkUpdate?(): void;
+  allowInstall?(): void;
   /** Vozes do Android (app 1.0.21 em diante) */
   androidVoices?(): string;
   setAndroidVoice?(name: string, rate: number): void;

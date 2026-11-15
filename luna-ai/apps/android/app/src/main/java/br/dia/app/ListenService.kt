@@ -124,6 +124,8 @@ class ListenService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dia:escuta").apply { acquire() }
         tts = AndroidVoice.create(this, prefs) { ttsReady = true }
         loadModel()
+        // A cada 3 h confere se há versão nova do app (tablet fica dias sem fechar a Luna)
+        main.postDelayed(object : Runnable { override fun run() { AppUpdater.check(this@ListenService, prefs); main.postDelayed(this, 3 * 3600_000L) } }, 60_000)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

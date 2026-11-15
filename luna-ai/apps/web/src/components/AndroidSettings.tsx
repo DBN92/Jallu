@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../services/api';
 import { nativeApp, nativeStatus, type NativeStatus } from '../lib/native';
+import { AppUpdateSettings } from './AppUpdateSettings';
 import { Banner, Button, Toggle } from './ui';
 
 interface ApkInfo {
@@ -156,6 +157,7 @@ export function AndroidSettings() {
           </Button>
         )}
       </Row>
+      <AppUpdateSettings />
       <Row title="Tela sempre acesa (com a Luna aberta)">
         <Toggle label="Tela sempre acesa" checked={!!st?.keepOn} onChange={(v) => { bridge.setKeepOn(v); setTimeout(() => setSt(nativeStatus()), 200); }} />
       </Row>
