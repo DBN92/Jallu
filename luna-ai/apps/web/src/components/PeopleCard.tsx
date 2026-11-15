@@ -58,6 +58,20 @@ export function PeopleCard() {
 }
 
 /** Linha curta para o descanso de tela: “Em casa: Daniel e Ana” */
+/**
+ * Para quem a Luna diz “boa noite”: todos que o Home Assistant mostra em casa (primeiro nome),
+ * quem chegou por último primeiro. Sem ninguém em casa (ou sem pessoas no HA), usa quem entrou no app.
+ */
+export function greetNames(list: PersonDto[] | null, fallback: string): string {
+  const home = (list ?? [])
+    .filter((p) => p.home)
+    .sort((a, b) => (b.since ? Date.parse(b.since) : 0) - (a.since ? Date.parse(a.since) : 0))
+    .map((p) => p.name.trim().split(/\s+/)[0]!)
+    .filter((n, i, all) => n && all.indexOf(n) === i);
+  if (!home.length) return fallback;
+  return home.length > 1 ? `${home.slice(0, -1).join(', ')} e ${home.at(-1)}` : home[0]!;
+}
+
 export function peopleLine(list: PersonDto[] | null): string | null {
   if (!list?.length) return null;
   const home = list.filter((p) => p.home).map((p) => p.name);

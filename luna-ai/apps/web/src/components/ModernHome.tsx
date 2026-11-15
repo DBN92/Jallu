@@ -34,6 +34,8 @@ export interface ModernHomeProps {
   now: Date;
   greeting: string;
   userName: string;
+  /** Para quem vai o “boa noite” (todos em casa) */
+  greetName?: string;
   state: AssistantState;
   stateLabel: string;
   aiTag: string;
@@ -387,7 +389,7 @@ export function ModernHome(p: ModernHomeProps) {
       <div>
         <p className="m-muted text-[15px]">
           {p.greeting}
-          {p.userName ? `, ${p.userName}` : ''} 👋
+          {(p.greetName ?? p.userName) ? `, ${p.greetName ?? p.userName}` : ''} 👋
         </p>
         <div className="mt-0.5 flex items-center gap-3">
           <p className="m-num leading-none font-medium" style={{ fontSize: p.wide ? 50 : 38 }}>
@@ -411,7 +413,7 @@ export function ModernHome(p: ModernHomeProps) {
       <div className="flex items-baseline justify-between gap-3">
         <p className="m-muted min-w-0 truncate text-sm">
           {p.greeting}
-          {p.userName ? `, ${p.userName}` : ''}
+          {(p.greetName ?? p.userName) ? `, ${p.greetName ?? p.userName}` : ''}
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <p className="m-num text-2xl leading-none font-medium">{p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>

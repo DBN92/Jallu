@@ -169,7 +169,7 @@ export function PhotoAmbient({ now, weather, onExit, hint, greet }: { now: Date;
       <div className="sv-hello" aria-live="polite">
         <div className="sv-hello-orb sv-anim" />
         <h1>{greet}</h1>
-        {fresh.length > 0 && <p>{fresh.length === 1 ? `Você tem 1 recado novo de ${fresh[0]!.fromName}` : `Você tem ${fresh.length} recados novos`}</p>}
+        {fresh.length > 0 && <p>{greet?.includes(' e ') ? 'Vocês têm' : 'Você tem'} {fresh.length === 1 ? `1 recado novo de ${fresh[0]!.fromName}` : `${fresh.length} recados novos`}</p>}
       </div>
     </div>,
     document.body,
