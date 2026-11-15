@@ -67,7 +67,7 @@ function WeatherSlide({ w }: { w: WeatherDto }) {
 /** Imagens das câmeras (fotos renovadas de tempos em tempos, sem vídeo ao vivo para não pesar o aparelho). */
 function CamerasSlide() {
   const cameras = useCameras((s) => s.cameras);
-  const list = (cameras ?? []).filter((c) => c.available).slice(0, 4);
+  const list = (cameras ?? []).filter((c) => c.available && c.platform !== 'web').slice(0, 4);
   return (
     <div>
       <p className="hud-label">Câmeras</p>
@@ -157,7 +157,7 @@ function HomeSlide() {
 export function AmbientMode({ now, weather, onExit, hint, greet }: { now: Date; weather: WeatherDto | null; onExit: () => void; hint: string; greet?: string | null }) {
   const chosen = useSettings((s) => s.ambientSlides);
   const cameras = useCameras((s) => s.cameras);
-  const hasCameras = !!cameras?.some((c) => c.available);
+  const hasCameras = !!cameras?.some((c) => c.available && c.platform !== 'web');
   useEffect(() => {
     if (chosen.includes('cameras') && !useCameras.getState().cameras) void useCameras.getState().load();
     if (chosen.includes('photos')) void usePhotos.getState().load();

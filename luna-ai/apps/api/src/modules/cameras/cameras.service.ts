@@ -6,6 +6,7 @@ import type { HomeAssistantRestClient } from '../../integrations/home-assistant/
 import type { ActionLogService } from '../devices/action-log.service';
 import { randomBytes } from 'node:crypto';
 import type { DirectCamerasService } from './direct.service';
+import type { WebCamerasService } from './web.service';
 
 type Registry = () => Promise<Map<string, { platform: string; hidden: boolean; deviceId?: string | null; category?: string | null }>>;
 type WsCommand = <T>(payload: Record<string, unknown>) => Promise<T>;
@@ -56,6 +57,10 @@ export class CamerasService {
   setDirect(direct: DirectCamerasService) {
     this.direct = direct;
   }
+  private web: WebCamerasService | null = null;
+  setWeb(web: WebCamerasService) {
+    this.web = web;
+  }
 
   constructor(
     private readonly ha: HomeAssistantRestClient,
@@ -78,7 +83,8 @@ export class CamerasService {
       if (direct.length) return [] as CameraDto[];
       throw err;
     });
-    return [...direct, ...ha.filter((c) => !taken.has(normalize(c.name)))].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    const web = this.web?.asCameras() ?? [];
+    return [...direct, ...web, ...ha.filter((c) => !taken.has(normalize(c.name)))].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }
 
   private async haList(): Promise<CameraDto[]> {
@@ -179,6 +185,7 @@ export class CamerasService {
   /** Foto atual da câmera (JPEG). */
   async snapshot(entityId: string): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
+    if (this.web?.isWeb(entityId)) throw notFound('Esta câmera abre no site do fabricante (sem imagem na Luna).');
     if (this.direct?.isDirect(entityId)) return this.direct.snapshot(entityId);
     const res = await this.ha.raw(`/api/camera_proxy/${entityId}`, { timeoutMs: 12_000 });
     if (!res.ok) {
@@ -191,6 +198,7 @@ export class CamerasService {
   /** Quadro para análise de gestos: área recortada (câmeras diretas) ou a foto inteira (HA). */
   async gestureFrame(entityId: string): Promise<Response> {
     if (!ENTITY_RE.test(entityId)) throw badRequest('Câmera inválida.');
+    if (this.web?.isWeb(entityId)) throw notFound('Esta câmera abre no site do fabricante (sem imagem na Luna).');
     if (this.direct?.isDirect(entityId)) return this.direct.gestureFrame(entityId);
     return this.snapshot(entityId);
   }

@@ -74,6 +74,15 @@ export async function cameraRoutes(app: FastifyInstance) {
     directCameras.test(directBody.omit({ name: true }).extend({ id: z.string().regex(/^[a-z0-9]{8,40}$/).optional() }).parse(req.body)),
   );
 
+  // Atalhos para câmeras que abrem no site do fabricante (ex.: babá eletrônica Smart Life)
+  const { webCameras } = app.services;
+  app.get('/api/cameras/web', { preHandler: requireAdmin }, async () => webCameras.list());
+  app.post('/api/cameras/web', { preHandler: requireAdmin }, async (req) => webCameras.create(z.object({ name: z.string().min(1).max(60), url: z.string().min(8).max(500) }).parse(req.body)));
+  app.delete('/api/cameras/web/:id', { preHandler: requireAdmin }, async (req) => {
+    webCameras.remove(z.object({ id: z.string().regex(/^[a-f0-9]{8}$/) }).parse(req.params).id);
+    return { ok: true };
+  });
+
   app.post('/api/cameras/:entityId/ptz', { preHandler: requireAuth, config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (req) =>
     cameras.ptz(idParam.parse(req.params).entityId, ptzSchema.parse(req.body).action, req.user!.id),
   );

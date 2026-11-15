@@ -2,6 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 import type { CameraDto } from '@luna/shared/types';
 import { api, ApiError } from '../services/api';
 import { Spinner } from './ui';
+import { ExternalLink } from 'lucide-react';
+
+/** Câmera que só abre no site do fabricante: no lugar da imagem, um aviso (e o botão de abrir) */
+function WebCameraCard({ camera, className = '', button }: { camera: CameraDto; className?: string; button?: boolean }) {
+  return (
+    <div className={`relative grid place-items-center overflow-hidden bg-gradient-to-br from-ink-900 to-black text-center ${className}`}>
+      <div className="flex flex-col items-center gap-2 p-3">
+        <ExternalLink className="h-6 w-6 text-cyan-300/80" />
+        <p className="font-hud text-xs text-cyan-100/60">Abre no site do fabricante</p>
+        {button && camera.webUrl && (
+          <a href={camera.webUrl} target="_blank" rel="noopener noreferrer" className="font-hud mt-1 rounded-full border border-cyan-300/50 bg-cyan-400/15 px-4 py-2 text-sm text-cyan-50">
+            Abrir {camera.name}
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type Mode = 'loading' | 'live' | 'images' | 'error';
 
@@ -10,6 +28,11 @@ type Mode = 'loading' | 'live' | 'images' | 'error';
  * se a câmera ou o HA não oferecerem vídeo contínuo, mostra imagens atualizadas a cada segundo.
  */
 export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; className?: string }) {
+  if (camera.platform === 'web') return <WebCameraCard camera={camera} className={className} button />;
+  return <LiveCameraPlayer camera={camera} className={className} />;
+}
+
+function LiveCameraPlayer({ camera, className = '' }: { camera: CameraDto; className?: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const [mode, setMode] = useState<Mode>('loading');
   const [tick, setTick] = useState(0);
@@ -120,6 +143,11 @@ export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; cl
 
 /** Miniatura que se atualiza a cada `everyMs` (economiza dados). */
 export function CameraThumb({ camera, everyMs = 8000, className = '' }: { camera: CameraDto; everyMs?: number; className?: string }) {
+  if (camera.platform === 'web') return <WebCameraCard camera={camera} className={className} />;
+  return <SnapshotThumb camera={camera} everyMs={everyMs} className={className} />;
+}
+
+function SnapshotThumb({ camera, everyMs = 8000, className = '' }: { camera: CameraDto; everyMs?: number; className?: string }) {
   const [tick, setTick] = useState(0);
   const [failed, setFailed] = useState(false);
   useEffect(() => {

@@ -141,3 +141,25 @@ describe('babá eletrônica (câmera Smart Life/Tuya com sensores no mesmo apare
     expect(sent).toEqual(['Babá eletrônica: Choro detectado — toque para ver a câmera.']);
   });
 });
+
+describe('atalhos para câmeras no site do fabricante (babá Smart Life)', () => {
+  it('cadastra, aparece com as outras câmeras e a voz encontra pelo nome', async () => {
+    await withCameras();
+    const bad = await ctx.inject('POST', '/api/cameras/web', { name: 'X', url: 'http://site.com' });
+    expect(bad.status).toBe(400);
+    const pass = await ctx.inject('POST', '/api/cameras/web', { name: 'X', url: 'https://eu:segredo@site.com' });
+    expect(pass.status).toBe(400);
+    const ok = await ctx.inject('POST', '/api/cameras/web', { name: 'Câmera Luiza', url: 'https://protect-us.ismartlife.me' });
+    expect(ok.status).toBe(200);
+    const list = (await ctx.inject('GET', '/api/cameras')).json;
+    const web = list.find((c: { platform: string }) => c.platform === 'web');
+    expect(web).toMatchObject({ entityId: `camera.web_${ok.json.id}`, name: 'Câmera Luiza', webUrl: 'https://protect-us.ismartlife.me/' });
+    expect((await ctx.inject('GET', `/api/cameras/${web.entityId}/snapshot`)).status).toBe(404);
+    const found = await ctx.app.services.cameras.findByName('câmera da luiza');
+    expect(found.map((c) => c.entityId)).toEqual([web.entityId]);
+    const voice = await chat(ctx, 'Luna, abre a câmera da Luiza');
+    expect(voice.actions[0]).toMatchObject({ tool: 'show_camera', entityIds: [web.entityId] });
+    expect((await ctx.inject('DELETE', `/api/cameras/web/${ok.json.id}`)).status).toBe(200);
+    expect((await ctx.inject('GET', '/api/cameras')).json.some((c: { platform: string }) => c.platform === 'web')).toBe(false);
+  });
+});

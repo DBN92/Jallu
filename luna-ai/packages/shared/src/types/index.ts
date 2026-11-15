@@ -341,6 +341,15 @@ export interface CameraDto {
   platform: string | null;
   /** O que o próprio aparelho informa pelo HA (babá eletrônica: temperatura, umidade, som, movimento…) */
   info?: CameraInfoItem[];
+  /** Atalho: a câmera abre no site do fabricante (platform = 'web') */
+  webUrl?: string;
+}
+
+/** Atalho para câmera que só abre no site do fabricante (ex.: Smart Life) */
+export interface WebCameraDto {
+  id: string;
+  name: string;
+  url: string;
 }
 
 export interface CameraInfoItem {

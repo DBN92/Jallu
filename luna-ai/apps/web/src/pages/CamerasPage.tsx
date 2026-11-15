@@ -18,7 +18,7 @@ export default function CamerasPage() {
     <Page>
       <PageHeader
         title="Câmeras"
-        subtitle={cameras ? `${cameras.length} câmera(s) pelo Home Assistant` : 'Câmeras de segurança'}
+        subtitle={cameras ? `${cameras.length} câmera(s)` : 'Câmeras de segurança'}
         action={
           <button onClick={() => void load()} className="rounded-sm border border-cyan-300/25 bg-ink-950/75 p-2 text-cyan-200/80" aria-label="Atualizar">
             <RefreshCw className="h-4 w-4" />
@@ -45,7 +45,7 @@ export default function CamerasPage() {
                 <span className="font-hud truncate font-semibold text-cyan-50">{c.name}</span>
                 <span className="hud-label flex items-center gap-1 text-[9px]">
                   {c.ptz && <Move3d className="h-3.5 w-3.5" />}
-                  {!c.available ? 'offline' : c.stream ? 'vídeo ao vivo' : 'imagens'}
+                  {c.platform === 'web' ? 'abre no site' : !c.available ? 'offline' : c.stream ? 'vídeo ao vivo' : 'imagens'}
                 </span>
               </div>
               {c.info && <div className="px-2 pb-2"><CameraInfo info={c.info} compact /></div>}

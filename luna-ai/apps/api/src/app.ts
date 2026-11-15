@@ -38,6 +38,7 @@ import { voiceRoutes } from './modules/voice/voice.routes';
 import { CamerasService } from './modules/cameras/cameras.service';
 import { cameraRoutes } from './modules/cameras/cameras.routes';
 import { DirectCamerasService, type InputArgs } from './modules/cameras/direct.service';
+import { WebCamerasService } from './modules/cameras/web.service';
 import { GesturesService } from './modules/gestures/gestures.service';
 import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
@@ -124,6 +125,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
   const dataDir = env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.';
   const vacuumPhotos = new VacuumPhotos(dataDir, devices);
+  const webCameras = new WebCamerasService(dataDir);
+  cameras.setWeb(webCameras);
   void vacuumPhotos.init();
   const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
   chat.setCameras(cameras);
@@ -181,7 +184,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
