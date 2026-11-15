@@ -159,14 +159,18 @@ function SnapshotThumb({ camera, everyMs = 8000, className = '' }: { camera: Cam
       {failed && !camera.available ? (
         <div className="font-hud grid h-full place-items-center text-xs text-cyan-100/50">câmera offline</div>
       ) : (
-        <img
-          src={`/api/cameras/${camera.entityId}/snapshot?t=${tick}`}
-          alt={camera.name}
-          className="h-full w-full object-cover"
-          onLoad={() => setFailed(false)}
-          onError={() => setFailed(true)}
-          loading="lazy"
-        />
+        <>
+          {/* Sem imagem agora: aviso no lugar do ícone de imagem quebrada (continua tentando) */}
+          <img
+            src={`/api/cameras/${camera.entityId}/snapshot?t=${tick}`}
+            alt=""
+            className={`h-full w-full object-cover ${failed ? 'opacity-0' : ''}`}
+            onLoad={() => setFailed(false)}
+            onError={() => setFailed(true)}
+            loading="lazy"
+          />
+          {failed && <div className="font-hud absolute inset-0 grid place-items-center text-xs text-cyan-100/50">sem imagem</div>}
+        </>
       )}
     </div>
   );
