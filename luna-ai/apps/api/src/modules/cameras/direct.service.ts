@@ -109,6 +109,23 @@ const rtspInput: InputArgs = (url, transport) => [
   url,
 ];
 
+/** Vídeo HLS (https://…m3u8), como a nuvem Tuya entrega para alguns modelos */
+const httpInput: InputArgs = (url) => [
+  '-rw_timeout', '15000000',
+  '-use_wallclock_as_timestamps', '1',
+  '-fflags', '+genpts+discardcorrupt',
+  '-protocol_whitelist', 'file,http,https,tcp,tls,crypto,hls',
+  '-i', url,
+];
+
+type TuyaKind = 'rtsp' | 'hls';
+interface Source {
+  url: string;
+  tcp: boolean;
+  /** Câmera Smart Life pela nuvem Tuya: aparelho e formato usado nesta abertura */
+  tuya?: { id: string; kind: TuyaKind };
+}
+
 /**
  * Câmeras lidas pela própria Luna, sem o Home Assistant (ex.: Yoosee H.265 por UDP, que o HA não processa).
  * Um único ffmpeg por câmera, ligado só enquanto alguém assiste: converte para H.264 (HLS, toca em
@@ -141,22 +158,31 @@ export class DirectCamerasService {
     return entityId.startsWith(DIRECT_PREFIX);
   }
 
-  /** Nuvem Tuya: devolve o endereço RTSP atual de uma câmera Smart Life (ligado pelo app) */
-  private tuyaStream: ((deviceId: string) => Promise<string>) | null = null;
-  setTuyaStream(fn: (deviceId: string) => Promise<string>) {
+  /** Nuvem Tuya: devolve o endereço de vídeo atual de uma câmera Smart Life (ligado pelo app) */
+  private tuyaStream: ((deviceId: string, kind: TuyaKind) => Promise<string>) | null = null;
+  setTuyaStream(fn: (deviceId: string, kind: TuyaKind) => Promise<string>) {
     this.tuyaStream = fn;
   }
+  /** Formato que funcionou por último em cada aparelho Tuya (alguns só entregam HLS) */
+  private tuyaKind = new Map<string, TuyaKind>();
 
   /** Endereço que o ffmpeg abre: RTSP com usuário/senha, ou o pedido na hora à nuvem Tuya */
-  private async sourceUrl(url: string, username?: string | null, password?: string | null): Promise<{ url: string; tcp: boolean }> {
+  private async sourceUrl(url: string, username?: string | null, password?: string | null, kind?: TuyaKind): Promise<Source> {
     const tuya = url.match(/^tuya:\/\/([a-z0-9]+)$/i);
     if (!tuya) return { url: withCredentials(url, username, password), tcp: false };
     if (!this.tuyaStream) throw new AppError(503, 'Nuvem Tuya não configurada no servidor.', 'no_tuya');
+    const id = tuya[1]!;
+    const k = kind ?? this.tuyaKind.get(id) ?? 'rtsp';
     try {
-      return { url: await this.tuyaStream(tuya[1]!), tcp: true };
+      return { url: await this.tuyaStream(id, k), tcp: true, tuya: { id, kind: k } };
     } catch (e) {
       throw new AppError(502, e instanceof Error ? e.message : 'A nuvem Tuya não respondeu.', 'tuya_error');
     }
+  }
+
+  /** Argumentos de entrada do ffmpeg conforme o endereço (RTSP ou HLS) */
+  private input(url: string, transport: 'udp' | 'tcp') {
+    return /^https?:/i.test(url) && this.inputArgs === rtspInput ? httpInput(url, transport) : this.inputArgs(url, transport);
   }
 
   private async row(entityId: string): Promise<Row> {
@@ -183,7 +209,8 @@ export class DirectCamerasService {
       available: ff,
       stream: ff,
       ptz: !!r.onvifPort,
-      platform: 'luna',
+      // câmera Smart Life pela nuvem Tuya (sem controle de movimento pela Luna)
+      platform: r.url.startsWith('tuya://') ? 'tuya' : 'luna',
     }));
   }
 
@@ -229,17 +256,33 @@ export class DirectCamerasService {
     const p = parseRtspUrl(input.url);
     let password = input.password || p.password || null;
     if (!password && input.id) password = (await this.row(DIRECT_PREFIX + input.id)).password;
-    let src: { url: string; tcp: boolean };
-    try {
-      src = await this.sourceUrl(p.url, input.username || p.username, password);
-    } catch (e) {
-      return { ok: false, detail: e instanceof Error ? e.message : String(e), ms: 0 };
+    // Câmera Smart Life (nuvem Tuya): tenta RTSP e, se não vier imagem, HLS — e lembra o que funcionou
+    const tuyaId = p.url.match(/^tuya:\/\/([a-z0-9]+)$/i)?.[1];
+    const kinds: (TuyaKind | undefined)[] = tuyaId ? [...new Set([this.tuyaKind.get(tuyaId) ?? 'rtsp', 'rtsp', 'hls'] as TuyaKind[])] : [undefined];
+    const fails: string[] = [];
+    for (const kind of kinds) {
+      let src: Source;
+      try {
+        src = await this.sourceUrl(p.url, input.username || p.username, password, kind);
+      } catch (e) {
+        return { ok: false, detail: e instanceof Error ? e.message : String(e), ms: 0 };
+      }
+      const r = await this.probe(ff, src.url, src.tcp ? 'tcp' : input.transport);
+      if (r.ok) {
+        if (src.tuya) this.tuyaKind.set(src.tuya.id, src.tuya.kind);
+        return src.tuya ? { ...r, detail: `${r.detail} · nuvem Tuya (${src.tuya.kind.toUpperCase()})` } : r;
+      }
+      if (!src.tuya) return r;
+      fails.push(`${src.tuya.kind.toUpperCase()}: ${r.detail}`);
     }
-    const url = src.url;
-    const transport = src.tcp ? 'tcp' : input.transport;
+    return { ok: false, detail: `nuvem Tuya sem imagem — ${fails.join(' · ')}`, ms: 0 };
+  }
+
+  /** Tenta pegar um quadro em até 20 s (ou devolve o erro do ffmpeg). */
+  private probe(ff: string, url: string, transport: 'udp' | 'tcp') {
     const started = Date.now();
     return new Promise<{ ok: boolean; detail: string; ms: number }>((done) => {
-      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'info', ...this.inputArgs(url, transport), '-map', '0:v:0', '-frames:v', '1', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
+      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'info', ...this.input(url, transport), '-map', '0:v:0', '-frames:v', '1', '-f', 'null', '-'], { stdio: ['ignore', 'ignore', 'pipe'] });
       let err = '';
       proc.stderr!.on('data', (d: Buffer) => (err = (err + d.toString()).slice(-6000)));
       const timer = setTimeout(() => proc.kill('SIGKILL'), 20_000);
@@ -250,6 +293,7 @@ export class DirectCamerasService {
           const s = summarizeVideo(err);
           if (s) return done({ ok: true, detail: s, ms });
         }
+        if (/tuya|m3u8/i.test(url)) console.warn(`[câmera Tuya] sem imagem (${/^https?:/.test(url) ? 'HLS' : 'RTSP'}): ${redact(err).split('\n').filter((l) => l.trim()).slice(-4).join(' | ')}`);
         done({ ok: false, detail: explain(err, code), ms });
       });
     });
@@ -348,7 +392,7 @@ export class DirectCamerasService {
       '-nostdin',
       '-loglevel',
       'error',
-      ...this.inputArgs(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'),
+      ...this.input(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'),
       // Vídeo H.264 leve (toca em tudo); 10 quadros/s, largura até 960 px
       '-map', '0:v:0', '-an',
       '-vf', `fps=10,${scale}`,
@@ -370,6 +414,11 @@ export class DirectCamerasService {
     proc.on('close', () => {
       s.exited = true;
       if (this.sessions.get(entityId) === s) this.sessions.delete(entityId);
+      // Nuvem Tuya sem nenhuma imagem neste formato: a próxima tentativa (automática) usa o outro
+      if (src.tuya && !existsSync(join(dir, 'latest.jpg'))) {
+        this.tuyaKind.set(src.tuya.id, src.tuya.kind === 'rtsp' ? 'hls' : 'rtsp');
+        console.warn(`[câmera Tuya] ${src.tuya.kind.toUpperCase()} sem imagem; próxima tentativa em ${src.tuya.kind === 'rtsp' ? 'HLS' : 'RTSP'}: ${redact(s.stderr.slice(-4).join(' | '))}`);
+      }
       void rm(dir, { recursive: true, force: true });
     });
     proc.on('error', (e) => s.stderr.push(e.message));
@@ -418,7 +467,7 @@ export class DirectCamerasService {
     const src = await this.sourceUrl(r.url, r.username, r.password);
     const url = src.url;
     return new Promise<Buffer>((done, fail) => {
-      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...this.inputArgs(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'), '-map', '0:v:0', '-frames:v', '1', '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], {
+      const proc = spawn(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', ...this.input(url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp'), '-map', '0:v:0', '-frames:v', '1', '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1'], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       const chunks: Buffer[] = [];
@@ -520,8 +569,13 @@ export function summarizeVideo(stderr: string): string | null {
 }
 
 /** Traduz os erros mais comuns do ffmpeg para o usuário (sem expor a senha). */
+/** Tira os endereços (que levam usuário/senha ou o token temporário da nuvem) das mensagens */
+function redact(text: string) {
+  return text.replace(/(rtsps?|https?):\/\/[^\s'"]+/g, '$1://…');
+}
+
 function explain(stderr: string, code: number | null): string {
-  const e = stderr.replace(/rtsps?:\/\/[^\s'"]+/g, 'rtsp://…');
+  const e = redact(stderr);
   if (/401|Unauthorized/i.test(e)) return 'usuário ou senha da câmera incorretos (401).';
   if (/Nonmatching transport|Invalid data found/i.test(e)) return 'a câmera não aceitou este protocolo. Troque UDP ↔ TCP.';
   if (/Connection refused/i.test(e)) return 'a câmera recusou a conexão (porta errada ou muitas conexões abertas; reinicie a câmera).';

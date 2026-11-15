@@ -75,10 +75,13 @@ export class TuyaCloud {
       .map((d) => ({ id: d.id as string, name: String(d.name ?? d.id), category: String(d.category ?? ''), online: d.online !== false && d.is_online !== false }));
   }
 
-  /** Endereço de vídeo ao vivo (RTSP), válido por alguns minutos — pedido a cada vez que o vídeo abre */
-  async streamUrl(deviceId: string): Promise<string> {
+  /**
+   * Endereço de vídeo ao vivo, válido por alguns minutos — pedido a cada vez que o vídeo abre.
+   * rtsp (rtsps://, mais rápido) ou hls (https://…m3u8, alguns modelos só entregam este).
+   */
+  async streamUrl(deviceId: string, type: 'rtsp' | 'hls' = 'rtsp'): Promise<string> {
     if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
-    const r = await this.raw<{ url?: string }>('POST', `/v1.0/devices/${deviceId}/stream/actions/allocate`, { type: 'rtsp' });
+    const r = await this.raw<{ url?: string }>('POST', `/v1.0/devices/${deviceId}/stream/actions/allocate`, { type });
     if (!r?.url) throw new TuyaCloudError('A nuvem Tuya não devolveu endereço de vídeo para este aparelho.');
     return r.url;
   }

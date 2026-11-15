@@ -122,7 +122,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   cameras.setDirect(directCameras);
   // Nuvem Tuya: vídeo de câmeras Smart Life que o Home Assistant não suporta (ex.: babá eletrônica)
   const tuya = new TuyaCloud(env.TUYA_ACCESS_ID, env.TUYA_ACCESS_SECRET, env.TUYA_ENDPOINT.replace(/\/+$/, ''), deps.fetch?.tuya);
-  directCameras.setTuyaStream((id) => tuya.streamUrl(id));
+  directCameras.setTuyaStream((id, kind) => tuya.streamUrl(id, kind));
   const gestures = new GesturesService(db, devices);
   // Vigias da garagem: foto da câmera direta (1 quadro) ou do Home Assistant
   const frame = deps.watchFrame ??

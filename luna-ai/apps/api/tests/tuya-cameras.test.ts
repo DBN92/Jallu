@@ -32,7 +32,8 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === '/v1.0/token') return ok({ access_token: 'tok', expire_time: 7200, uid: 'u1' });
     if (h.access_token !== 'tok') return new Response(JSON.stringify({ success: false, code: 1010, msg: 'token invalid' }));
     if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }] });
-    if (url.pathname === `/v1.0/devices/${DEVICE}/stream/actions/allocate`) return ok({ url: 'rtsps://camera.tuya.example:443/live/abc' });
+    if (url.pathname === `/v1.0/devices/${DEVICE}/stream/actions/allocate`)
+      return ok({ url: JSON.parse(body).type === 'hls' ? 'https://camera.tuya.example/live/abc/index.m3u8' : 'rtsps://camera.tuya.example:443/live/abc' });
     return new Response(JSON.stringify({ success: false, code: 404, msg: 'nao existe' }));
   }) as typeof fetch;
 }
@@ -75,4 +76,25 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     expect(seen.every((s) => s === 'tcp rtsps://camera.tuya.example:443/live/abc')).toBe(true);
     expect(calls.filter((c) => c.includes('/stream/actions/allocate')).length).toBeGreaterThanOrEqual(2);
   }, 40_000);
+
+  it.skipIf(!hasFfmpeg)('modelo que não entrega RTSP: tenta HLS sozinho e passa a usar o que funcionou', async () => {
+    const seen: string[] = [];
+    ctx = await makeApp(
+      { TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo' },
+      {
+        login: true,
+        tuyaFetch: fakeTuya([]),
+        // RTSP “não responde”; HLS entrega imagem
+        cameraInput: (url) => (seen.push(url), url.startsWith('rtsps:') ? ['-f', 'lavfi', '-i', 'filtro_que_nao_existe'] : ['-re', '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=10']),
+      },
+    );
+    const created = await ctx.inject('POST', '/api/cameras/direct', { name: 'Câmera Luiza', url: `tuya://${DEVICE}`, transport: 'udp' });
+    const test = await ctx.inject('POST', '/api/cameras/direct/test', { url: `tuya://${DEVICE}`, transport: 'udp' });
+    expect(test.json).toMatchObject({ ok: true });
+    expect(test.json.detail).toMatch(/nuvem Tuya \(HLS\)/);
+    seen.length = 0;
+    const snap = await ctx.app.inject({ method: 'GET', url: `/api/cameras/${created.json.entityId}/snapshot`, headers: { cookie: ctx.cookies } });
+    expect(snap.statusCode).toBe(200);
+    expect(seen[0]).toBe('https://camera.tuya.example/live/abc/index.m3u8');
+  }, 60_000);
 });
