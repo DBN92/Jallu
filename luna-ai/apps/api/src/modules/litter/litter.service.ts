@@ -108,6 +108,11 @@ export class LitterService extends EventEmitter {
     return cats;
   }
 
+  /** Nomes dos gatos cadastrados na caixa de areia */
+  async catNames(): Promise<string[]> {
+    return (await this.cats()).map((c) => c.name);
+  }
+
   /** Reconhece o gato pelo peso; gatos ainda sem peso “aprendem” com a primeira visita diferente. */
   private async identify(weight: number | null): Promise<string | null> {
     if (weight === null || weight < 0.5) return null;

@@ -4,10 +4,10 @@ import { AppError, notFound } from '../../lib/errors';
 import { normalize, significantTokens, truncate } from '../../lib/text';
 import type { DevicesService } from '../devices/devices.service';
 import type { MemoryService } from '../memory/memory.service';
-import { answerPersonal } from './personal';
+import { answerPersonal, isSelfFactQuestion, matchMemories, quoteMemories } from './personal';
 import type { SettingsService } from '../settings/settings.service';
 import type { WeatherService } from '../weather/weather.service';
-import { parseIntent, pickOption, type Intent } from './nlu';
+import { parseIntent, pickOption, stripWake, type Intent } from './nlu';
 import { buildSystemPrompt, nowMessage } from './prompt';
 import { askWhich, listJoin, powerReply, stateReply, vacuumReply, vacuumStatus, weatherReply } from './replies';
 import { classify, routeProviders } from './router';
@@ -152,7 +152,12 @@ export class ChatService {
       if (handled) return this.local(handled);
     }
 
-    // 3) Modelos de linguagem com ferramentas
+    // 3) Pergunta sobre a própria vida que a Luna já sabe (“quantos gatos eu tenho?”): responde pela
+    //    memória na hora, sem esperar a IA
+    const known = await this.fromMemory(user.id, req.message);
+    if (known) return this.local({ reply: known, actions: [] });
+
+    // 4) Modelos de linguagem com ferramentas
     return this.llm(user, conversationId, summary, req, onDelta);
   }
 
@@ -212,6 +217,21 @@ export class ChatService {
   }
 
   /** Executa intenções determinísticas. Retorna null para deixar o LLM responder. */
+  /** Responde pelas memórias (e, para gatos, pelos nomes da caixa de areia) quando a pergunta é sobre a própria pessoa */
+  private async fromMemory(userId: string, raw: string): Promise<string | null> {
+    const message = stripWake(raw);
+    if (!isSelfFactQuestion(message)) return null;
+    const mems = (await this.memory.list(userId)).filter((m) => m.type !== 'summary');
+    const hits = matchMemories(message, mems);
+    if (hits.length) return quoteMemories(hits);
+    // “Quantos gatos eu tenho?” sem memória: os gatos que você nomeou na caixa de areia
+    if (/\bgat[oa]s?\b/.test(normalize(message)) && this.litter) {
+      const named = (await this.litter.catNames().catch(() => [] as string[])).filter((n) => !/^gato \d+$/i.test(n));
+      if (named.length) return `Pela caixa de areia, conheço ${named.length === 1 ? '1 gato' : `${named.length} gatos`}: ${named.length > 1 ? `${named.slice(0, -1).join(', ')} e ${named.at(-1)}` : named[0]}.`;
+    }
+    return null;
+  }
+
   /**
    * Resposta de um pedido só de leitura (hora, data, clima) sem gravar conversa — usada para deixar
    * a fala pronta antes de a pessoa perguntar. Outros pedidos devolvem null.

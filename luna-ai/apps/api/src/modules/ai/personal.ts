@@ -83,3 +83,42 @@ export function answerPersonal(q: PersonalQuestion, memories: { content: string 
   }
   return `Pelo que você me contou: ${hits.slice(0, 2).map((h) => `“${h.content}”`).join(' e ')}.`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Perguntas sobre a própria vida (“quantos gatos eu tenho?”, “onde eu trabalho?”, “qual meu time?”):
+// se alguma memória fala do assunto, responde com ela na hora — sem esperar a IA (que no servidor
+// antigo demora, e a da nuvem não recebe as memórias).
+
+/** Palavras que não identificam o assunto da pergunta */
+const GENERIC = new Set(
+  'eu meu minha meus minhas me mim tenho tem temos qual quais quanto quanta quantos quantas quem onde quando como que o a os as um uma de da do das dos e é sao sou esta estao voce luna sabe lembra lembrar nome nomes chama chamam se ja agora hoje sobre pra para por favor oi ola isso aquilo ai la aqui mesmo'.split(' '),
+);
+const stem = (w: string) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w);
+const words = (t: string) => normalize(t).split(/\s+/).filter(Boolean).map(stem);
+
+/** É pergunta sobre um fato da própria pessoa? (não pedido de opinião/sugestão) */
+export function isSelfFactQuestion(text: string): boolean {
+  const t = normalize(text);
+  if (!/^(qual|quais|quantos|quantas|quanto|quem|onde|quando|como|o que|que|eu tenho|tenho|eu moro|eu trabalho|voce sabe|sabe)\b/.test(t)) return false;
+  if (!/\b(meu|minha|meus|minhas|eu tenho|tenho|eu moro|moro|eu trabalho|trabalho|eu nasci|nasci|eu sou|eu gosto|gosto)\b/.test(t)) return false;
+  return !/\b(para eu|pra eu|devo|posso|recomend\w*|suger\w*|melhor|deveria|acha|ideia|dica)\b/.test(t);
+}
+
+/** Memórias que falam do assunto da pergunta (as mais parecidas primeiro) */
+export function matchMemories(question: string, memories: { content: string }[]): { content: string }[] {
+  const keys = [...new Set(words(question).filter((w) => w.length >= 3 && !GENERIC.has(w)))];
+  if (!keys.length) return [];
+  const scored = memories
+    .map((m) => {
+      const mw = new Set(words(m.content));
+      return { m, score: keys.filter((k) => mw.has(k)).length };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  if (!scored.length) return [];
+  return scored.filter((x) => x.score === scored[0]!.score).slice(0, 2).map((x) => x.m);
+}
+
+export function quoteMemories(hits: { content: string }[]): string {
+  return `Pelo que você me contou: ${hits.map((h) => `“${h.content.replace(/[.!]+$/, '')}”`).join(' e ')}.`;
+}
