@@ -1,4 +1,5 @@
 import { normalize } from '../../lib/text';
+import { parsePersonal, type PersonalQuestion } from './personal';
 
 /**
  * NLU local e determinística para comandos frequentes em português.
@@ -12,6 +13,7 @@ export type Intent =
   | { type: 'datetime'; what: 'time' | 'date' }
   | { type: 'weather'; period: 'now' | 'today' | 'tomorrow' | 'week'; umbrella: boolean }
   | { type: 'remember'; content: string }
+  | { type: 'personal'; question: PersonalQuestion }
   | { type: 'forget'; content: string }
   | { type: 'show_camera'; target: string }
   | { type: 'watch_status'; query: string }
@@ -166,6 +168,10 @@ export function parseIntent(original: string): Intent | null {
   }
   const forget = raw.match(/^(?:por favor,?\s*)?(?:esque[çc]a|esquece|apague da mem[óo]ria|remova da mem[óo]ria)\s+(?:que\s+|de que\s+|sobre\s+|o que eu disse sobre\s+)?(.{2,})$/i);
   if (forget) return { type: 'forget', content: forget[1]!.trim().replace(/[.!?]+$/, '') };
+
+  // “Qual o nome da minha esposa?” — responde pelas memórias, sem IA
+  const personal = parsePersonal(raw);
+  if (personal) return { type: 'personal', question: personal };
 
   // Recados em vídeo: “deixa um recado”, “quero gravar um recado”, “tem recado?”, “mostra os recados”
   if (/\brecados?\b/.test(text) && !DEFERRED.test(text)) {

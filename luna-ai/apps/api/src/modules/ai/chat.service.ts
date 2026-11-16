@@ -4,6 +4,7 @@ import { AppError, notFound } from '../../lib/errors';
 import { normalize, significantTokens, truncate } from '../../lib/text';
 import type { DevicesService } from '../devices/devices.service';
 import type { MemoryService } from '../memory/memory.service';
+import { answerPersonal } from './personal';
 import type { SettingsService } from '../settings/settings.service';
 import type { WeatherService } from '../weather/weather.service';
 import { parseIntent, pickOption, type Intent } from './nlu';
@@ -241,6 +242,10 @@ export class ChatService {
         case 'remember': {
           const m = await this.memory.add(userId, { type: 'fact', content: intent.content, source: 'conversation' });
           return { reply: `Combinado, vou me lembrar disso: “${m.content}”.`, actions: [{ tool: 'remember', ok: true, summary: `Memória salva: ${m.content}` }] };
+        }
+        case 'personal': {
+          const mems = (await this.memory.list(userId)).filter((m) => m.type !== 'summary');
+          return { reply: answerPersonal(intent.question, mems), actions: [] };
         }
         case 'forget': {
           const n = await this.memory.forgetMatching(userId, intent.content);
