@@ -129,6 +129,29 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
     expect(r.reply).toMatch(/Gato 1/);
   });
 
+  it('botão de limpar renomeado pelo Home Assistant: usa o que funciona, nunca o de restaurar a fábrica', async () => {
+    await withBox();
+    const set = (id: string, state: string, name: string) => ctx.ha.states.set(id, { entity_id: id, state, attributes: { friendly_name: name } });
+    // o antigo ficou indisponível e o HA criou um novo com “_2”
+    set(`button.${P}_manual_clean`, 'unavailable', 'Manual clean');
+    set(`button.${P}_manual_clean_2`, 'unknown', 'Smart cat litter box( Ti+) Manual clean');
+    set(`button.${P}_factory_reset`, 'unknown', 'Smart cat litter box( Ti+) Factory reset');
+    expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
+    expect(ctx.ha.calls.at(-1)).toMatchObject({ domain: 'button', service: 'press', data: { entity_id: `button.${P}_manual_clean_2` } });
+
+    // sem “_2”, mas com outro nome que fala de limpeza
+    ctx.ha.states.delete(`button.${P}_manual_clean_2`);
+    set(`button.${P}_manual_cleaning`, 'unknown', 'Smart cat litter box( Ti+) Manual cleaning');
+    expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
+    expect(ctx.ha.calls.at(-1)).toMatchObject({ data: { entity_id: `button.${P}_manual_cleaning` } });
+
+    // só sobrou o de restaurar: não aperta
+    ctx.ha.states.delete(`button.${P}_manual_cleaning`);
+    const r = await ctx.inject('POST', `/api/litter/${P}/clean`);
+    expect(r.status).toBe(409);
+    expect(ctx.ha.calls.some((c) => String(c.data.entity_id).includes('factory'))).toBe(false);
+  });
+
   it('NLU separa caixa de areia do aspirador', () => {
     expect(parseIntent('limpa a caixa de areia')).toEqual({ type: 'litter', command: 'clean' });
     expect(parseIntent('desliga a limpeza automática da caixa dos gatos')).toEqual({ type: 'litter', command: 'auto_off' });

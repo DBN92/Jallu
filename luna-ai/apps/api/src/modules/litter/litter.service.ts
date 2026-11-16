@@ -82,8 +82,32 @@ export class LitterService extends EventEmitter {
     this.lastRefresh = Date.now();
   }
 
+  /**
+   * Entidade da caixa. O Home Assistant às vezes recria entidades com outro nome depois de uma
+   * atualização ou de readicionar a Tuya (ex.: “…_manual_clean_2”), deixando a antiga “indisponível”:
+   * aí usa a variante que está funcionando. Para o botão de limpar, aceita também outro nome com
+   * “clean”/“limp” — nunca o de restaurar padrões de fábrica.
+   */
   private entity(prefix: string, domain: string, key: keyof typeof SUFFIX) {
     const id = `${domain}.${prefix}_${SUFFIX[key]}`;
+    const ok = (e: string) => {
+      const st = this.states.get(e);
+      return !!st && st.state !== 'unavailable';
+    };
+    if (ok(id)) return { id, state: this.states.get(id) };
+    const all = [...this.states.keys()];
+    const numbered = all.filter((e) => new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_\\d+$`).test(e) && ok(e)).sort();
+    if (numbered.length) return { id: numbered[0]!, state: this.states.get(numbered[0]!) };
+    if (key === 'clean') {
+      const other = all
+        .filter((e) => e.startsWith(`button.${prefix}_`) && ok(e))
+        .filter((e) => {
+          const name = `${e} ${String(this.states.get(e)?.attributes.friendly_name ?? '')}`.toLowerCase();
+          return /clean|limp/.test(name) && !/factory|reset|restor|padr|fabric/.test(name);
+        })
+        .sort((a, b) => Number(b.includes('manual')) - Number(a.includes('manual')));
+      if (other.length) return { id: other[0]!, state: this.states.get(other[0]!) };
+    }
     return { id, state: this.states.get(id) };
   }
 
@@ -276,6 +300,7 @@ export class LitterService extends EventEmitter {
     try {
       await this.ha.callService('button', 'press', { entity_id: b.id });
       await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'litter_clean', target: b.id, args: {}, success: true, detail: 'limpeza manual' });
+      console.warn(`[caixa de areia] limpeza pedida (${actor.source}) pelo botão ${b.id}`);
     } catch (err) {
       await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'litter_clean', target: b.id, args: {}, success: false, detail: (err as Error).message });
       throw err;
