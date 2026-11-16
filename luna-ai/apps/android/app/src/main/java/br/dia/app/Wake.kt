@@ -67,15 +67,20 @@ object WakeMatch {
 
     /**
      * O trecho depois do “Luna” é um pedido de verdade? Ruído e respiração viram palavras soltas com
-     * confiança baixa no Vosk; um pedido tem pelo menos duas palavras reconhecidas com segurança.
+     * confiança baixa no Vosk; um pedido tem pelo menos duas palavras reconhecidas com segurança. Na dúvida,
+     * o reconhecimento do Google (melhor) ouve de novo depois do bip.
      */
-    fun tailIsClear(text: String, conf: Float, words: Int): Boolean = words >= 2 && text.length >= 6 && conf >= 0.75f
+    fun tailIsClear(text: String, conf: Float, words: Int): Boolean = words >= 2 && text.length >= 6 && conf >= 0.85f
 
     /** Tira o chamado e cortesias do começo do texto transcrito (“oi luna acende” → “acende”). */
     fun stripWake(text: String): String =
         text.trim().replace(Regex("^(oi\\s+)?(luna|lona)\\b[,\\s]*", RegexOption.IGNORE_CASE), "").trim()
 
-    /** Lê o resultado do Vosk e devolve a confiança do “oi luna” (0 se não houver). */
+    /**
+     * Lê o resultado do Vosk e devolve a confiança do “oi luna” (0 se não houver). Vale a MENOR das duas
+     * palavras (um “oi” claro não salva um “luna” duvidoso — era o que fazia a Luna acordar com a TV) e a
+     * frase precisa ter a duração de alguém falando o chamado (entre 0,25 s e 2 s).
+     */
     fun score(json: String): Float {
         val words = JSONObject(json).optJSONArray("result") ?: return 0f
         var best = 0f
@@ -83,7 +88,10 @@ object WakeMatch {
             val a = words.getJSONObject(k)
             val b = words.getJSONObject(k + 1)
             if (a.optString("word") == "oi" && b.optString("word") in NAME) {
-                best = max(best, ((a.optDouble("conf", 0.0) + b.optDouble("conf", 0.0)) / 2).toFloat())
+                val start = a.optDouble("start", -1.0)
+                val end = b.optDouble("end", -1.0)
+                if (start >= 0 && end >= 0 && (end - start < 0.25 || end - start > 2.0)) continue
+                best = max(best, minOf(a.optDouble("conf", 0.0), b.optDouble("conf", 0.0)).toFloat())
             }
         }
         return best

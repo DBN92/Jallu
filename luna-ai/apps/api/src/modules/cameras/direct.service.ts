@@ -11,6 +11,8 @@ import { PROJECT_ROOT } from '../../config/env';
 
 export const DIRECT_PREFIX = 'camera.luna_';
 const IDLE_MS = 45_000;
+/** Câmera pela nuvem Tuya demora mais para abrir (WebRTC): fica ligada 5 min depois de usada, e reabrir é na hora */
+const IDLE_TUYA_MS = 5 * 60_000;
 const SEGMENT_RE = /^(index\.m3u8|seg\d{1,6}\.ts)$/;
 
 export interface DirectCameraInput {
@@ -55,6 +57,8 @@ const parseZone = (z: string | null): Zone | null => {
 type Row = { id: string; name: string; url: string; username: string | null; password: string | null; transport: string; onvifPort: number | null; gestureZone: string | null };
 
 interface Session {
+  /** Tempo sem uso até desligar */
+  idleMs: number;
   proc: ChildProcess;
   dir: string;
   lastUsed: number;
@@ -406,8 +410,9 @@ export class DirectCamerasService {
       '-map', '0:v:0', '-an',
       '-vf', `fps=10,${scale}`,
       '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-pix_fmt', 'yuv420p',
-      '-g', '20', '-keyint_min', '20', '-sc_threshold', '0', '-b:v', '1200k', '-maxrate', '1600k', '-bufsize', '3200k',
-      '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5', '-hls_flags', 'delete_segments+omit_endlist+independent_segments',
+      '-g', '10', '-keyint_min', '10', '-sc_threshold', '0', '-b:v', '1200k', '-maxrate', '1600k', '-bufsize', '3200k',
+      // trechos de 1 s: o vídeo começa a tocar mais cedo
+      '-f', 'hls', '-hls_time', '1', '-hls_list_size', '6', '-hls_flags', 'delete_segments+omit_endlist+independent_segments',
       '-hls_segment_filename', join(dir, 'seg%05d.ts'), join(dir, 'index.m3u8'),
       // Foto atual, 1 por segundo
       '-map', '0:v:0', '-vf', `fps=1,${scale}`, '-q:v', '6', '-f', 'image2', '-update', '1', join(dir, 'latest.jpg'),
@@ -415,7 +420,7 @@ export class DirectCamerasService {
       '-map', '0:v:0', '-vf', `fps=4,${zoneCrop(parseZone(r.gestureZone))}scale='min(1280,iw)':-2`, '-q:v', '5', '-f', 'image2', '-update', '1', join(dir, 'gesture.jpg'),
     ];
     const proc = spawn(ff, args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    const s: Session = { proc, dir, lastUsed: Date.now(), stderr: [], exited: false };
+    const s: Session = { idleMs: src.tuya ? IDLE_TUYA_MS : IDLE_MS, proc, dir, lastUsed: Date.now(), stderr: [], exited: false };
     proc.stderr!.on('data', (d: Buffer) => {
       s.stderr.push(...d.toString().split('\n').filter(Boolean));
       if (s.stderr.length > 30) s.stderr.splice(0, s.stderr.length - 30);
@@ -549,7 +554,7 @@ export class DirectCamerasService {
 
   private sweep() {
     const now = Date.now();
-    for (const [id, s] of this.sessions) if (now - s.lastUsed > IDLE_MS) void this.stop(id);
+    for (const [id, s] of this.sessions) if (now - s.lastUsed > s.idleMs) void this.stop(id);
   }
 
   /** Encerra tudo (desligamento do servidor). */

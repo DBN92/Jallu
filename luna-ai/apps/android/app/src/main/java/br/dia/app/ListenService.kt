@@ -218,6 +218,8 @@ class ListenService : Service() {
                         val json = rec.result
                         val score = WakeMatch.score(json)
                         val now = System.currentTimeMillis()
+                        // Diagnóstico: cada vez que algo pareceu “oi luna”, aceito ou não
+                        if (score > 0f) AppDiag.log("chamado ${if (score >= threshold) "aceito" else "recusado"}: confiança ${"%.2f".format(score)} (mínimo ${"%.2f".format(threshold)}, sensibilidade ${prefs.sensitivity})")
                         if (score >= threshold && now - lastWake > 2500) {
                             lastWake = now
                             triggered = true
@@ -247,6 +249,7 @@ class ListenService : Service() {
                 // o trecho fica guardado para usar se depois do bip ninguém falar nada.
                 val (text, conf, words) = transcribe(said)
                 main.post {
+                    AppDiag.log("pedido junto do chamado (Vosk): “${text.take(100)}” confiança ${"%.2f".format(conf)}${if (WakeMatch.tailIsClear(text, conf, words)) "" else " — ouvindo de novo pelo Google"}")
                     if (WakeMatch.tailIsClear(text, conf, words)) commandFromWake(text)
                     else { pendingTail = if (words >= 2) text else ""; beginCommand() }
                 }
@@ -488,6 +491,7 @@ class ListenService : Service() {
     private fun handleText(raw: String) {
         val text = raw.trim()
         if (text.isBlank()) return nothingHeard()
+        AppDiag.log("pedido entendido: “${text.take(100)}”")
         status = "pensando"
         update("Pensando…")
         WebEvents.voice("processing", heard = text)
