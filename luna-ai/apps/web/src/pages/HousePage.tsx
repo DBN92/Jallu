@@ -7,6 +7,9 @@ import { Banner, Button, Card, PageHeader, Spinner, Toggle, inputClass } from '.
 import { useAuth } from '../stores/auth';
 import { useDevices } from '../stores/devices';
 import { VacuumControls } from '../components/VacuumCard';
+import { DeviceTile, SensorTile } from '../components/DeviceTile';
+import { useSettings } from '../stores/settings';
+import { isModern } from '../lib/theme';
 
 const ICONS: Record<DeviceCategory, typeof Lightbulb> = {
   lighting: Lightbulb,
@@ -215,6 +218,9 @@ export default function HousePage() {
     );
   }, [devices, manage, filter]);
 
+  // Temas modernos: os mesmos cartões da tela inicial (toque liga/desliga, arraste o brilho)
+  const modern = isModern(useSettings((st) => st.theme));
+  const tiles = modern && !manage;
   const total = Object.keys(devices).length;
   const onCount = Object.values(devices).filter((d) => d.isOn).length;
 
@@ -242,7 +248,11 @@ export default function HousePage() {
       {error && <Banner>{error}</Banner>}
       {isAdmin && !manage && (
         <p className="font-hud mb-3 text-xs text-cyan-100/50">
-          Dica: toque no <Pencil className="inline h-3 w-3" /> para dar a cada dispositivo o nome que você fala (ex.: “abajur do quarto”). A Luna entende o novo nome e o original.
+          {tiles ? (
+            <>Toque no cartão para ligar ou desligar e arraste a barra para o brilho. Para renomear, apelidos e o que a Luna pode controlar, toque em <Settings2 className="inline h-3 w-3" />.</>
+          ) : (
+            <>Dica: toque no <Pencil className="inline h-3 w-3" /> para dar a cada dispositivo o nome que você fala (ex.: “abajur do quarto”). A Luna entende o novo nome e o original.</>
+          )}
         </p>
       )}
       {manage && (
@@ -251,11 +261,16 @@ export default function HousePage() {
         </Banner>
       )}
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {(['all', ...ORDER] as const).map((c) => (
+        {(['all', ...ORDER.filter((c) => Object.values(devices).some((d) => d.category === c && (manage || !d.hidden)))] as const).map((c) => (
           <button
             key={c}
             onClick={() => setFilter(c)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs transition ${filter === c ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'glass text-white/70'}`}
+            className={
+              modern
+                ? `m-chip shrink-0 ${filter === c ? 'act' : ''}`
+                : `shrink-0 rounded-full px-3 py-1.5 text-xs transition ${filter === c ? 'border border-cyan-300/60 bg-cyan-400/20 text-cyan-50 shadow-[0_0_10px_rgba(0,229,255,0.3)]' : 'glass text-white/70'}`
+            }
+            style={modern ? { padding: '7px 14px', fontSize: 13 } : undefined}
           >
             {c === 'all' ? 'Todos' : DEVICE_CATEGORY_LABELS[c]}
           </button>
@@ -270,12 +285,35 @@ export default function HousePage() {
       ) : (
         grouped.map((g) => (
           <section key={g.category} className="mb-6">
-            <h2 className="mb-2 text-xs font-medium tracking-wider text-white/40 uppercase">{DEVICE_CATEGORY_LABELS[g.category]}</h2>
-            <div className="grid gap-2 sm:grid-cols-2 [&>*]:min-w-0">
-              {g.items.map((d) => (
-                <DeviceCard key={d.entityId} device={d} manage={manage} />
-              ))}
-            </div>
+            <h2 className={tiles ? 'mb-2.5 flex items-baseline justify-between text-[17px] font-semibold' : 'mb-2 text-xs font-medium tracking-wider text-white/40 uppercase'}>
+              {DEVICE_CATEGORY_LABELS[g.category]}
+              {tiles && g.category !== 'sensors' && (
+                <span className="m-muted text-sm font-normal">
+                  {g.items.filter((d) => d.isOn).length} de {g.items.length} ligados
+                </span>
+              )}
+            </h2>
+            {tiles ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 [&>*]:min-w-0">
+                {g.items.map((d, i) =>
+                  d.vacuum ? (
+                    <div key={d.entityId} className="col-span-2">
+                      <DeviceCard device={d} manage={false} />
+                    </div>
+                  ) : d.controllable && d.isOn !== null ? (
+                    <DeviceTile key={d.entityId} device={d} index={i} />
+                  ) : (
+                    <SensorTile key={d.entityId} device={d} />
+                  ),
+                )}
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 [&>*]:min-w-0">
+                {g.items.map((d) => (
+                  <DeviceCard key={d.entityId} device={d} manage={manage} />
+                ))}
+              </div>
+            )}
           </section>
         ))
       )}

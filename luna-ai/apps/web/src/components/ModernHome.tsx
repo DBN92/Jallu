@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cctv, ChevronRight, CloudSun, Fan, Lightbulb, Moon, Plug, Power, SendHorizontal, ShoppingCart, Sparkles, Sun, Thermometer, Volume2, VolumeX, X } from 'lucide-react';
+import { Cctv, ChevronRight, CloudSun, Moon, SendHorizontal, ShoppingCart, Sparkles, Sun, Volume2, VolumeX, X } from 'lucide-react';
 import type { AssistantState, CameraDto, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
 import { useCameras } from '../stores/cameras';
@@ -16,8 +16,7 @@ import { GarageCard } from './GarageCard';
 import { VacuumCard } from './VacuumCard';
 import { LitterCard } from './LitterCard';
 import { WasherCard } from './WasherCard';
-import { DeviceArt, artKind, artTone } from './DeviceArt';
-import { useSettings } from '../stores/settings';
+import { DeviceTile } from './DeviceTile';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -27,7 +26,6 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'other', label: 'Outros' },
 ];
 const isToggle = (d: DeviceDto) => d.controllable && d.isOn !== null && !d.hidden && d.category !== 'sensors' && d.domain !== 'vacuum';
-const iconFor = (d: DeviceDto) => (d.category === 'lighting' ? Lightbulb : d.category === 'outlets' ? Plug : d.category === 'climate' ? (d.entityId.startsWith('fan.') ? Fan : Thermometer) : Power);
 const round = Math.round;
 
 export interface ModernHomeProps {
@@ -67,8 +65,6 @@ export interface ModernHomeProps {
 export function ModernHome(p: ModernHomeProps) {
   const navigate = useNavigate();
   const devicesMap = useDevices((s) => s.devices);
-  const busy = useDevices((s) => s.busy);
-  const sereno = useSettings((s) => s.theme) === 'sereno';
   const openCameras = useCameras((s) => s.open);
   const toBuy = useLists((s) => s.items?.filter((i) => i.status === 'buy').length ?? 0);
   useEffect(() => {
@@ -345,38 +341,9 @@ export function ModernHome(p: ModernHomeProps) {
         ))}
       </div>
       <div className={`grid gap-3 ${p.wide ? 'grid-cols-3' : 'grid-cols-2'}`}>
-        {shown.map((d, i) => {
-          const Icon = iconFor(d);
-          return (
-            <button
-              key={d.entityId}
-              className={`m-card m-tile ${d.available ? '' : 'opacity-50'} ${sereno ? `sv-tile sv-${artTone(artKind(d))} ${d.isOn ? 'is-on' : ''}` : ''}`}
-              style={sereno ? { ['--i' as string]: Math.min(i, 12) } : undefined}
-              onClick={() => void useDevices.getState().toggle(d)}
-              disabled={!d.available || busy[d.entityId]}
-            >
-              <div className="flex items-center justify-between">
-                {sereno ? (
-                  <DeviceArt device={d} on={d.isOn === true} />
-                ) : (
-                  <span className={`m-iconbox ${d.isOn ? 'on' : ''}`}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                )}
-                <span className={`m-switch ${d.isOn ? 'on' : ''}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold">{d.name}</p>
-                <p className="m-muted text-[12.5px]">{!d.available ? 'Indisponível' : d.isOn ? `Ligada${d.supportsBrightness && d.brightness !== null ? ` · ${d.brightness}%` : ''}` : 'Desligada'}</p>
-              </div>
-              {d.isOn && d.supportsBrightness && d.brightness !== null && (
-                <div className="m-bar">
-                  <i style={{ width: `${d.brightness}%` }} />
-                </div>
-              )}
-            </button>
-          );
-        })}
+        {shown.map((d, i) => (
+          <DeviceTile key={d.entityId} device={d} index={i} />
+        ))}
         {!shown.length && <p className="m-muted col-span-full py-6 text-center text-sm">Nenhum aparelho aqui.</p>}
       </div>
     </div>
