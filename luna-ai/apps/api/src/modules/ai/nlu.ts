@@ -26,17 +26,32 @@ export type Intent =
   | { type: 'lists'; command: 'buy' | 'bought' | 'list_buy' | 'has' | 'note' | 'list_notes'; text: string };
 
 /** Fala sobre a caixa de areia dos gatos? */
-const LITTER_CONTEXT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
+const LITTER_STRICT = /\b(caixa|caixinha)\s+(de\s+)?areia\b|\b(caixa|caixinha|banheiro|areia)\s+dos\s+gatos\b/;
+/** “Limpa a caixa”: “caixa” sozinha só vale junto de limpar (pode existir uma caixa de som chamada “Caixa”) */
+const LITTER_LOOSE = /\b(caixa|caixinha)\b(?!\s+(de\s+som|d\s?agua|de\s+agua|de\s+correio|de\s+entrada|postal))/;
+const LITTER_CONTEXT = { test: (t: string) => LITTER_STRICT.test(t) || (LITTER_LOOSE.test(t) && /\blimp\w*/.test(t)) };
+/** Aspirador/robô citado: aí “limpeza” é do aspirador, não da caixa */
+const VACUUM_WORDS = /\b(aspirador\w*|robo|robozinho|rita|aspira\w*|varre\w*)\b/;
+/** Pergunta sobre o uso pelos gatos (“quantas vezes os gatos usaram a caixa?”, “o gato fez xixi hoje?”) */
+const CATS_USE = /\bgat[oa]s?\b.*\b(usa\w*|usou|fe[zs]\w*|fizeram|xixi|coco|necessidade\w*|visit\w*|foi|foram)\b/;
 
-/** “limpa a caixa de areia”, “liga a limpeza automática da caixa”, “quantas vezes os gatos usaram a caixa hoje?” */
+/** “limpa a caixa de areia”, “liga a limpeza automática”, “quantas vezes os gatos usaram a caixa hoje?” */
 function parseLitter(text: string): Intent | null {
-  if (!LITTER_CONTEXT.test(text) || DEFERRED.test(text)) return null;
+  if (VACUUM_WORDS.test(text)) return null;
+  // “quando limpou a caixa?” / “quando os gatos usaram?” é pergunta sobre o passado, não pedido para depois
+  if (/\bquando\b.*\b(limpou|foi limpa|limparam|usaram|usou|fez|fizeram)\b/.test(text) && (LITTER_CONTEXT.test(text) || CATS_USE.test(text))) return { type: 'litter', command: 'status' };
+  if (DEFERRED.test(text)) return null;
+  // “limpeza automática” sem falar do aspirador é a da caixa de areia (antes ia para o aspirador!)
   if (/\blimpeza automatica\b/.test(text)) {
-    if (/\b(deslig\w*|desativ\w*|para|pare|tira)\b/.test(text)) return { type: 'litter', command: 'auto_off' };
-    if (/\b(lig\w*|ativ\w*|coloca|bota)\b/.test(text)) return { type: 'litter', command: 'auto_on' };
-    return { type: 'litter', command: 'status' };
+    if (/\b(deslig\w*|desativ\w*|para|pare|tira|cancel\w*)\b/.test(text)) return { type: 'litter', command: 'auto_off' };
+    if (/\b(lig\w*|ativ\w*|coloca|bota|acion\w*)\b/.test(text)) return { type: 'litter', command: 'auto_on' };
+    return LITTER_CONTEXT.test(text) ? { type: 'litter', command: 'status' } : null;
   }
-  if (/\b(limp(a|e|ar)|faz a limpeza|gira)\b/.test(text) && !/\b(quando|quantas|limpou|esta limpa)\b/.test(text)) return { type: 'litter', command: 'clean' };
+  if (!LITTER_CONTEXT.test(text)) return CATS_USE.test(text) ? { type: 'litter', command: 'status' } : null;
+  const question = /\b(quando|quantas|quanto|limpou|esta limpa|ta limpa|precisa|como esta|como ta|status)\b/.test(text) || /\?$/.test(text);
+  if (!question && (/\b(limp(a|e|ar)|gira|girar)\b/.test(text) || /\b(faz|faca|fazer|aciona\w*|ativa\w*|inicia\w*|comeca\w*|executa\w*|roda|dispara\w*|manda\w*)\b.*\blimpeza\b/.test(text))) {
+    return { type: 'litter', command: 'clean' };
+  }
   return { type: 'litter', command: 'status' };
 }
 

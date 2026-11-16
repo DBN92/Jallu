@@ -137,6 +137,24 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
     expect(parseIntent('quando eu sair limpa a caixa de areia')).toBeNull();
   });
 
+  it('entende mais jeitos de falar e NÃO manda o aspirador quando é a limpeza automática da caixa', () => {
+    const c = (t: string) => parseIntent(t);
+    expect(c('limpa a caixa')).toEqual({ type: 'litter', command: 'clean' });
+    expect(c('aciona a limpeza da caixa de areia')).toEqual({ type: 'litter', command: 'clean' });
+    // antes estes iam para o aspirador robô
+    expect(c('ativa a limpeza automática')).toEqual({ type: 'litter', command: 'auto_on' });
+    expect(c('liga a limpeza automática da caixa')).toEqual({ type: 'litter', command: 'auto_on' });
+    expect(c('desliga a limpeza automática')).toEqual({ type: 'litter', command: 'auto_off' });
+    expect(c('quantas vezes os gatos usaram a caixa hoje')).toEqual({ type: 'litter', command: 'status' });
+    expect(c('quantas vezes o gato fez xixi hoje')).toEqual({ type: 'litter', command: 'status' });
+    expect(c('quando limpou a caixa de areia')).toEqual({ type: 'litter', command: 'status' });
+    // continuam sendo de outros aparelhos
+    expect(c('liga a caixa')).toMatchObject({ type: 'device_power' });
+    expect(c('liga a caixa de som')).toMatchObject({ type: 'device_power' });
+    expect(c('manda o robô limpar a sala')).toMatchObject({ type: 'vacuum' });
+    expect(c('liga a limpeza automática do aspirador')).toMatchObject({ type: 'vacuum' });
+  });
+
   it('conta UMA visita quando o contador pula e não repete o mesmo aviso; apaga duplicadas antigas', async () => {
     await withBox();
     await ctx.inject('GET', '/api/litter');
