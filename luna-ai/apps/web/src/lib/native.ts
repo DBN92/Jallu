@@ -53,6 +53,12 @@ interface Bridge {
   setAndroidVoice?(name: string, rate: number): void;
   testAndroidVoice?(text: string): void;
   installAndroidVoices?(): void;
+  /** Vozes que chamam a Luna — assinatura de voz (app 1.0.25 em diante) */
+  voiceIdStatus?(): string;
+  voiceEnroll?(name: string): void;
+  voiceDelete?(name: string): void;
+  setVoiceMode?(mode: 'off' | 'observe' | 'block'): void;
+  setVoiceRigor?(rigor: 'leve' | 'normal' | 'rigido'): void;
   /** Pausa a escuta do “Oi, Luna” enquanto a tela usa o microfone (app 1.0.8 em diante) */
   pauseWake?(on: boolean): void;
   listen(): void;

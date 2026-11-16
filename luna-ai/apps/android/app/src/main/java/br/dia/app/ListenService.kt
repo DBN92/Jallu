@@ -29,6 +29,7 @@ import android.speech.tts.UtteranceProgressListener
 import org.json.JSONObject
 import org.vosk.Model
 import org.vosk.Recognizer
+import org.vosk.SpeakerModel
 import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.math.max
@@ -47,6 +48,8 @@ class ListenService : Service() {
         const val ACTION_RESUME = "br.dia.app.RESUME"
         const val ACTION_LISTEN_NOW = "br.dia.app.LISTEN_NOW"
         const val ACTION_STOP = "br.dia.app.STOP"
+        /** Grava uma amostra de “Oi, Luna” para a assinatura de voz (extra “name”) */
+        const val ACTION_ENROLL = "br.dia.app.ENROLL"
         private const val CHANNEL = "escuta"
         private const val NOTIF_ID = 7
 
@@ -59,8 +62,9 @@ class ListenService : Service() {
         /** A tela da Luna está aberta com a voz em tempo real (OpenAI): ela conduz a conversa */
         @Volatile var handoff = false
 
-        fun send(ctx: Context, action: String) {
+        fun send(ctx: Context, action: String, name: String? = null) {
             val i = Intent(ctx, ListenService::class.java).setAction(action)
+            if (name != null) i.putExtra("name", name)
             // Sem o microfone liberado o Android nem deixa o serviço ligar: mostra o motivo em vez de “parado”
             if (action != ACTION_STOP && ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 status = "sem permissão de microfone"
@@ -80,6 +84,9 @@ class ListenService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private lateinit var prefs: Prefs
     private var model: Model? = null
+    /** Modelo de assinatura de voz (só carregado se o reconhecimento de quem fala estiver em uso) */
+    @Volatile private var spkModel: SpeakerModel? = null
+    @Volatile private var enrolling = false
     @Volatile private var listening = false
     @Volatile private var paused = false
     @Volatile private var inSession = false
@@ -131,7 +138,13 @@ class ListenService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PAUSE -> { paused = true; status = "pausado"; AppDiag.log("escuta: pausada pela tela"); speech?.cancel(); stopListening(); update() }
-            ACTION_RESUME -> { paused = false; startListening() }
+            ACTION_RESUME -> {
+                paused = false
+                // Reconhecimento de quem fala ligado agora: carrega a assinatura de voz (se já baixada)
+                if (prefs.voiceMode != "off" && spkModel == null && ModelManager.spkReady(this)) spkModel = try { SpeakerModel(ModelManager.spkDir(this).absolutePath) } catch (_: Throwable) { null }
+                startListening()
+            }
+            ACTION_ENROLL -> enroll(intent.getStringExtra("name").orEmpty())
             ACTION_LISTEN_NOW -> if (model != null) main.post { beginCommand() } else pendingManual = true
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
             else -> startListening()
@@ -145,6 +158,7 @@ class ListenService : Service() {
         speech?.destroy()
         tts?.shutdown()
         model?.close()
+        spkModel?.close()
         wakeLock?.let { if (it.isHeld) it.release() }
         status = "parado"
         WebEvents.voice("idle")
@@ -168,6 +182,7 @@ class ListenService : Service() {
             try {
                 val dir = ModelManager.ensure(this)
                 model = Model(dir.absolutePath)
+                if (prefs.voiceMode != "off" && ModelManager.spkReady(this)) spkModel = try { SpeakerModel(ModelManager.spkDir(this).absolutePath) } catch (_: Throwable) { null }
                 main.post {
                     startListening()
                     if (pendingManual) { pendingManual = false; beginCommand() }
@@ -186,7 +201,7 @@ class ListenService : Service() {
 
     private fun startListening() {
         val m = model ?: return
-        if (paused || inSession || listening || !prefs.wake) { update(); return }
+        if (paused || inSession || listening || enrolling || !prefs.wake) { update(); return }
         if (!hasMic()) { status = "sem permissão de microfone"; update("Permita o microfone no app da Luna."); return }
         listening = true
         status = "ouvindo"
@@ -220,6 +235,13 @@ class ListenService : Service() {
                         val now = System.currentTimeMillis()
                         // Diagnóstico: cada vez que algo pareceu “oi luna”, aceito ou não
                         if (score > 0f) AppDiag.log("chamado ${if (score >= threshold) "aceito" else "recusado"}: confiança ${"%.2f".format(score)} (mínimo ${"%.2f".format(threshold)}, sensibilidade ${prefs.sensitivity})")
+                        if (score >= threshold && now - lastWake > 2500 && !voiceAllows(json, utter.toByteArray(), uttStart)) {
+                            // voz que não é de quem foi cadastrado (ex.: TV): ignora e continua ouvindo
+                            lastWake = now
+                            utter.reset()
+                            uttStart = fed
+                            continue
+                        }
                         if (score >= threshold && now - lastWake > 2500) {
                             lastWake = now
                             triggered = true
@@ -255,6 +277,119 @@ class ListenService : Service() {
                 }
             } else if (triggered) main.post { pendingTail = ""; beginCommand() }
             else if (!paused && !inSession && prefs.wake && status == "erro no microfone") main.postDelayed({ startListening() }, 3000)
+        }
+    }
+
+    // ---------------- Quem está falando (assinatura de voz) ----------------
+
+    private fun profiles() = VoiceId.parse(prefs.voiceProfiles)
+
+    /** PCM 16 bits (bytes little-endian) → amostras */
+    private fun toShorts(bytes: ByteArray, from: Int, to: Int): ShortArray =
+        ShortArray(((to - from) / 2).coerceAtLeast(0)) { i -> ((bytes[from + i * 2].toInt() and 0xff) or (bytes[from + i * 2 + 1].toInt() shl 8)).toShort() }
+
+    /** Assinatura de voz só do trecho “oi luna” (com 0,35 s de folga dos dois lados) */
+    private fun speakerVector(json: String, bytes: ByteArray, uttStart: Long): DoubleArray? {
+        val m = model ?: return null
+        val spk = spkModel ?: return null
+        val (start, end) = WakeMatch.span(json) ?: return null
+        val from = (((start - 0.35) * 16000).toLong() - uttStart).coerceIn(0, bytes.size / 2L).toInt() * 2
+        val to = (((end + 0.35) * 16000).toLong() - uttStart).coerceIn(0, bytes.size / 2L).toInt() * 2
+        if (to - from < 16000 / 4 * 2) return null
+        val clip = toShorts(bytes, from, to)
+        return try {
+            Recognizer(m, 16000f, WakeMatch.GRAMMAR).use { r ->
+                r.setSpeakerModel(spk)
+                var i = 0
+                while (i < clip.size) { val n = minOf(1600, clip.size - i); r.acceptWaveForm(clip.copyOfRange(i, i + n), n); i += n }
+                VoiceId.vector(r.finalResult)
+            }
+        } catch (_: Throwable) { null }
+    }
+
+    /**
+     * O chamado veio de quem foi cadastrado? Desligado ou sem cadastro: sempre sim. Em “observar” só
+     * registra no diagnóstico; em “barrar” recusa vozes estranhas (sem assinatura, deixa passar).
+     */
+    private fun voiceAllows(json: String, bytes: ByteArray, uttStart: Long): Boolean {
+        val mode = prefs.voiceMode
+        if (mode == "off" || WakeMatch.score(json) <= 0f) return true
+        val people = profiles()
+        if (people.values.none { it.size >= VoiceId.MIN_SAMPLES } || spkModel == null) return true
+        val v = speakerVector(json, bytes, uttStart)
+        if (v == null) { AppDiag.log("voz: sem assinatura (trecho curto) — deixei passar"); return true }
+        val m = VoiceId.identify(v, people, prefs.voiceRigor)
+        val others = m.others.joinToString { "${it.first} ${"%.2f".format(it.second)}" }
+        val verdict = when {
+            m.name != null -> "reconheci ${m.name}"
+            mode == "block" -> "voz desconhecida — ignorei"
+            else -> "voz desconhecida — teria ignorado (modo observar)"
+        }
+        AppDiag.log("voz: $verdict · mais parecida: ${m.closest} ${"%.2f".format(m.similarity)}${if (others.isNotEmpty()) " (outros: $others)" else ""} · limite ${"%.2f".format(VoiceId.threshold(prefs.voiceRigor))}")
+        return m.name != null || mode != "block"
+    }
+
+    /** Cadastro: bip, grava ~3,5 s, acha o “oi luna” e guarda a assinatura dessa pessoa */
+    private fun enroll(name: String) {
+        val who = name.trim().take(30)
+        if (who.isEmpty()) return
+        if (inSession || enrolling) { WebEvents.enroll("erro", who, message = "A Luna está ocupada agora. Tente de novo em instantes."); return }
+        if (!hasMic()) { WebEvents.enroll("erro", who, message = "Permita o microfone no app da Luna."); return }
+        enrolling = true
+        stopListening()
+        thread(name = "dia-cadastro-voz") {
+            var record: AudioRecord? = null
+            try {
+                val m = model ?: throw IllegalStateException("O modelo de voz ainda está sendo preparado.")
+                if (spkModel == null) {
+                    if (!ModelManager.spkReady(this)) WebEvents.enroll("baixando", who)
+                    spkModel = SpeakerModel(ModelManager.ensureSpk(this).absolutePath)
+                }
+                WebEvents.enroll("gravando", who)
+                try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
+                Thread.sleep(250)
+                val min = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                record = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, max(min, 6400))
+                record.startRecording()
+                // Mesmo tratamento da escuta (ganho automático), para a assinatura sair igual
+                val total = ShortArray(16000 * 7 / 2)
+                val chunk = ShortArray(1600)
+                var got = 0
+                val gain = AutoGain()
+                while (got < total.size) {
+                    val n = record.read(chunk, 0, minOf(chunk.size, total.size - got))
+                    if (n <= 0) continue
+                    gain.process(chunk, n)
+                    chunk.copyInto(total, got, 0, n)
+                    got += n
+                }
+                record.stop()
+                // Acha o “oi luna” na gravação
+                val results = mutableListOf<String>()
+                Recognizer(m, 16000f, WakeMatch.GRAMMAR).use { r ->
+                    r.setWords(true)
+                    var i = 0
+                    while (i < got) { val n = minOf(1600, got - i); if (r.acceptWaveForm(total.copyOfRange(i, i + n), n)) results += r.result; i += n }
+                    results += r.finalResult
+                }
+                val json = results.firstOrNull { WakeMatch.span(it) != null && WakeMatch.score(it) > 0f }
+                    ?: throw IllegalStateException("Não ouvi “Oi, Luna”. Fale logo depois do bip, no seu tom normal.")
+                val bytes = ByteArray(got * 2).also { b -> for (k in 0 until got) { b[k * 2] = (total[k].toInt() and 0xff).toByte(); b[k * 2 + 1] = ((total[k].toInt() shr 8) and 0xff).toByte() } }
+                val v = speakerVector(json, bytes, 0) ?: throw IllegalStateException("A gravação ficou curta demais. Tente de novo.")
+                val all = profiles()
+                val list = all.getOrPut(who) { mutableListOf() }
+                list += v
+                while (list.size > VoiceId.MAX_SAMPLES) list.removeAt(0)
+                prefs.voiceProfiles = VoiceId.serialize(all)
+                AppDiag.log("voz: amostra ${list.size} de $who cadastrada")
+                WebEvents.enroll("ok", who, list.size)
+            } catch (e: Throwable) {
+                WebEvents.enroll("erro", who, message = e.message ?: "Não consegui gravar.")
+            } finally {
+                try { record?.release() } catch (_: Exception) {}
+                enrolling = false
+                main.post { startListening() }
+            }
         }
     }
 

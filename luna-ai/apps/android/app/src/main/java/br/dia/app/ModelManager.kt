@@ -24,12 +24,24 @@ object ModelManager {
 
     /** Garante o modelo no aparelho. Lança exceção com mensagem amigável se falhar. */
     @Synchronized
-    fun ensure(ctx: Context): File {
-        if (ready(ctx)) return dir(ctx)
-        val tmp = File(ctx.cacheDir, "model.zip")
+    fun ensure(ctx: Context): File = fetch(ctx, NAME, URL_ZIP, SHA256, "final.mdl", "modelo de voz")
+
+    // Assinatura de voz (Vosk speaker model, ~13 MB): reconhece QUEM disse “Oi, Luna”
+    private const val SPK_NAME = "vosk-model-spk-0.4"
+    private const val SPK_URL = "https://alphacephei.com/vosk/models/vosk-model-spk-0.4.zip"
+    private const val SPK_SHA256 = "a74d8f51144484813e16af689bb0f916b7a111e2347f467c4933c1166097b5a7"
+    fun spkDir(ctx: Context) = File(ctx.filesDir, SPK_NAME)
+    fun spkReady(ctx: Context) = File(spkDir(ctx), "final.ext.raw").exists()
+    @Synchronized
+    fun ensureSpk(ctx: Context): File = fetch(ctx, SPK_NAME, SPK_URL, SPK_SHA256, "final.ext.raw", "modelo de assinatura de voz")
+
+    private fun fetch(ctx: Context, name: String, url: String, sha: String, marker: String, label: String): File {
+        val dir = File(ctx.filesDir, name)
+        if (File(dir, marker).exists()) return dir
+        val tmp = File(ctx.cacheDir, "$name.zip")
         progress = 0
         try {
-            val conn = URL(URL_ZIP).openConnection() as HttpURLConnection
+            val conn = URL(url).openConnection() as HttpURLConnection
             conn.connectTimeout = 15_000
             conn.readTimeout = 60_000
             val total = conn.contentLengthLong.coerceAtLeast(1)
@@ -49,7 +61,7 @@ object ModelManager {
                 }
             }
             val hash = md.digest().joinToString("") { "%02x".format(it) }
-            if (hash != SHA256) throw IllegalStateException("O modelo de voz baixado veio corrompido. Tente de novo.")
+            if (hash != sha) throw IllegalStateException("O $label baixado veio corrompido. Tente de novo.")
             val target = ctx.filesDir.canonicalFile
             ZipInputStream(tmp.inputStream()).use { zip ->
                 while (true) {
@@ -63,12 +75,12 @@ object ModelManager {
                     }
                 }
             }
-            if (!ready(ctx)) throw IllegalStateException("O modelo de voz não foi instalado direito.")
-            return dir(ctx)
+            if (!File(dir, marker).exists()) throw IllegalStateException("O $label não foi instalado direito.")
+            return dir
         } catch (e: IllegalStateException) {
             throw e
         } catch (e: Exception) {
-            throw IllegalStateException("Não consegui baixar o modelo de voz (precisa de internet só nesta primeira vez).")
+            throw IllegalStateException("Não consegui baixar o $label (precisa de internet só nesta primeira vez).")
         } finally {
             tmp.delete()
             progress = -1

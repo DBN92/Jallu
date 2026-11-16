@@ -72,6 +72,17 @@ object WakeMatch {
      */
     fun tailIsClear(text: String, conf: Float, words: Int): Boolean = words >= 2 && text.length >= 6 && conf >= 0.85f
 
+    /** Início e fim (segundos) do “oi luna” no resultado do Vosk, ou null */
+    fun span(json: String): Pair<Double, Double>? {
+        val words = JSONObject(json).optJSONArray("result") ?: return null
+        for (k in 0 until words.length() - 1) {
+            val a = words.getJSONObject(k)
+            val b = words.getJSONObject(k + 1)
+            if (a.optString("word") == "oi" && b.optString("word") in NAME) return a.optDouble("start", 0.0) to b.optDouble("end", 0.0)
+        }
+        return null
+    }
+
     /** Tira o chamado e cortesias do começo do texto transcrito (“oi luna acende” → “acende”). */
     fun stripWake(text: String): String =
         text.trim().replace(Regex("^(oi\\s+)?(luna|lona)\\b[,\\s]*", RegexOption.IGNORE_CASE), "").trim()

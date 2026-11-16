@@ -35,4 +35,10 @@ object WebEvents {
             view?.get()?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-voice',{detail:$detail}))", null)
         }
     }
+
+    /** Cadastro de voz: state = baixando | gravando | ok | erro */
+    fun enroll(state: String, name: String, count: Int = 0, message: String = "") {
+        val detail = JSONObject().put("state", state).put("name", name).put("count", count).put("message", message).toString()
+        main.post { view?.get()?.evaluateJavascript("window.dispatchEvent(new CustomEvent('dia-native-enroll',{detail:$detail}))", null) }
+    }
 }

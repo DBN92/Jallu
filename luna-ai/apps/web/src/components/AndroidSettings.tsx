@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../services/api';
 import { nativeApp, nativeStatus, type NativeStatus } from '../lib/native';
 import { AppUpdateSettings } from './AppUpdateSettings';
+import { VoiceIdSettings } from './VoiceIdSettings';
 import { Banner, Button, Toggle } from './ui';
 
 interface ApkInfo {
@@ -140,6 +141,7 @@ export function AndroidSettings() {
           ))}
         </div>
       </Row>
+      <VoiceIdSettings />
       <Row title="Abrir sozinha quando o tablet ligar" hint={st?.autostart && !st.overlay ? 'Falta permitir “Aparecer sobre outros apps”.' : undefined}>
         <div className="flex items-center gap-2">
           {st?.autostart && !st.overlay && (

@@ -62,4 +62,19 @@ class Prefs(ctx: Context) {
     var sensitivity: String
         get() = p.getString("sensitivity", "normal") ?: "normal"
         set(v) = p.edit().putString("sensitivity", v).apply()
+
+    /** Só vozes cadastradas chamam a Luna: off | observe (só registra) | block (barra as outras) */
+    var voiceMode: String
+        get() = p.getString("voiceMode", "off") ?: "off"
+        set(v) = p.edit().putString("voiceMode", v).apply()
+
+    /** leve | normal | rigido */
+    var voiceRigor: String
+        get() = p.getString("voiceRigor", "normal") ?: "normal"
+        set(v) = p.edit().putString("voiceRigor", v).apply()
+
+    /** Assinaturas de voz por pessoa (JSON; números, não áudio) */
+    var voiceProfiles: String
+        get() = p.getString("voiceProfiles", "{}") ?: "{}"
+        set(v) = p.edit().putString("voiceProfiles", v).apply()
 }

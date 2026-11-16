@@ -483,6 +483,50 @@ class MainActivity : Activity() {
             if (prefs.wake) runOnUiThread { ListenService.send(this@MainActivity, ListenService.ACTION_PAUSE); ListenService.send(this@MainActivity, ListenService.ACTION_RESUME) }
         }
 
+        /** Vozes cadastradas (só nomes e quantidade de amostras — as assinaturas não saem do app) */
+        @JavascriptInterface
+        fun voiceIdStatus(): String {
+            if (!allowed()) return "{}"
+            val people = VoiceId.parse(prefs.voiceProfiles)
+            return JSONObject()
+                .put("mode", prefs.voiceMode)
+                .put("rigor", prefs.voiceRigor)
+                .put("minSamples", VoiceId.MIN_SAMPLES)
+                .put("ready", ModelManager.spkReady(this@MainActivity))
+                .put("people", org.json.JSONArray().apply { people.forEach { (n, l) -> put(JSONObject().put("name", n).put("count", l.size)) } })
+                .toString()
+        }
+
+        /** Grava uma amostra de “Oi, Luna” desta pessoa (resultado chega no evento dia-native-enroll) */
+        @JavascriptInterface
+        fun voiceEnroll(name: String) {
+            if (!allowed() || name.isBlank() || name.length > 30) return
+            runOnUiThread { ListenService.send(this@MainActivity, ListenService.ACTION_ENROLL, name.trim()) }
+        }
+
+        @JavascriptInterface
+        fun voiceDelete(name: String) {
+            if (!allowed()) return
+            val all = VoiceId.parse(prefs.voiceProfiles)
+            all.remove(name)
+            prefs.voiceProfiles = VoiceId.serialize(all)
+            AppDiag.log("voz: cadastro de $name apagado")
+        }
+
+        @JavascriptInterface
+        fun setVoiceMode(m: String) {
+            if (!allowed() || m !in listOf("off", "observe", "block")) return
+            prefs.voiceMode = m
+            AppDiag.log("voz: modo $m")
+            // Recarrega a escuta (carrega o modelo de assinatura se preciso)
+            if (prefs.wake) runOnUiThread { ListenService.send(this@MainActivity, ListenService.ACTION_PAUSE); ListenService.send(this@MainActivity, ListenService.ACTION_RESUME) }
+        }
+
+        @JavascriptInterface
+        fun setVoiceRigor(r: String) {
+            if (allowed() && r in listOf("leve", "normal", "rigido")) prefs.voiceRigor = r
+        }
+
         @JavascriptInterface fun setAutostart(on: Boolean) { if (allowed()) prefs.autostart = on }
         /** Presença pela câmera feita pelo app (a página recebe “dia-native-motion”) */
         @JavascriptInterface
