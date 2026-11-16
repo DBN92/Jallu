@@ -291,6 +291,7 @@ class ListenService : Service() {
     private fun commandFromWake(text: String) {
         if (inSession) return
         inSession = true
+        DiaApi.duck(prefs.url, prefs.token, true)
         tts?.stop()
         try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
         handleText(text)
@@ -310,6 +311,8 @@ class ListenService : Service() {
 
     private fun beginCommand() {
         if (inSession) return
+        // A TV escolhida fica no mudo enquanto a Luna escuta (o microfone misturava a TV com o pedido)
+        DiaApi.duck(prefs.url, prefs.token, true)
         // Voz em tempo real ligada e a Luna na frente: passa a conversa para a tela (mesma voz e IA do celular)
         if (handoff && MainActivity.visible && WebEvents.attached()) {
             stopListening()
@@ -525,6 +528,7 @@ class ListenService : Service() {
 
     private fun endSession(heard: String = "", reply: String = "") {
         inSession = false
+        DiaApi.duck(prefs.url, prefs.token, false)
         WebEvents.voice("idle", heard, reply)
         main.postDelayed({ startListening() }, 400)
     }

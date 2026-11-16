@@ -46,6 +46,8 @@ import { gestureRoutes } from './modules/gestures/gestures.routes';
 import { WatchesService } from './modules/watches/watches.service';
 import { watchRoutes } from './modules/watches/watches.routes';
 import { siriRoutes } from './modules/siri/siri.routes';
+import { tvRoutes } from './modules/tv/tv.routes';
+import { TvDuckService } from './modules/tv/tv-duck.service';
 import { LitterService } from './modules/litter/litter.service';
 import { litterRoutes } from './modules/litter/litter.routes';
 import { WasherService } from './modules/washer/washer.service';
@@ -137,6 +139,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
   const vacuumPhotos = new VacuumPhotos(dataDir, devices);
   const webCameras = new WebCamerasService(dataDir);
+  // Silencia a TV escolhida enquanto a Luna escuta (o microfone misturava a TV com o pedido)
+  const tvDuck = new TvDuckService(ha, dataDir);
   cameras.setWeb(webCameras);
   void vacuumPhotos.init();
   const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
@@ -195,7 +199,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, go2rtc, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -288,6 +292,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(gestureRoutes);
   await app.register(watchRoutes);
   await app.register(siriRoutes);
+  await app.register(tvRoutes);
   await app.register(litterRoutes);
   await app.register(washerRoutes);
   await app.register(houseRoutes);

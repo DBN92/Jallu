@@ -320,6 +320,10 @@ export default function HomePage() {
   }, [ambientEnabled, ambientDelay, state, sr.listening, recorder.recording, realtime.active, realtime.connecting, text]);
   const micActive = sr.listening || recorder.recording || realtime.active;
   useEffect(() => diag(`conversa por voz em tela cheia: ${voiceFocus}`), [voiceFocus]);
+  // TV no mudo enquanto a conversa por voz está aberta (o app Android também avisa pela escuta dele)
+  useEffect(() => {
+    void api('/api/tv/duck', { body: { on: voiceFocus } }).catch(() => undefined);
+  }, [voiceFocus]);
   useEffect(() => diag(`descanso de tela: ${ambient}`), [ambient]);
   // App Android: avisa se a tela conduz a conversa e pausa o “Oi, Luna” enquanto a conversa usa o microfone
   useEffect(() => {

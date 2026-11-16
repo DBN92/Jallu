@@ -25,4 +25,25 @@ object DiaApi {
             conn.disconnect()
         }
     }
+
+    /** Avisa o servidor que a Luna começou (on) ou terminou (off) de escutar: a TV escolhida fica no mudo */
+    fun duck(baseUrl: String, token: String, on: Boolean) {
+        if (baseUrl.isBlank() || token.isBlank()) return
+        Thread {
+            val conn = try { URL("$baseUrl/api/tv/duck").openConnection() as HttpURLConnection } catch (_: Exception) { return@Thread }
+            try {
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 3_000
+                conn.readTimeout = 5_000
+                conn.doOutput = true
+                conn.setRequestProperty("Authorization", "Bearer $token")
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                conn.outputStream.use { it.write(JSONObject().put("on", on).toString().toByteArray()) }
+                conn.responseCode
+            } catch (_: Exception) {
+            } finally {
+                conn.disconnect()
+            }
+        }.start()
+    }
 }

@@ -13,6 +13,7 @@ import { applyOrientation, currentOrientation } from '../lib/orientation';
 import { DirectCameras } from '../components/DirectCameras';
 import { WebCameras } from '../components/WebCameras';
 import { TuyaCameras } from '../components/TuyaCameras';
+import { TvDuckSettings } from '../components/TvDuckSettings';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -475,6 +476,10 @@ export default function SettingsPage() {
           <Toggle label="Luna" disabled={!wake.supported} checked={settings.wakeWordEnabled && wake.supported} onChange={(v) => void save({ wakeWordEnabled: v })} />
         </Row>
         <WakeHeard />
+      </Section>
+
+      <Section title="TV no mudo enquanto a Luna escuta">
+        <TvDuckSettings isAdmin={isAdmin} />
       </Section>
 
       <Section title="Siri e Atalhos (iPhone)">
