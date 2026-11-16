@@ -145,7 +145,7 @@ class ListenService : Service() {
                 startListening()
             }
             ACTION_ENROLL -> enroll(intent.getStringExtra("name").orEmpty())
-            ACTION_LISTEN_NOW -> if (model != null) main.post { beginCommand() } else pendingManual = true
+            ACTION_LISTEN_NOW -> if (model != null) main.post { beginCommand(manual = true) } else pendingManual = true
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
             else -> startListening()
         }
@@ -185,7 +185,7 @@ class ListenService : Service() {
                 if (prefs.voiceMode != "off" && ModelManager.spkReady(this)) spkModel = try { SpeakerModel(ModelManager.spkDir(this).absolutePath) } catch (_: Throwable) { null }
                 main.post {
                     startListening()
-                    if (pendingManual) { pendingManual = false; beginCommand() }
+                    if (pendingManual) { pendingManual = false; beginCommand(manual = true) }
                 }
             } catch (e: Throwable) {
                 // Throwable: inclui falha ao carregar a biblioteca de voz no aparelho (não pode fechar o app)
@@ -359,7 +359,11 @@ class ListenService : Service() {
         val people = profiles()
         if (people.values.none { it.size >= VoiceId.MIN_SAMPLES } || spkModel == null) return true
         val v = speakerVector(json, bytes, uttStart)
-        if (v == null) { AppDiag.log("voz: sem assinatura (trecho curto) — deixei passar"); return true }
+        if (v == null) {
+            // No modo “ignorar”, sem assinatura não dá para saber quem foi: ignora (era assim que a TV passava)
+            AppDiag.log(if (mode == "block") "voz: sem assinatura (trecho curto) — ignorei" else "voz: sem assinatura (trecho curto) — deixei passar")
+            return mode != "block"
+        }
         val m = VoiceId.identify(v, people, prefs.voiceRigor)
         val others = m.others.joinToString { "${it.first} ${"%.2f".format(it.second)}" }
         val verdict = when {
@@ -474,6 +478,7 @@ class ListenService : Service() {
     private fun commandFromWake(text: String) {
         if (inSession) return
         inSession = true
+        manualSession = false
         DiaApi.duck(prefs.url, prefs.token, true)
         tts?.stop()
         try { ToneGenerator(AudioManager.STREAM_MUSIC, 70).startTone(ToneGenerator.TONE_PROP_ACK, 160) } catch (_: Exception) {}
@@ -492,8 +497,12 @@ class ListenService : Service() {
     /** Quantas vezes já pediu para repetir nesta conversa (pede uma vez só) */
     private var retries = 0
 
-    private fun beginCommand() {
+    /** A conversa começou pelo botão/atalho (true) ou pelo chamado “Oi, Luna” (false) */
+    private var manualSession = false
+
+    private fun beginCommand(manual: Boolean = false) {
         if (inSession) return
+        manualSession = manual
         // A TV escolhida fica no mudo enquanto a Luna escuta (o microfone misturava a TV com o pedido)
         DiaApi.duck(prefs.url, prefs.token, true)
         // Voz em tempo real ligada e a Luna na frente: passa a conversa para a tela (mesma voz e IA do celular)
@@ -545,6 +554,13 @@ class ListenService : Service() {
             val t = pendingTail
             pendingTail = ""
             return handleText(t)
+        }
+        // Chamado por voz e ninguém pediu nada: quase sempre foi a TV ou uma conversa parecida com
+        // “Oi, Luna”. Encerra em silêncio (antes falava “Não ouvi, pode repetir?” e esperava de novo).
+        if (!manualSession) {
+            AppDiag.log("chamado sem pedido — encerrei em silêncio (provável engano: TV ou conversa)")
+            status = "ouvindo"
+            return endSession()
         }
         if (retries == 0) {
             retries++
