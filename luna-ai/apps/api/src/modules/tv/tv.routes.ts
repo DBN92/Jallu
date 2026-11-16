@@ -1,15 +1,6 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { requireAdmin, requireAuth } from '../../middleware/auth';
-
-/** Login pela tela (cookie) ou pelo app Android (token, o mesmo da Siri) */
-async function cookieOrToken(this: FastifyInstance, req: FastifyRequest, reply: FastifyReply) {
-  if (req.headers.authorization?.startsWith('Bearer ')) {
-    req.user = await this.services.siri.resolve(req.headers.authorization);
-    return;
-  }
-  return requireAuth(req, reply);
-}
+import { cookieOrToken, requireAdmin, requireAuth } from '../../middleware/auth';
 
 export async function tvRoutes(app: FastifyInstance) {
   const { tvDuck } = app.services;

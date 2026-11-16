@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { PublicUser } from '@luna/shared';
 import { AppError, forbidden } from '../lib/errors';
 import { SESSION_COOKIE, safeEqual } from '../modules/auth/auth.service';
@@ -29,4 +29,13 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   await requireAuth(request, reply);
   if (request.user?.role !== 'admin') throw forbidden('Somente administradores podem fazer isso.');
+}
+
+/** Login pela tela (cookie) ou pelo app Android (token, o mesmo da Siri). Use com .bind(app) ou como preHandler. */
+export async function cookieOrToken(this: FastifyInstance, req: FastifyRequest, reply: FastifyReply) {
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    req.user = await this.services.siri.resolve(req.headers.authorization);
+    return;
+  }
+  return requireAuth(req, reply);
 }

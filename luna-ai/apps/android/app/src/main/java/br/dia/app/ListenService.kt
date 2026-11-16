@@ -245,10 +245,20 @@ class ListenService : Service() {
                         if (score >= threshold && now - lastWake > 2500) {
                             lastWake = now
                             triggered = true
-                            WakeMatch.tailStart(json)?.let { end ->
-                                val bytes = utter.toByteArray()
-                                val from = ((end * 16000).toLong() - uttStart).coerceIn(0, bytes.size / 2L).toInt()
-                                tail = ShortArray(bytes.size / 2 - from) { i -> ((bytes[(from + i) * 2].toInt() and 0xff) or (bytes[(from + i) * 2 + 1].toInt() shl 8)).toShort() }
+                            // TV no mudo já (antes de ouvir o resto do pedido)
+                            DiaApi.duck(prefs.url, prefs.token, true)
+                            // Fim do “luna”: o pedido pode vir colado, no mesmo fôlego
+                            val words = WakeMatch.tailStart(json)
+                            val lunaEnd = words ?: WakeMatch.span(json)?.second
+                            if (lunaEnd != null) {
+                                // Continua gravando até a pessoa parar de falar (0,8 s de silêncio, até 8 s):
+                                // antes o microfone parava aqui e o resto da frase se perdia
+                                val more = keepRecording(record, gain, utter, waitForSpeech = words == null)
+                                if (words != null || more) {
+                                    val bytes = utter.toByteArray()
+                                    val from = ((lunaEnd * 16000).toLong() - uttStart).coerceIn(0, bytes.size / 2L).toInt()
+                                    tail = toShorts(bytes, from * 2, bytes.size - bytes.size % 2)
+                                }
                             }
                             break
                         }
@@ -266,18 +276,50 @@ class ListenService : Service() {
             }
             val said = tail
             if (triggered && said != null && said.size > 16000 / 2) {
-                // Pedido junto com o chamado: só responde direto se a transcrição saiu clara (frase com
-                // confiança alta). Senão toca o bip e escuta com o reconhecimento do Android, que é melhor;
-                // o trecho fica guardado para usar se depois do bip ninguém falar nada.
+                // Pedido inteiro gravado junto com o chamado (a pessoa já terminou de falar). Ordem:
+                // 1) transcrição do servidor (Whisper, se “transcrição na nuvem” estiver ligada) — a melhor;
+                // 2) Vosk no tablet, se saiu clara; 3) senão bip e o reconhecimento do Android.
                 val (text, conf, words) = transcribe(said)
+                val cloud = if (System.currentTimeMillis() > cloudOffUntil) DiaApi.transcribe(prefs.url, prefs.token, said) else null
+                if (cloud == DiaApi.TRANSCRIBE_OFF) cloudOffUntil = System.currentTimeMillis() + 3600_000
+                val best = cloud?.takeIf { it != DiaApi.TRANSCRIBE_OFF && it.isNotBlank() }?.let { WakeMatch.stripWake(it) }
                 main.post {
-                    AppDiag.log("pedido junto do chamado (Vosk): “${text.take(100)}” confiança ${"%.2f".format(conf)}${if (WakeMatch.tailIsClear(text, conf, words)) "" else " — ouvindo de novo pelo Google"}")
-                    if (WakeMatch.tailIsClear(text, conf, words)) commandFromWake(text)
-                    else { pendingTail = if (words >= 2) text else ""; beginCommand() }
+                    AppDiag.log("pedido junto do chamado: Vosk “${text.take(100)}” (${"%.2f".format(conf)})${if (best != null) " · servidor “${best.take(100)}”" else ""}")
+                    when {
+                        best != null && best.length >= 3 -> commandFromWake(best)
+                        WakeMatch.tailIsClear(text, conf, words) || words >= 3 -> commandFromWake(text)
+                        else -> { pendingTail = if (words >= 2) text else ""; beginCommand() }
+                    }
                 }
             } else if (triggered) main.post { pendingTail = ""; beginCommand() }
             else if (!paused && !inSession && prefs.wake && status == "erro no microfone") main.postDelayed({ startListening() }, 3000)
         }
+    }
+
+    /**
+     * Depois do “Oi, Luna”: grava o resto do pedido até 0,8 s de silêncio (máx. 8 s). Com
+     * waitForSpeech, primeiro espera até 0,6 s alguém continuar falando; se ninguém fala, devolve false
+     * (aí vai o bip e o reconhecimento do Android).
+     */
+    private fun keepRecording(record: AudioRecord, gain: AutoGain, utter: java.io.ByteArrayOutputStream, waitForSpeech: Boolean): Boolean {
+        val buf = ShortArray(1600)
+        var silent = 0
+        var spoke = !waitForSpeech
+        var frames = 0
+        while (listening && frames < 80) {
+            val n = record.read(buf, 0, buf.size)
+            if (n <= 0) continue
+            gain.process(buf, n)
+            for (k in 0 until n) { utter.write(buf[k].toInt() and 0xff); utter.write((buf[k].toInt() shr 8) and 0xff) }
+            frames++
+            var sum = 0.0
+            for (k in 0 until n) sum += buf[k].toDouble() * buf[k]
+            val voiced = Math.sqrt(sum / n) > 380
+            if (voiced) { spoke = true; silent = 0 } else silent++
+            if (!spoke && frames >= 6) return false
+            if (spoke && silent >= 8) break
+        }
+        return spoke
     }
 
     // ---------------- Quem está falando (assinatura de voz) ----------------
@@ -418,6 +460,12 @@ class ListenService : Service() {
             }
         } catch (_: Throwable) { Triple("", 0f, 0) }
     }
+
+    /** Quando a fala da resposta foi pedida (para medir quanto a voz demora a começar) */
+    private var speakStarted = 0L
+
+    /** Transcrição no servidor desligada nos ajustes: não tenta de novo por 1 h */
+    @Volatile private var cloudOffUntil = 0L
 
     /** Pedido que veio junto com o chamado mas não estava claro (usado se depois do bip ninguém falar) */
     private var pendingTail = ""
@@ -634,9 +682,11 @@ class ListenService : Service() {
         update("Pensando…")
         WebEvents.voice("processing", heard = text)
         thread(name = "dia-resposta") {
+            val t0 = System.currentTimeMillis()
             val reply = if (prefs.url.isBlank() || prefs.token.isBlank()) "Termine de me ativar no tablet: Configurações, App Android."
             else DiaApi.ask(prefs.url, prefs.token, text)
-            main.post { speak(text, reply) }
+            AppDiag.log("tempo: resposta do servidor em ${System.currentTimeMillis() - t0} ms")
+            main.post { speakStarted = System.currentTimeMillis(); speak(text, reply) }
         }
     }
 
@@ -645,7 +695,7 @@ class ListenService : Service() {
         update("Respondendo…")
         WebEvents.voice("speaking", heard, reply)
         // Voz da Luna (Dii, gerada no servidor); se não der, a voz do Android
-        LunaVoice.play(this, prefs, reply, onDone = { endSession(heard, reply) }, onFail = { speakAndroid(heard, reply) })
+        LunaVoice.play(this, prefs, reply, onStart = { AppDiag.log("tempo: voz da Luna começou em ${System.currentTimeMillis() - speakStarted} ms") }, onDone = { endSession(heard, reply) }, onFail = { speakAndroid(heard, reply) })
     }
 
     private fun speakAndroid(heard: String, reply: String) {

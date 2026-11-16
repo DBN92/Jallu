@@ -21,8 +21,8 @@ android {
         applicationId = "br.dia.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.0.25"
+        versionCode = 27
+        versionName = "1.0.26"
         // Tablets Samsung usam ARM: deixa o APK menor
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }

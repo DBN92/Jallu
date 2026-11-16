@@ -199,7 +199,14 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   });
   haWs.on('disconnected', () => hub.broadcast({ type: 'ha_status', connected: false }));
 
-  return { db, litter, washer, siri: new SiriService(db, chat), ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper: new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m)), cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  const piper = new PiperTts({ bin: env.PIPER_PATH, model: env.PIPER_MODEL, lengthScale: env.PIPER_LENGTH_SCALE }, (m) => console.warn(m));
+  const siri = new SiriService(db, chat);
+  // Voz da resposta começa a ser gerada assim que a resposta sai; hora e clima ficam prontos antes da pergunta
+  siri.onAnswer = (text) => {
+    if (piper.available) void piper.speak(text).catch(() => undefined);
+  };
+  if (!deps.disableWatchTimer) siri.startPrewarm((t) => piper.speak(t), () => piper.available, env.TZ);
+  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -353,6 +360,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     app.services.watches.stop();
     app.services.litter.stop();
     app.services.piper.stop();
+    app.services.siri.stopPrewarm();
     await app.services.directCameras.close();
     await db.$disconnect();
   });

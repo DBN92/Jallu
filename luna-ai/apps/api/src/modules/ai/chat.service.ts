@@ -212,6 +212,17 @@ export class ChatService {
   }
 
   /** Executa intenções determinísticas. Retorna null para deixar o LLM responder. */
+  /**
+   * Resposta de um pedido só de leitura (hora, data, clima) sem gravar conversa — usada para deixar
+   * a fala pronta antes de a pessoa perguntar. Outros pedidos devolvem null.
+   */
+  async previewReply(userId: string, message: string): Promise<string | null> {
+    const intent = parseIntent(message);
+    if (!intent || (intent.type !== 'datetime' && intent.type !== 'weather')) return null;
+    const r = await this.handleIntent(intent, { userId, source: 'ai:luna-nlu', cloud: false }, 'previa').catch(() => null);
+    return r?.reply ?? null;
+  }
+
   private async handleIntent(intent: Intent, ctx: ToolContext, conversationId: string): Promise<{ reply: string; actions: ActionResult[] } | null> {
     const userId = ctx.userId;
     try {
@@ -220,7 +231,7 @@ export class ChatService {
           const now = new Date();
           const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('pt-BR', { timeZone: this.timezone, ...o }).format(now);
           return intent.what === 'time'
-            ? { reply: `Agora são ${fmt({ hour: '2-digit', minute: '2-digit' })}.`, actions: [] }
+            ? { reply: timeReply(now, this.timezone), actions: [] }
             : { reply: `Hoje é ${fmt({ dateStyle: 'full' })}.`, actions: [] };
         }
         case 'weather': {
@@ -570,4 +581,9 @@ export class ChatService {
     }
     throw new AppError(503, 'Nenhum modelo disponível para resumir (ou o uso da nuvem para memória está desativado).', 'no_provider');
   }
+}
+
+/** “Agora são 21:15.” (a mesma frase que o pré-aquecimento da voz prepara para o minuto seguinte) */
+export function timeReply(date: Date, timeZone: string) {
+  return `Agora são ${new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit' }).format(date)}.`;
 }

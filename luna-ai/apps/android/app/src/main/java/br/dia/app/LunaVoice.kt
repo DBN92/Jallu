@@ -16,7 +16,7 @@ object LunaVoice {
     private val main = Handler(Looper.getMainLooper())
     private var current: MediaPlayer? = null
 
-    fun play(ctx: Context, prefs: Prefs, text: String, onDone: () -> Unit, onFail: () -> Unit) {
+    fun play(ctx: Context, prefs: Prefs, text: String, onStart: () -> Unit = {}, onDone: () -> Unit, onFail: () -> Unit) {
         val clean = text.replace(Regex("\\s+"), " ").trim().take(600)
         if (!prefs.lunaVoice || clean.isEmpty() || prefs.url.isBlank() || prefs.token.isBlank()) return onFail()
         stop()
@@ -34,7 +34,7 @@ object LunaVoice {
         try {
             mp.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             mp.setDataSource(ctx, Uri.parse("${prefs.url}/api/tts?text=${Uri.encode(clean)}"), mapOf("Authorization" to "Bearer ${prefs.token}"))
-            mp.setOnPreparedListener { it.start() }
+            mp.setOnPreparedListener { it.start(); onStart() }
             mp.setOnCompletionListener { end(true) }
             mp.setOnErrorListener { _, _, _ -> end(false); true }
             mp.prepareAsync()

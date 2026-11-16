@@ -33,6 +33,8 @@ export class PiperTts {
   private out = '';
   private readonly dir = join(tmpdir(), `luna-tts-${process.pid}`);
   private cache = new Map<string, Buffer>();
+  /** Frases sendo geradas agora (o pré-aquecimento e o pedido do app compartilham) */
+  private inflight = new Map<string, Promise<Buffer>>();
   readonly bin: string;
   readonly model: string;
 
@@ -92,6 +94,19 @@ export class PiperTts {
       this.cache.set(text, hit);
       return hit;
     }
+    const running = this.inflight.get(text);
+    if (running) return running;
+    const job = this.synth(text).finally(() => this.inflight.delete(text));
+    this.inflight.set(text, job);
+    return job;
+  }
+
+  /** Está na memória (fala sai na hora)? */
+  has(raw: string) {
+    return this.cache.has(cleanForSpeech(raw));
+  }
+
+  private async synth(text: string): Promise<Buffer> {
     if (!this.available) throw new Error('A voz da Luna não está instalada (rode: sudo bash scripts/piper-setup.sh).');
     if (!this.proc) await this.start();
     const wav = await new Promise<Buffer>((resolveJob, reject) => {

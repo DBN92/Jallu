@@ -3,6 +3,7 @@ import type { PublicUser } from '@luna/shared';
 import type { Db } from '../../lib/db';
 import { AppError, badRequest, notFound } from '../../lib/errors';
 import { toPublicUser } from '../auth/auth.service';
+import { timeReply } from '../ai/chat.service';
 import type { ChatService } from '../ai/chat.service';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
@@ -41,6 +42,50 @@ export class SiriService {
     private readonly db: Db,
     private readonly chat: ChatService,
   ) {}
+
+  // ---------- Fala pronta antes da pergunta (hora e clima) ----------
+  /** Quem falou com a Luna pelo tablet/Siri e quando (o pré-aquecimento só roda com uso recente) */
+  private lastVoice = new Map<string, number>();
+  private prewarmTimer: NodeJS.Timeout | null = null;
+  private lastWeather = 0;
+  /** Resposta pronta: o app vai pedir a voz dela em seguida */
+  onAnswer: ((text: string) => void) | null = null;
+
+  /**
+   * Hora e clima respondem na hora: a voz do minuto seguinte (“Agora são 21:16.”) é gerada antes do
+   * minuto virar, e as frases do clima depois de cada atualização da previsão. Só enquanto alguém usou
+   * a voz nas últimas 3 h (o processador do servidor é antigo).
+   */
+  startPrewarm(speak: (text: string) => Promise<unknown>, available: () => boolean, timeZone: string) {
+    if (this.prewarmTimer) return;
+    this.prewarmTimer = setInterval(() => void this.prewarmTick(speak, available, timeZone), 15_000);
+    this.prewarmTimer.unref();
+  }
+
+  /** Uma rodada do pré-aquecimento (exposta para teste) */
+  async prewarmTick(speak: (text: string) => Promise<unknown>, available: () => boolean, timeZone: string, nowMs = Date.now()) {
+    const now = nowMs;
+    const active = [...this.lastVoice].filter(([, at]) => now - at < 3 * 3600_000).map(([id]) => id);
+    if (!active.length || !available()) return;
+    const sec = new Date(now).getSeconds();
+    const minute = now - sec * 1000 - new Date(now).getMilliseconds();
+    await speak(timeReply(new Date(minute), timeZone)).catch(() => undefined);
+    if (sec >= 30) await speak(timeReply(new Date(minute + 60_000), timeZone)).catch(() => undefined);
+    if (now - this.lastWeather > 4 * 60_000) {
+      this.lastWeather = now;
+      for (const userId of active) {
+        for (const q of ['como está o tempo agora', 'qual a previsão do tempo para hoje', 'qual a previsão do tempo para amanhã']) {
+          const reply = await this.chat.previewReply(userId, q).catch(() => null);
+          if (reply) await speak(forSpeech(reply)).catch(() => undefined);
+        }
+      }
+    }
+  }
+
+  stopPrewarm() {
+    if (this.prewarmTimer) clearInterval(this.prewarmTimer);
+    this.prewarmTimer = null;
+  }
 
   private dto(t: { id: string; name: string; prefix: string; createdAt: Date; lastUsedAt: Date | null }): ApiTokenDto {
     return { id: t.id, name: t.name, prefix: t.prefix, createdAt: t.createdAt.toISOString(), lastUsedAt: t.lastUsedAt?.toISOString() ?? null };
@@ -88,6 +133,10 @@ export class SiriService {
       } else throw err;
     }
     this.recent.set(user.id, { conversationId: res.conversationId, at: Date.now() });
-    return forSpeech(res.reply) || 'Pronto.';
+    this.lastVoice.set(user.id, Date.now());
+    const answer = forSpeech(res.reply) || 'Pronto.';
+    // Começa a gerar a voz já (o app pede o áudio logo em seguida e pega a mesma geração)
+    this.onAnswer?.(answer);
+    return answer;
   }
 }

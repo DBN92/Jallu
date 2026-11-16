@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { voiceToolSchema } from '@luna/shared';
-import { requireAuth } from '../../middleware/auth';
+import { cookieOrToken, requireAuth } from '../../middleware/auth';
 import { AppError } from '../../lib/errors';
 import { truncate } from '../../lib/text';
 import { TOOL_DEFINITIONS } from '../ai/tools';
@@ -90,7 +90,8 @@ export async function voiceRoutes(app: FastifyInstance) {
   });
 
   /** Transcrição em nuvem (alternativa quando o navegador não oferece reconhecimento de fala). */
-  app.post('/api/voice/transcribe', { preHandler: requireAuth, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) => {
+  // O app Android também manda o pedido gravado junto com o “Oi, Luna” (token do app)
+  app.post('/api/voice/transcribe', { preHandler: cookieOrToken, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req) => {
     const s = await settings.get(req.user!.id);
     if (!s.allowCloudTranscription) throw new AppError(403, 'Ative “Permitir transcrição na nuvem” em Configurações para usar este recurso.', 'cloud_transcription_disabled');
     const file = await req.file();
