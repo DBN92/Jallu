@@ -168,33 +168,56 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   // Caixa de areia pela nuvem Tuya (o botão do HA parou de funcionar para o modelo); acha o aparelho
   // (categoria msp) e o comando de limpeza manual que ele mesmo informa
   if (tuya.configured) {
-    let target: { id: string; code: string | null; prop: string | null } | null = null;
-    const isClean = (c: string) => c === 'manual_clean' || (/clean|limp/i.test(c) && !/auto|factory|reset|delay|time|status|record|mode/i.test(c));
-    litter.cloudClean = async () => {
-      if (!target) {
-        const boxes = (await tuya.devices()).filter((d) => d.category === 'msp' || /litter|areia|caixa/i.test(d.name));
-        for (const d of boxes) {
-          const fns = await tuya.functions(d.id).catch(() => []);
-          const props = await tuya.propertyCodes(d.id).catch(() => [] as string[]);
-          const code = fns.find((f) => f.code === 'manual_clean')?.code ?? fns.find((f) => isClean(f.code))?.code ?? null;
-          const prop = props.find((c) => c === 'manual_clean') ?? props.find(isClean) ?? null;
-          if (code || prop) {
-            target = { id: d.id, code, prop };
-            break;
-          }
-        }
-        if (!target) throw new Error('não achei a caixa de areia na conta ligada à nuvem Tuya');
+    // Caixa de areia pela nuvem Tuya, com os comandos que o próprio aparelho declara no modelo dele.
+    // Neste modelo: “clean” (limpeza manual), “induction_clean” (automática) e “induction_delay” (espera,
+    // em minutos); os “manual_clean/auto_clean/delay_clean_time” que o HA usa vêm marcados “não usado”.
+    type Box = { id: string; clean: string; auto: string | null; delay: { code: string; minutes: boolean; max: number } | null };
+    let box: Box | null = null;
+    const find = async (): Promise<Box> => {
+      if (box) return box;
+      for (const d of (await tuya.devices()).filter((x) => x.category === 'msp' || /litter|areia|caixa/i.test(x.name))) {
+        const props = await tuya.propertyCodes(d.id).catch(() => [] as string[]);
+        const has = (c: string) => props.includes(c);
+        const clean = has('clean') ? 'clean' : has('manual_clean') ? 'manual_clean' : null;
+        if (!clean) continue;
+        const auto = has('induction_clean') ? 'induction_clean' : has('auto_clean') ? 'auto_clean' : null;
+        const delay = has('induction_delay') ? { code: 'induction_delay', minutes: true, max: 60 } : has('delay_clean_time') ? { code: 'delay_clean_time', minutes: false, max: 600 } : null;
+        box = { id: d.id, clean, auto, delay };
+        return box;
       }
-      // Os dois caminhos da nuvem: comando “padrão” e propriedade do próprio aparelho (como o app faz).
-      // Alguns modelos aceitam o primeiro sem obedecer; a caixa ignora o repetido se já estiver limpando.
-      const done: string[] = [];
-      const errors: string[] = [];
-      if (target.prop) await tuya.setProperty(target.id, target.prop, true).then(() => done.push(`propriedade ${target!.prop}`), (e: Error) => errors.push(e.message));
-      if (target.code) await tuya.command(target.id, target.code, true).then(() => done.push(`comando ${target!.code}`), (e: Error) => errors.push(e.message));
-      if (!done.length) throw new Error(errors.join(' · ') || 'a nuvem não aceitou');
-      return `${done.join(' + ')}${errors.length ? ` (falhou: ${errors.join(' · ')})` : ''}`;
+      throw new Error('não achei a caixa de areia na conta ligada à nuvem Tuya');
+    };
+    litter.cloud = {
+      clean: async () => {
+        const b = await find();
+        await tuya.setProperty(b.id, b.clean, true);
+        return `propriedade ${b.clean}`;
+      },
+      setAuto: async (on, delaySeconds) => {
+        const b = await find();
+        if (!b.auto) throw new Error('a caixa não informa limpeza automática');
+        if (delaySeconds !== undefined && b.delay) {
+          const v = b.delay.minutes ? Math.max(0, Math.min(b.delay.max, Math.round(delaySeconds / 60))) : Math.max(1, Math.min(b.delay.max, Math.round(delaySeconds)));
+          await tuya.setProperty(b.id, b.delay.code, v);
+        }
+        await tuya.setProperty(b.id, b.auto, on);
+        return `propriedade ${b.auto}${delaySeconds !== undefined && b.delay ? ` + ${b.delay.code}` : ''}`;
+      },
+      autoState: async () => {
+        const b = await find();
+        if (!b.auto) return null;
+        const v = await tuya.getProperties(b.id, [b.auto, ...(b.delay ? [b.delay.code] : [])]);
+        if (typeof v[b.auto] !== 'boolean') return null;
+        const d = b.delay ? Number(v[b.delay.code]) : NaN;
+        return {
+          on: v[b.auto] as boolean,
+          delaySeconds: Number.isFinite(d) ? (b.delay!.minutes ? d * 60 : d) : null,
+          delayMax: b.delay ? (b.delay.minutes ? b.delay.max * 60 : b.delay.max) : 600,
+        };
+      },
     };
   }
+
   chat.setLitter(litter);
   litter.on('update', () => hub.broadcast({ type: 'litter_update' }));
   litter.on('alert', (text: string) => hub.broadcast({ type: 'litter_alert', text }));

@@ -226,6 +226,7 @@ export class LitterService extends EventEmitter {
     const status = this.entity(p, 'sensor', 'status').state?.state ?? 'unknown';
     const auto = this.entity(p, 'switch', 'auto');
     const delay = this.entity(p, 'number', 'delay');
+    const cloudAuto = await this.cloudAutoState();
     const clean = this.entity(p, 'button', 'clean');
     const times = this.entity(p, 'sensor', 'times');
     const available = !!weight.state && weight.state.state !== 'unavailable';
@@ -268,9 +269,10 @@ export class LitterService extends EventEmitter {
       available,
       status,
       statusLabel,
-      autoClean: auto.state && auto.state.state !== 'unavailable' ? auto.state.state === 'on' : null,
-      delaySeconds: num(delay.state),
-      delayMax: delay.state ? Number(delay.state.attributes.max ?? 600) : null,
+      // com a nuvem: os valores de verdade da caixa (os do HA são de comandos que ela não usa)
+      autoClean: cloudAuto ? cloudAuto.on : auto.state && auto.state.state !== 'unavailable' ? auto.state.state === 'on' : null,
+      delaySeconds: cloudAuto ? cloudAuto.delaySeconds : num(delay.state),
+      delayMax: cloudAuto ? cloudAuto.delayMax : delay.state ? Number(delay.state.attributes.max ?? 600) : null,
       canClean: !!clean.state && clean.state.state !== 'unavailable',
       todayCount: sensorToday,
       lastVisit: visits[0] ? this.visitDto(visits[0], names) : null,
@@ -292,19 +294,29 @@ export class LitterService extends EventEmitter {
   }
 
   /**
-   * Limpeza pela nuvem Tuya (o mesmo caminho do app Smart Life). O botão do Home Assistant parou de
-   * funcionar para este modelo (nem no próprio HA limpa), então quando a chave da nuvem está
-   * configurada a Luna manda por ela; se falhar, tenta o botão do HA.
+   * Caixa pela nuvem Tuya (o mesmo caminho do app Smart Life). Neste modelo os comandos que o Home
+   * Assistant usa (manual_clean, auto_clean) vêm marcados pelo fabricante como “não usados”: a caixa
+   * aceita e ignora. Pela nuvem a Luna usa os comandos de verdade do aparelho; se falhar, tenta o HA.
    */
-  cloudClean: (() => Promise<string>) | null = null;
+  cloud: LitterCloud | null = null;
+  private cloudAuto: { at: number; v: { on: boolean; delaySeconds: number | null; delayMax: number } | null } | null = null;
+
+  /** Limpeza automática lida da nuvem (guardada 30 s) */
+  private async cloudAutoState() {
+    if (!this.cloud) return null;
+    if (this.cloudAuto && Date.now() - this.cloudAuto.at < 30_000) return this.cloudAuto.v;
+    const v = await this.cloud.autoState().catch(() => null);
+    this.cloudAuto = { at: Date.now(), v };
+    return v;
+  }
 
   async clean(prefix: string, actor: Actor): Promise<LitterBoxDto> {
     await this.refresh(true);
     const pref = await this.db.litterBoxPref.findUnique({ where: { id: prefix } });
     this.guard(prefix, actor, pref?.voiceAllowed ?? false);
-    if (this.cloudClean) {
+    if (this.cloud) {
       try {
-        const how = await this.cloudClean();
+        const how = await this.cloud.clean();
         await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'litter_clean', target: prefix, args: {}, success: true, detail: `limpeza manual pela nuvem Tuya (${how})` });
         console.warn(`[caixa de areia] limpeza pedida (${actor.source}) pela nuvem Tuya: ${how}`);
         this.emit('update', prefix);
@@ -331,6 +343,18 @@ export class LitterService extends EventEmitter {
     await this.refresh(true);
     const pref = await this.db.litterBoxPref.findUnique({ where: { id: prefix } });
     this.guard(prefix, actor, pref?.voiceAllowed ?? false);
+    if (this.cloud) {
+      try {
+        const how = await this.cloud.setAuto(on, delaySeconds);
+        this.cloudAuto = null;
+        await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'litter_auto', target: prefix, args: { on, delaySeconds }, success: true, detail: `${on ? 'limpeza automática ligada' : 'limpeza automática desligada'} pela nuvem Tuya (${how})` });
+        console.warn(`[caixa de areia] limpeza automática ${on ? 'ligada' : 'desligada'} pela nuvem Tuya: ${how}`);
+        this.emit('update', prefix);
+        return this.dto(prefix);
+      } catch (err) {
+        console.warn(`[caixa de areia] nuvem Tuya falhou na limpeza automática (${(err as Error).message}); tentando o Home Assistant`);
+      }
+    }
     const sw = this.entity(prefix, 'switch', 'auto');
     if (!sw.state) throw badRequest('Esta caixa não tem limpeza automática no Home Assistant.');
     const delay = this.entity(prefix, 'number', 'delay');
@@ -434,4 +458,11 @@ export class LitterService extends EventEmitter {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
+}
+
+/** Comandos da caixa pela nuvem Tuya (montado no app com a chave da nuvem) */
+export interface LitterCloud {
+  clean(): Promise<string>;
+  setAuto(on: boolean, delaySeconds?: number): Promise<string>;
+  autoState(): Promise<{ on: boolean; delaySeconds: number | null; delayMax: number } | null>;
 }

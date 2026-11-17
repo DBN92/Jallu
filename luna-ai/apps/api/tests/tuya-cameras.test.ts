@@ -44,9 +44,13 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/functions') return ok({ functions: [{ code: 'auto_clean', type: 'Boolean' }, { code: 'factory_reset', type: 'Boolean' }, { code: 'manual_clean', type: 'Boolean' }] });
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/status') return ok([{ code: 'manual_clean', value: false }, { code: 'work_status', value: 'standby' }]);
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/model')
-      return ok({ model: JSON.stringify({ services: [{ properties: [{ code: 'manual_clean', accessMode: 'rw' }, { code: 'factory_reset', accessMode: 'rw' }, { code: 'cat_weight', accessMode: 'ro' }] }] }) });
+      // como o modelo real da caixa (“Casinha do Cocô”): manual_clean/auto_clean existem mas são “não usados”
+      return ok({ model: JSON.stringify({ services: [{ properties: ['switch', 'start', 'auto_clean', 'delay_clean_time', 'manual_clean', 'factory_reset', 'clean', 'empty', 'induction_clean', 'induction_delay'].map((code) => ({ code, accessMode: 'rw' })).concat([{ code: 'cat_weight', accessMode: 'ro' }]) }] }) });
+    if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/shadow/properties')
+      return ok({ properties: [{ code: 'induction_clean', value: (globalThis as { __auto?: boolean }).__auto ?? true }, { code: 'induction_delay', value: 3 }] });
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/shadow/properties/issue') {
       calls.push(`propriedade ${body}`);
+      if (body.includes('induction_clean')) (globalThis as { __auto?: boolean }).__auto = JSON.parse(JSON.parse(body).properties).induction_clean;
       return (globalThis as { __tuyaFail?: boolean }).__tuyaFail ? new Response(JSON.stringify({ success: false, code: 2008, msg: 'command or value not support' })) : ok({});
     }
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/commands') {
@@ -186,11 +190,18 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     add(`sensor.${P}_excretion_times_day`, '0');
     add(`button.${P}_manual_clean`, 'unknown');
     expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
-    // os dois caminhos da nuvem: propriedade do aparelho (como o app) e o comando padrão
-    expect(calls.filter((c) => c.startsWith('comando') || c.startsWith('propriedade'))).toEqual([
-      'propriedade {"properties":"{\\"manual_clean\\":true}"}',
-      'comando {"commands":[{"code":"manual_clean","value":true}]}',
-    ]);
+    // o comando de verdade (“clean”), não o manual_clean “não usado”
+    expect(calls.filter((c) => c.startsWith('comando') || c.startsWith('propriedade'))).toEqual(['propriedade {"properties":"{\\"clean\\":true}"}']);
+
+    // limpeza automática: lê e muda pelos comandos de verdade (induction_clean / induction_delay em minutos)
+    const box = (await ctx.inject('GET', `/api/litter/${P}`)).json;
+    expect(box).toMatchObject({ autoClean: true, delaySeconds: 180, delayMax: 3600 });
+    calls.length = 0;
+    const off = (await ctx.inject('POST', `/api/litter/${P}/auto`, { on: false, delaySeconds: 300 })).json;
+    expect(calls.filter((c) => c.startsWith('propriedade'))).toEqual(['propriedade {"properties":"{\\"induction_delay\\":5}"}', 'propriedade {"properties":"{\\"induction_clean\\":false}"}']);
+    expect(off.autoClean).toBe(false);
+    delete (globalThis as { __auto?: boolean }).__auto;
+    calls.length = 0;
     expect(ctx.ha.calls.filter((c) => c.domain === 'button')).toEqual([]);
     // diagnóstico para descobrir o comando que o app usa
     const info = (await ctx.inject('GET', '/api/litter/tuya-info')).json;

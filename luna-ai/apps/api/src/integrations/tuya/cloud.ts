@@ -152,4 +152,11 @@ export class TuyaCloud {
       return r;
     }
   }
+
+  /** Valor atual de propriedades do aparelho (inclusive as próprias do fabricante, fora do padrão) */
+  async getProperties(deviceId: string, codes: string[]): Promise<Record<string, unknown>> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    const r = await this.raw<{ properties?: { code: string; value: unknown }[] }>('GET', `/v2.0/cloud/thing/${deviceId}/shadow/properties?codes=${codes.join(',')}`);
+    return Object.fromEntries((r?.properties ?? []).map((p) => [p.code, p.value]));
+  }
 }
