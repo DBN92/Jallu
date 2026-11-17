@@ -103,4 +103,18 @@ export class TuyaCloud {
     if (!r?.url) throw new TuyaCloudError('A nuvem Tuya não devolveu endereço de vídeo para este aparelho.');
     return r.url;
   }
+
+  /** Comandos que o aparelho aceita (código, tipo) — direto da nuvem, sem chutar nomes */
+  async functions(deviceId: string): Promise<{ code: string; type: string }[]> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    const r = await this.raw<{ functions?: { code: string; type: string }[] }>('GET', `/v1.0/devices/${deviceId}/functions`);
+    return r?.functions ?? [];
+  }
+
+  /** Manda um comando ao aparelho (o mesmo caminho do app Smart Life) */
+  async command(deviceId: string, code: string, value: unknown): Promise<void> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    const ok = await this.raw<boolean>('POST', `/v1.0/devices/${deviceId}/commands`, { commands: [{ code, value }] });
+    if (ok === false) throw new TuyaCloudError('A nuvem Tuya não aceitou o comando.');
+  }
 }

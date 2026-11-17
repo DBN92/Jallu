@@ -291,10 +291,28 @@ export class LitterService extends EventEmitter {
     }
   }
 
+  /**
+   * Limpeza pela nuvem Tuya (o mesmo caminho do app Smart Life). O botão do Home Assistant parou de
+   * funcionar para este modelo (nem no próprio HA limpa), então quando a chave da nuvem está
+   * configurada a Luna manda por ela; se falhar, tenta o botão do HA.
+   */
+  cloudClean: (() => Promise<string>) | null = null;
+
   async clean(prefix: string, actor: Actor): Promise<LitterBoxDto> {
     await this.refresh(true);
     const pref = await this.db.litterBoxPref.findUnique({ where: { id: prefix } });
     this.guard(prefix, actor, pref?.voiceAllowed ?? false);
+    if (this.cloudClean) {
+      try {
+        const how = await this.cloudClean();
+        await this.logs.log({ userId: actor.userId, source: actor.source, tool: 'litter_clean', target: prefix, args: {}, success: true, detail: `limpeza manual pela nuvem Tuya (${how})` });
+        console.warn(`[caixa de areia] limpeza pedida (${actor.source}) pela nuvem Tuya: ${how}`);
+        this.emit('update', prefix);
+        return this.dto(prefix);
+      } catch (err) {
+        console.warn(`[caixa de areia] nuvem Tuya falhou (${(err as Error).message}); tentando o botão do Home Assistant`);
+      }
+    }
     const b = this.entity(prefix, 'button', 'clean');
     if (!b.state || b.state.state === 'unavailable') throw new AppError(409, 'A caixa de areia está indisponível agora.', 'device_unavailable');
     try {

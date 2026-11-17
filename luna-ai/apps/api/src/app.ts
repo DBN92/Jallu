@@ -165,6 +165,27 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   people.notify = (title, body) => void push.broadcast({ title, body, url: '/', tag: 'pessoas' }).catch(() => undefined);
   // Caixa de areia: entidades com cartão próprio (ficam fora da lista de aparelhos)
   const litter = new LitterService(db, ha, actionLogs, env.TZ);
+  // Caixa de areia pela nuvem Tuya (o botão do HA parou de funcionar para o modelo); acha o aparelho
+  // (categoria msp) e o comando de limpeza manual que ele mesmo informa
+  if (tuya.configured) {
+    let target: { id: string; code: string } | null = null;
+    litter.cloudClean = async () => {
+      if (!target) {
+        const boxes = (await tuya.devices()).filter((d) => d.category === 'msp' || /litter|areia|caixa/i.test(d.name));
+        for (const d of boxes) {
+          const fns = await tuya.functions(d.id).catch(() => []);
+          const fn = fns.find((f) => f.code === 'manual_clean') ?? fns.find((f) => /clean|limp/i.test(f.code) && !/auto|factory|reset|delay|time|status/i.test(f.code));
+          if (fn) {
+            target = { id: d.id, code: fn.code };
+            break;
+          }
+        }
+        if (!target) throw new Error('não achei a caixa de areia na conta ligada à nuvem Tuya');
+      }
+      await tuya.command(target.id, target.code, true);
+      return target.code;
+    };
+  }
   chat.setLitter(litter);
   litter.on('update', () => hub.broadcast({ type: 'litter_update' }));
   litter.on('alert', (text: string) => hub.broadcast({ type: 'litter_alert', text }));

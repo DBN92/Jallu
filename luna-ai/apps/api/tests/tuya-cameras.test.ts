@@ -40,7 +40,12 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === '/v1.0/token') return ok({ access_token: 'tok', expire_time: 7200, uid: 'u1' });
     if (h.access_token !== 'tok') return new Response(JSON.stringify({ success: false, code: 1010, msg: 'token invalid' }));
     if (url.pathname === `/v1.0/devices/${DEVICE}`) return ok({ id: DEVICE, uid: 'dono-da-conta' });
-    if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }] });
+    if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }, { id: 'caixa1234567890ab', name: 'Smart cat litter box( Ti+)', category: 'msp', online: true }] });
+    if (url.pathname === '/v1.0/devices/caixa1234567890ab/functions') return ok({ functions: [{ code: 'auto_clean', type: 'Boolean' }, { code: 'factory_reset', type: 'Boolean' }, { code: 'manual_clean', type: 'Boolean' }] });
+    if (url.pathname === '/v1.0/devices/caixa1234567890ab/commands') {
+      calls.push(`comando ${body}`);
+      return (globalThis as { __tuyaFail?: boolean }).__tuyaFail ? new Response(JSON.stringify({ success: false, code: 2008, msg: 'command or value not support' })) : ok(true);
+    }
     if (url.pathname === `/v1.0/devices/${DEVICE}/stream/actions/allocate`)
       return ok({ url: JSON.parse(body).type === 'hls' ? 'https://camera.tuya.example/live/abc/index.m3u8' : 'rtsps://camera.tuya.example:443/live/abc' });
     return new Response(JSON.stringify({ success: false, code: 404, msg: 'nao existe' }));
@@ -56,7 +61,7 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
   it('assina as chamadas, renova o token e pede o endereço de vídeo', async () => {
     const calls: string[] = [];
     const cloud = new TuyaCloud('id123', 'segredo', 'https://openapi.tuyaus.com', fakeTuya(calls));
-    expect(await cloud.devices()).toEqual([{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }]);
+    expect((await cloud.devices())[0]).toEqual({ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true });
     expect(await cloud.streamUrl(DEVICE)).toBe('rtsps://camera.tuya.example:443/live/abc');
     // o token é reaproveitado
     expect(calls.filter((c) => c.endsWith('/v1.0/token'))).toHaveLength(1);
@@ -164,4 +169,25 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
       blocker.close();
     }
   }, 60_000);
+
+  it('caixa de areia: limpa pela nuvem Tuya (o botão do HA parou de funcionar); se a nuvem falhar, tenta o HA', async () => {
+    const calls: string[] = [];
+    ctx = await makeApp({ TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo', GO2RTC_PATH: '/nao/existe/go2rtc' }, { login: true, tuyaFetch: fakeTuya(calls) });
+    const P = 'smart_cat_litter_box_ti';
+    const add = (id: string, state: string) => ctx.ha.states.set(id, { entity_id: id, state, attributes: {} });
+    add(`sensor.${P}_cat_weight`, '5.0');
+    add(`sensor.${P}_excretion_times_day`, '0');
+    add(`button.${P}_manual_clean`, 'unknown');
+    expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
+    expect(calls.filter((c) => c.startsWith('comando'))).toEqual(['comando {"commands":[{"code":"manual_clean","value":true}]}']);
+    expect(ctx.ha.calls.filter((c) => c.domain === 'button')).toEqual([]);
+    // nuvem recusou: aperta o botão do HA
+    (globalThis as { __tuyaFail?: boolean }).__tuyaFail = true;
+    try {
+      expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
+      expect(ctx.ha.calls.filter((c) => c.domain === 'button').map((c) => c.data.entity_id)).toEqual([`button.${P}_manual_clean`]);
+    } finally {
+      delete (globalThis as { __tuyaFail?: boolean }).__tuyaFail;
+    }
+  });
 });
