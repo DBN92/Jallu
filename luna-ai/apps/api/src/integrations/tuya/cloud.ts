@@ -135,4 +135,21 @@ export class TuyaCloud {
     if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
     await this.raw('POST', `/v2.0/cloud/thing/${deviceId}/shadow/properties/issue`, { properties: JSON.stringify({ [code]: value }) });
   }
+
+  /** Estado atual de cada comando do aparelho (para descobrir o que o app muda) */
+  async status(deviceId: string): Promise<{ code: string; value: unknown }[]> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    return (await this.raw<{ code: string; value: unknown }[]>('GET', `/v1.0/devices/${deviceId}/status`)) ?? [];
+  }
+
+  /** Modelo completo do aparelho (propriedades, tipos e valores aceitos) */
+  async model(deviceId: string): Promise<unknown> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    const r = await this.raw<{ model?: string }>('GET', `/v2.0/cloud/thing/${deviceId}/model`);
+    try {
+      return JSON.parse(r?.model ?? 'null');
+    } catch {
+      return r;
+    }
+  }
 }

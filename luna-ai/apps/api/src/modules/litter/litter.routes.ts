@@ -9,6 +9,21 @@ export async function litterRoutes(app: FastifyInstance) {
   const { litter } = app.services;
 
   app.get('/api/litter', { preHandler: requireAuth }, async () => litter.list());
+  /**
+   * Diagnóstico (administrador): o que a nuvem Tuya sabe da caixa — comandos aceitos, modelo e o estado
+   * atual de cada um. Abrindo antes e depois de limpar pelo app Smart Life dá para ver qual comando o app usa.
+   */
+  app.get('/api/litter/tuya-info', { preHandler: requireAdmin }, async () => {
+    const { tuya } = app.services;
+    if (!tuya.configured) return { configured: false };
+    const boxes = (await tuya.devices()).filter((d) => d.category === 'msp' || /litter|areia|caixa/i.test(d.name));
+    const out = [];
+    for (const d of boxes) {
+      const safe = <T,>(p: Promise<T>) => p.catch((e: Error) => ({ erro: e.message }));
+      out.push({ device: d, status: await safe(tuya.status(d.id)), functions: await safe(tuya.functions(d.id)), model: await safe(tuya.model(d.id)) });
+    }
+    return { configured: true, at: new Date().toISOString(), boxes: out };
+  });
   app.get('/api/litter/:id', { preHandler: requireAuth }, async (req) => litter.get(boxParams.parse(req.params).id));
 
   app.post('/api/litter/:id/clean', { preHandler: requireAuth }, async (req) => litter.clean(boxParams.parse(req.params).id, { source: 'ui', userId: req.user!.id }));

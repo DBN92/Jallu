@@ -42,6 +42,7 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === `/v1.0/devices/${DEVICE}`) return ok({ id: DEVICE, uid: 'dono-da-conta' });
     if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }, { id: 'caixa1234567890ab', name: 'Smart cat litter box( Ti+)', category: 'msp', online: true }] });
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/functions') return ok({ functions: [{ code: 'auto_clean', type: 'Boolean' }, { code: 'factory_reset', type: 'Boolean' }, { code: 'manual_clean', type: 'Boolean' }] });
+    if (url.pathname === '/v1.0/devices/caixa1234567890ab/status') return ok([{ code: 'manual_clean', value: false }, { code: 'work_status', value: 'standby' }]);
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/model')
       return ok({ model: JSON.stringify({ services: [{ properties: [{ code: 'manual_clean', accessMode: 'rw' }, { code: 'factory_reset', accessMode: 'rw' }, { code: 'cat_weight', accessMode: 'ro' }] }] }) });
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/shadow/properties/issue') {
@@ -191,6 +192,11 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
       'comando {"commands":[{"code":"manual_clean","value":true}]}',
     ]);
     expect(ctx.ha.calls.filter((c) => c.domain === 'button')).toEqual([]);
+    // diagnóstico para descobrir o comando que o app usa
+    const info = (await ctx.inject('GET', '/api/litter/tuya-info')).json;
+    expect(info.boxes[0].device.category).toBe('msp');
+    expect(info.boxes[0].status).toContainEqual({ code: 'work_status', value: 'standby' });
+    expect(info.boxes[0].functions.map((f: { code: string }) => f.code)).toContain('manual_clean');
     // nuvem recusou: aperta o botão do HA
     (globalThis as { __tuyaFail?: boolean }).__tuyaFail = true;
     try {
