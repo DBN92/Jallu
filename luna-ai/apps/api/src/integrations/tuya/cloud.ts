@@ -117,4 +117,22 @@ export class TuyaCloud {
     const ok = await this.raw<boolean>('POST', `/v1.0/devices/${deviceId}/commands`, { commands: [{ code, value }] });
     if (ok === false) throw new TuyaCloudError('A nuvem Tuya não aceitou o comando.');
   }
+
+  /** Propriedades do aparelho no “modelo de coisa” (os comandos internos dele, como o app usa) */
+  async propertyCodes(deviceId: string): Promise<string[]> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    const r = await this.raw<{ model?: string }>('GET', `/v2.0/cloud/thing/${deviceId}/model`);
+    try {
+      const model = JSON.parse(r?.model ?? '{}') as { services?: { properties?: { code: string; accessMode?: string }[] }[] };
+      return (model.services ?? []).flatMap((sv) => sv.properties ?? []).filter((p) => p.accessMode !== 'ro').map((p) => p.code);
+    } catch {
+      return [];
+    }
+  }
+
+  /** Manda uma propriedade direto ao aparelho (independe do “modo de instrução” do projeto) */
+  async setProperty(deviceId: string, code: string, value: unknown): Promise<void> {
+    if (!/^[a-z0-9]{10,40}$/i.test(deviceId)) throw new TuyaCloudError('Id de aparelho inválido.');
+    await this.raw('POST', `/v2.0/cloud/thing/${deviceId}/shadow/properties/issue`, { properties: JSON.stringify({ [code]: value }) });
+  }
 }

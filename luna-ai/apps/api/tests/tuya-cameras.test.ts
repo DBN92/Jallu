@@ -42,6 +42,12 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === `/v1.0/devices/${DEVICE}`) return ok({ id: DEVICE, uid: 'dono-da-conta' });
     if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }, { id: 'caixa1234567890ab', name: 'Smart cat litter box( Ti+)', category: 'msp', online: true }] });
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/functions') return ok({ functions: [{ code: 'auto_clean', type: 'Boolean' }, { code: 'factory_reset', type: 'Boolean' }, { code: 'manual_clean', type: 'Boolean' }] });
+    if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/model')
+      return ok({ model: JSON.stringify({ services: [{ properties: [{ code: 'manual_clean', accessMode: 'rw' }, { code: 'factory_reset', accessMode: 'rw' }, { code: 'cat_weight', accessMode: 'ro' }] }] }) });
+    if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/shadow/properties/issue') {
+      calls.push(`propriedade ${body}`);
+      return (globalThis as { __tuyaFail?: boolean }).__tuyaFail ? new Response(JSON.stringify({ success: false, code: 2008, msg: 'command or value not support' })) : ok({});
+    }
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/commands') {
       calls.push(`comando ${body}`);
       return (globalThis as { __tuyaFail?: boolean }).__tuyaFail ? new Response(JSON.stringify({ success: false, code: 2008, msg: 'command or value not support' })) : ok(true);
@@ -179,7 +185,11 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
     add(`sensor.${P}_excretion_times_day`, '0');
     add(`button.${P}_manual_clean`, 'unknown');
     expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
-    expect(calls.filter((c) => c.startsWith('comando'))).toEqual(['comando {"commands":[{"code":"manual_clean","value":true}]}']);
+    // os dois caminhos da nuvem: propriedade do aparelho (como o app) e o comando padrão
+    expect(calls.filter((c) => c.startsWith('comando') || c.startsWith('propriedade'))).toEqual([
+      'propriedade {"properties":"{\\"manual_clean\\":true}"}',
+      'comando {"commands":[{"code":"manual_clean","value":true}]}',
+    ]);
     expect(ctx.ha.calls.filter((c) => c.domain === 'button')).toEqual([]);
     // nuvem recusou: aperta o botão do HA
     (globalThis as { __tuyaFail?: boolean }).__tuyaFail = true;

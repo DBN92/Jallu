@@ -168,22 +168,31 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   // Caixa de areia pela nuvem Tuya (o botão do HA parou de funcionar para o modelo); acha o aparelho
   // (categoria msp) e o comando de limpeza manual que ele mesmo informa
   if (tuya.configured) {
-    let target: { id: string; code: string } | null = null;
+    let target: { id: string; code: string | null; prop: string | null } | null = null;
+    const isClean = (c: string) => c === 'manual_clean' || (/clean|limp/i.test(c) && !/auto|factory|reset|delay|time|status|record|mode/i.test(c));
     litter.cloudClean = async () => {
       if (!target) {
         const boxes = (await tuya.devices()).filter((d) => d.category === 'msp' || /litter|areia|caixa/i.test(d.name));
         for (const d of boxes) {
           const fns = await tuya.functions(d.id).catch(() => []);
-          const fn = fns.find((f) => f.code === 'manual_clean') ?? fns.find((f) => /clean|limp/i.test(f.code) && !/auto|factory|reset|delay|time|status/i.test(f.code));
-          if (fn) {
-            target = { id: d.id, code: fn.code };
+          const props = await tuya.propertyCodes(d.id).catch(() => [] as string[]);
+          const code = fns.find((f) => f.code === 'manual_clean')?.code ?? fns.find((f) => isClean(f.code))?.code ?? null;
+          const prop = props.find((c) => c === 'manual_clean') ?? props.find(isClean) ?? null;
+          if (code || prop) {
+            target = { id: d.id, code, prop };
             break;
           }
         }
         if (!target) throw new Error('não achei a caixa de areia na conta ligada à nuvem Tuya');
       }
-      await tuya.command(target.id, target.code, true);
-      return target.code;
+      // Os dois caminhos da nuvem: comando “padrão” e propriedade do próprio aparelho (como o app faz).
+      // Alguns modelos aceitam o primeiro sem obedecer; a caixa ignora o repetido se já estiver limpando.
+      const done: string[] = [];
+      const errors: string[] = [];
+      if (target.prop) await tuya.setProperty(target.id, target.prop, true).then(() => done.push(`propriedade ${target!.prop}`), (e: Error) => errors.push(e.message));
+      if (target.code) await tuya.command(target.id, target.code, true).then(() => done.push(`comando ${target!.code}`), (e: Error) => errors.push(e.message));
+      if (!done.length) throw new Error(errors.join(' · ') || 'a nuvem não aceitou');
+      return `${done.join(' + ')}${errors.length ? ` (falhou: ${errors.join(' · ')})` : ''}`;
     };
   }
   chat.setLitter(litter);
