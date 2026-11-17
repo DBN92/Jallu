@@ -159,4 +159,10 @@ export class TuyaCloud {
     const r = await this.raw<{ properties?: { code: string; value: unknown }[] }>('GET', `/v2.0/cloud/thing/${deviceId}/shadow/properties?codes=${codes.join(',')}`);
     return Object.fromEntries((r?.properties ?? []).map((p) => [p.code, p.value]));
   }
+
+  /** Chamada GET livre (diagnóstico de serviços novos da nuvem, ex.: controle remoto infravermelho) */
+  async get<T = unknown>(path: string): Promise<T> {
+    if (!/^\/v[12]\.0\/[a-z0-9_\-/?=&,.]+$/i.test(path)) throw new TuyaCloudError('Caminho inválido.');
+    return this.raw<T>('GET', path);
+  }
 }

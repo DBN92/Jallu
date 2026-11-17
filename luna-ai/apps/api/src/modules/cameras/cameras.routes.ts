@@ -85,6 +85,26 @@ export async function cameraRoutes(app: FastifyInstance) {
     }
   });
 
+  /**
+   * Diagnóstico (administrador): controles remotos infravermelhos da Tuya (Smart IR), que o Home
+   * Assistant não suporta. Lista os controles cadastrados no app Smart Life e os botões de cada um.
+   */
+  app.get('/api/tuya/ir-info', { preHandler: requireAdmin }, async () => {
+    if (!tuya.configured) return { configured: false };
+    const safe = <T,>(p: Promise<T>) => p.catch((e: Error) => ({ erro: e.message }));
+    const hubs = (await tuya.devices()).filter((d) => d.category === 'wnykq' || /\bir\b|infra|controle|remote/i.test(d.name));
+    const out = [];
+    for (const h of hubs) {
+      const remotes = await safe(tuya.get<{ remote_id: string; remote_name?: string; category_id?: number }[]>(`/v2.0/infrareds/${h.id}/remotes`));
+      const detail = [];
+      if (Array.isArray(remotes)) {
+        for (const r of remotes.slice(0, 15)) detail.push({ ...r, keys: await safe(tuya.get(`/v2.0/infrareds/${h.id}/remotes/${r.remote_id}/keys`)) });
+      }
+      out.push({ hub: h, remotes: Array.isArray(remotes) ? detail : remotes });
+    }
+    return { configured: true, at: new Date().toISOString(), hubs: out };
+  });
+
   // Atalhos para câmeras que abrem no site do fabricante (ex.: babá eletrônica Smart Life)
   const { webCameras } = app.services;
   app.get('/api/cameras/web', { preHandler: requireAdmin }, async () => webCameras.list());
