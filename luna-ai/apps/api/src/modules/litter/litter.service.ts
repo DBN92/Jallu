@@ -301,6 +301,12 @@ export class LitterService extends EventEmitter {
   cloud: LitterCloud | null = null;
   private cloudAuto: { at: number; v: { on: boolean; delaySeconds: number | null; delayMax: number } | null } | null = null;
 
+  /** A caixa mudou pela nuvem (ex.: automática religada): esquece o valor guardado e avisa as telas */
+  cloudChanged() {
+    this.cloudAuto = null;
+    for (const p of this.boxes) this.emit('update', p);
+  }
+
   /** Limpeza automática lida da nuvem (guardada 30 s) */
   private async cloudAutoState() {
     if (!this.cloud) return null;

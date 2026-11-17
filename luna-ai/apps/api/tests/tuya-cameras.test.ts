@@ -42,7 +42,12 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === `/v1.0/devices/${DEVICE}`) return ok({ id: DEVICE, uid: 'dono-da-conta' });
     if (url.pathname === '/v1.0/iot-01/associated-users/devices') return ok({ devices: [{ id: DEVICE, name: 'Câmera Luiza', category: 'cdsxj', online: true }, { id: 'caixa1234567890ab', name: 'Smart cat litter box( Ti+)', category: 'msp', online: true }] });
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/functions') return ok({ functions: [{ code: 'auto_clean', type: 'Boolean' }, { code: 'factory_reset', type: 'Boolean' }, { code: 'manual_clean', type: 'Boolean' }] });
-    if (url.pathname === '/v1.0/devices/caixa1234567890ab/status') return ok([{ code: 'manual_clean', value: false }, { code: 'work_status', value: 'standby' }]);
+    if (url.pathname === '/v1.0/devices/caixa1234567890ab/status') {
+      const g = globalThis as { __cleaning?: number };
+      const cleaning = (g.__cleaning ?? 0) > 0;
+      if (cleaning) g.__cleaning!--;
+      return ok([{ code: 'manual_clean', value: false }, { code: 'work_status', value: 'standby' }, { code: 'status', value: cleaning ? 'clean' : 'standly' }]);
+    }
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/model')
       // como o modelo real da caixa (“Casinha do Cocô”): manual_clean/auto_clean existem mas são “não usados”
       return ok({ model: JSON.stringify({ services: [{ properties: ['switch', 'start', 'auto_clean', 'delay_clean_time', 'manual_clean', 'factory_reset', 'clean', 'empty', 'induction_clean', 'induction_delay'].map((code) => ({ code, accessMode: 'rw' })).concat([{ code: 'cat_weight', accessMode: 'ro' }]) }] }) });
@@ -51,6 +56,11 @@ function fakeTuya(calls: string[]) {
     if (url.pathname === '/v2.0/cloud/thing/caixa1234567890ab/shadow/properties/issue') {
       calls.push(`propriedade ${body}`);
       if (body.includes('induction_clean')) (globalThis as { __auto?: boolean }).__auto = JSON.parse(JSON.parse(body).properties).induction_clean;
+      // como a caixa real: a limpeza manual desliga a automática enquanto limpa
+      if (body.includes('\\"clean\\"') && (globalThis as { __simulateDevice?: boolean }).__simulateDevice) {
+        (globalThis as { __auto?: boolean }).__auto = false;
+        (globalThis as { __cleaning?: number }).__cleaning = 2;
+      }
       return (globalThis as { __tuyaFail?: boolean }).__tuyaFail ? new Response(JSON.stringify({ success: false, code: 2008, msg: 'command or value not support' })) : ok({});
     }
     if (url.pathname === '/v1.0/devices/caixa1234567890ab/commands') {
@@ -215,6 +225,27 @@ describe('nuvem Tuya (câmeras Smart Life que o Home Assistant não suporta)', (
       expect(ctx.ha.calls.filter((c) => c.domain === 'button').map((c) => c.data.entity_id)).toEqual([`button.${P}_manual_clean`]);
     } finally {
       delete (globalThis as { __tuyaFail?: boolean }).__tuyaFail;
+    }
+  });
+
+  it('limpeza manual: se a automática estava ligada, volta a ficar ligada quando a caixa termina', async () => {
+    const calls: string[] = [];
+    const g = globalThis as { __auto?: boolean; __simulateDevice?: boolean; __cleaning?: number };
+    g.__auto = true;
+    g.__simulateDevice = true;
+    try {
+      ctx = await makeApp({ TUYA_ACCESS_ID: 'id123', TUYA_ACCESS_SECRET: 'segredo', GO2RTC_PATH: '/nao/existe/go2rtc' }, { login: true, tuyaFetch: fakeTuya(calls), litterRestoreMs: 20 });
+      const P = 'smart_cat_litter_box_ti';
+      for (const [id, st] of [[`sensor.${P}_cat_weight`, '5.0'], [`sensor.${P}_excretion_times_day`, '0'], [`button.${P}_manual_clean`, 'unknown']]) ctx.ha.states.set(id!, { entity_id: id!, state: st!, attributes: {} });
+      expect((await ctx.inject('POST', `/api/litter/${P}/clean`)).status).toBe(200);
+      expect(g.__auto).toBe(false); // a caixa desligou ao começar a limpar
+      for (let i = 0; i < 50 && g.__auto !== true; i++) await new Promise((r) => setTimeout(r, 20));
+      expect(g.__auto).toBe(true); // a Luna religou depois que ela terminou
+      expect(calls.filter((c) => c.startsWith('propriedade'))).toEqual(['propriedade {"properties":"{\\"clean\\":true}"}', 'propriedade {"properties":"{\\"induction_clean\\":true}"}']);
+    } finally {
+      delete g.__auto;
+      delete g.__simulateDevice;
+      delete g.__cleaning;
     }
   });
 });

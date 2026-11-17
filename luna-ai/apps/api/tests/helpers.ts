@@ -45,7 +45,7 @@ export async function resetDb() {
   await db.user.deleteMany();
 }
 
-export async function makeApp(envOverrides: Record<string, string> = {}, opts: { login?: boolean; cameraInput?: import('../src/modules/cameras/direct.service').InputArgs; tuyaFetch?: typeof fetch } = { login: true }): Promise<TestCtx> {
+export async function makeApp(envOverrides: Record<string, string> = {}, opts: { login?: boolean; cameraInput?: import('../src/modules/cameras/direct.service').InputArgs; tuyaFetch?: typeof fetch; litterRestoreMs?: number } = { login: true }): Promise<TestCtx> {
   await resetDb();
   const ha = new FakeHomeAssistant();
   const llm = new FakeLlm();
@@ -71,6 +71,7 @@ export async function makeApp(envOverrides: Record<string, string> = {}, opts: {
     env,
     db: createDb(testDbUrl()),
     fetch: { ha: ha.fetch, ollama: llm.ollamaFetch, openai: llm.openaiFetch, weather: weather.fetch, tuya: opts.tuyaFetch },
+    litterRestoreMs: opts.litterRestoreMs,
     disableHaWs: true,
     cameraInput: opts.cameraInput,
   });

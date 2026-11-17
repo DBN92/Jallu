@@ -87,6 +87,8 @@ export interface AppDeps {
   watchFfmpeg?: string | null;
   /** Não iniciar as leituras periódicas (testes chamam tick() direto) */
   disableWatchTimer?: boolean;
+  /** Testes: intervalo para conferir a caixa depois da limpeza manual (padrão 20 s) */
+  litterRestoreMs?: number;
   /** Testes: envio das notificações push (no lugar do serviço do celular) */
   pushSender?: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string) => Promise<unknown>;
 }
@@ -187,11 +189,37 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
       }
       throw new Error('não achei a caixa de areia na conta ligada à nuvem Tuya');
     };
+    /**
+     * Depois da limpeza manual: acompanha a caixa (a cada 20 s, até 8 min) e, quando ela parar de limpar,
+     * religa a limpeza automática se a caixa a tiver desligado.
+     */
+    const restoreStep = deps.litterRestoreMs ?? 20_000;
+    const restoreAuto = (id: string, autoCode: string) => {
+      let tries = 0;
+      const check = async () => {
+        tries++;
+        const st = await tuya.status(id).catch(() => [] as { code: string; value: unknown }[]);
+        const cleaning = st.find((x) => x.code === 'status')?.value === 'clean';
+        if (cleaning && tries < 24) return void setTimeout(() => void check(), restoreStep).unref?.();
+        const now = await tuya.getProperties(id, [autoCode]).catch(() => ({}) as Record<string, unknown>);
+        if (now[autoCode] === false) {
+          await tuya.setProperty(id, autoCode, true).then(
+            () => console.warn('[caixa de areia] limpeza manual terminou: limpeza automática religada'),
+            (e: Error) => console.warn(`[caixa de areia] não consegui religar a limpeza automática: ${e.message}`),
+          );
+        }
+        litter.cloudChanged();
+      };
+      setTimeout(() => void check(), restoreStep).unref?.();
+    };
     litter.cloud = {
       clean: async () => {
         const b = await find();
+        // Como no app Smart Life: se a automática estava ligada, volta a ficar ligada depois da limpeza manual
+        const wasAuto = b.auto ? (await tuya.getProperties(b.id, [b.auto]).catch(() => ({}) as Record<string, unknown>))[b.auto] === true : false;
         await tuya.setProperty(b.id, b.clean, true);
-        return `propriedade ${b.clean}`;
+        if (b.auto && wasAuto) restoreAuto(b.id, b.auto);
+        return `propriedade ${b.clean}${wasAuto ? ' (automática volta ao terminar)' : ''}`;
       },
       setAuto: async (on, delaySeconds) => {
         const b = await find();
