@@ -74,12 +74,21 @@ export async function androidRoutes(app: FastifyInstance, opts: { distDir: strin
     const expiresAt = now + 2 * 3600_000; // 2 h: dá tempo de instalar o Downloader e liberar a TV
     links.set(code, expiresAt);
     saveLinks();
+    console.warn(`[app na TV] link ${code} gerado (vale até ${new Date(expiresAt).toLocaleTimeString('pt-BR')})`);
     return { code, path: `/apk/${code}`, expiresAt: new Date(expiresAt).toISOString() };
   });
-  app.get('/apk/:code', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
-    const code = String((req.params as { code: string }).code ?? '').toUpperCase();
+  // Aceita “/apk/K7Q2M”, “/apk/k7q2m/”, com espaço ou hífen — o Downloader e o teclado da TV variam
+  app.get('/apk/*', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
+    const raw = String((req.params as { '*': string })['*'] ?? '');
+    const code = decodeURIComponent(raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
     const exp = links.get(code);
-    if (!exp || exp < Date.now()) throw notFound('Este link de instalação expirou. Gere outro em Ajustes › App Android.');
+    const now = Date.now();
+    if (!exp || exp < now) {
+      const valid = [...links.values()].filter((e) => e >= now).length;
+      console.warn(`[app na TV] link “${raw.slice(0, 20)}” ${exp ? 'vencido' : 'desconhecido'} (${valid} link(s) válido(s) agora) · ${req.headers['user-agent']?.slice(0, 60) ?? ''}`);
+      throw notFound(exp ? 'Este link de instalação expirou. Gere outro em Ajustes › App Android.' : 'Link de instalação não encontrado. Confira o código ou gere outro em Ajustes › App Android.');
+    }
+    console.warn(`[app na TV] baixando o app pelo link ${code}`);
     return sendApk(reply);
   });
 }
