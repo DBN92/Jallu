@@ -28,9 +28,9 @@ describe('App Android (tablet)', () => {
     ctx = await makeApp();
     expect((await ctx.app.inject({ method: 'POST', url: '/api/android/download-link' })).statusCode).toBe(401);
     const link = (await ctx.inject('POST', '/api/android/download-link')).json;
-    expect(link.path).toMatch(/^\/apk\/[A-Z2-9]{5}$/);
+    expect(link.path).toMatch(/^\/apk\/[A-Z2-9]{5}\.apk$/);
     // digitado em minúsculas, com barra no fim ou espaço
-    for (const u of [`${link.path.toLowerCase()}/`, link.path.replace(/(\w{2})(\w+)$/, '$1%20$2')]) expect((await ctx.app.inject({ method: 'GET', url: u })).statusCode, u).toBe(200);
+    for (const u of [`${link.path.toLowerCase()}/`, link.path.replace(/(\/apk\/\w{2})/, '$1%20'), link.path.replace(/\.apk$/, '')]) expect((await ctx.app.inject({ method: 'GET', url: u })).statusCode, u).toBe(200);
     const r = await ctx.app.inject({ method: 'GET', url: link.path.toLowerCase() }); // digitado em minúsculas no controle
     expect(r.statusCode).toBe(200);
     expect(r.rawPayload.subarray(0, 2).toString()).toBe('PK');
