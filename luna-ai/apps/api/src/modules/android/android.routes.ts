@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { notFound } from '../../lib/errors';
@@ -18,7 +18,7 @@ async function cookieOrToken(this: FastifyInstance, req: FastifyRequest, reply: 
   return requireAuth(req, reply);
 }
 
-export async function androidRoutes(app: FastifyInstance, opts: { distDir: string }) {
+export async function androidRoutes(app: FastifyInstance, opts: { distDir: string; dataDir?: string }) {
   const apk = join(opts.distDir, 'dia.apk');
   const info = () => {
     try {
@@ -46,17 +46,34 @@ export async function androidRoutes(app: FastifyInstance, opts: { distDir: strin
 
   /**
    * Instalar na Fire TV / Android TV: o app que baixa lá (Downloader) não tem o login da Luna. Quem está
-   * logado gera um endereço curto, fácil de digitar no controle, que baixa o app por 30 minutos.
+   * logado gera um endereço curto, fácil de digitar no controle, que baixa o app por 2 horas.
    */
-  const links = new Map<string, number>();
+  // Guardados em arquivo: sobrevivem à atualização/reinício da Luna (antes o link “expirava” no reinício)
+  const linksFile = join(opts.dataDir ?? '.', 'apk-links.json');
+  const readLinks = (): Map<string, number> => {
+    try {
+      return new Map(Object.entries(JSON.parse(readFileSync(linksFile, 'utf8')) as Record<string, number>));
+    } catch {
+      return new Map();
+    }
+  };
+  const links = readLinks();
+  const saveLinks = () => {
+    try {
+      writeFileSync(linksFile, JSON.stringify(Object.fromEntries(links)));
+    } catch {
+      /* sem disco: vale até reiniciar */
+    }
+  };
   const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   app.post('/api/android/download-link', { preHandler: cookieOrToken.bind(app) }, async () => {
     const now = Date.now();
     for (const [k, exp] of links) if (exp < now) links.delete(k);
     const bytes = randomBytes(5);
     const code = [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join('');
-    const expiresAt = now + 30 * 60_000;
+    const expiresAt = now + 2 * 3600_000; // 2 h: dá tempo de instalar o Downloader e liberar a TV
     links.set(code, expiresAt);
+    saveLinks();
     return { code, path: `/apk/${code}`, expiresAt: new Date(expiresAt).toISOString() };
   });
   app.get('/apk/:code', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {

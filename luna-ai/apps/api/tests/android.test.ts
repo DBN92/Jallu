@@ -33,6 +33,10 @@ describe('App Android (tablet)', () => {
     expect(r.statusCode).toBe(200);
     expect(r.rawPayload.subarray(0, 2).toString()).toBe('PK');
     expect((await ctx.app.inject({ method: 'GET', url: '/apk/ZZZZZ' })).statusCode).toBe(404);
+    // a Luna reiniciou (ex.: atualização): o link continua valendo
+    await ctx.app.close();
+    ctx = await makeApp();
+    expect((await ctx.app.inject({ method: 'GET', url: link.path })).statusCode).toBe(200);
   });
 
   it('avisa quando o servidor não tem o APK', async () => {

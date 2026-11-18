@@ -5,7 +5,7 @@ import { Button } from './ui';
 
 /**
  * Instalar o app na Fire TV / Android TV: o app Downloader de lá não tem o login da Luna, então a Luna
- * gera um endereço curto (vale 30 min) para digitar com o controle.
+ * gera um endereço curto (vale 2 h, mesmo se a Luna reiniciar) para digitar com o controle.
  */
 export function FireTvInstall() {
   const [link, setLink] = useState<{ url: string; until: string } | null>(null);

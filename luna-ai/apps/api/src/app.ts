@@ -391,7 +391,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(ttsRoutes);
   await app.register(diagRoutes);
   await app.register(peopleRoutes);
-  await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist') });
+  await app.register(androidRoutes, { distDir: env.LUNA_ANDROID_DIST ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../android/dist'), dataDir: env.DATABASE_URL.startsWith('file:') ? dirname(env.DATABASE_URL.slice(5)) : '.' });
   await app.register(wsRoutes);
 
   // Frontend (PWA) servido pela própria API → um único serviço para o Cloudflare Tunnel
