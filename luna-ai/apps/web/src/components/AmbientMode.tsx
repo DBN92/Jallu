@@ -205,9 +205,9 @@ export function AmbientMode({ now, weather, onExit, hint, greet }: { now: Date; 
             </p>
             <p className="hud-label mt-2 text-xs md:text-sm">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</p>
             {people && <p className="font-hud mt-2 text-sm text-cyan-100/70">{people}</p>}
-            <div className="mt-4">
+            {theme !== 'ceu' && <div className="mt-4">
               <LunaOrb state="idle" size={Math.min(240, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.38))} />
-            </div>
+            </div>}
           </div>
 
           {/* Painel que alterna (sem nada escolhido nos ajustes, fica só o relógio) */}

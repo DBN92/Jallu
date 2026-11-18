@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Cctv, ChevronRight, CloudSun, Moon, SendHorizontal, ShoppingCart, Sparkles, Sun, Volume2, VolumeX, X } from 'lucide-react';
 import type { AssistantState, CameraDto, DeviceDto, HealthDto, WeatherDto } from '@luna/shared/types';
 import { useDevices } from '../stores/devices';
+import { useSettings } from '../stores/settings';
 import { useCameras } from '../stores/cameras';
 import type { UiMessage } from '../stores/assistant';
 import { LunaOrb } from './LunaOrb';
@@ -65,6 +66,8 @@ export interface ModernHomeProps {
 /** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da Luna e controles diretos. */
 export function ModernHome(p: ModernHomeProps) {
   const navigate = useNavigate();
+  // Tema Céu: sem o globo de partículas (o céu já anima o fundo; poupa o tablet)
+  const noOrb = useSettings((s) => s.theme) === 'ceu';
   const devicesMap = useDevices((s) => s.devices);
   const openCameras = useCameras((s) => s.open);
   const toBuy = useLists((s) => s.items?.filter((i) => i.status === 'buy').length ?? 0);
@@ -145,9 +148,27 @@ export function ModernHome(p: ModernHomeProps) {
           )}
         </div>
       </div>
+      {!noOrb && (
       <div className="my-3 flex justify-center">
         <LunaOrb state={p.state} levelRef={p.levelRef} size={waveW} height={p.hasChat ? (land ? 48 : 76) : p.wide ? 200 : land ? 84 : 150} onClick={p.onMic} />
       </div>
+      )}
+      {noOrb && !p.hasChat && (
+        <div className="my-4 min-h-[96px]">
+          <p className="m-num text-[28px] leading-tight font-light">
+            {p.greeting}
+            {p.userName ? `, ${p.userName}` : ''}
+          </p>
+          {p.weather && (
+            <p className="m-muted mt-2 text-[15px]">
+              {round(p.weather.current.temperature)}° e {p.weather.current.condition.toLowerCase()} agora
+              {rain ? ` · chuva ${rain.precipitationProbability}% às ${Number(rain.time.slice(11, 13))}h` : ' · sem chuva nas próximas horas'}
+            </p>
+          )}
+          <p className="m-muted mt-1 text-[13px]">Toque no microfone ou diga “Oi, Luna”.</p>
+        </div>
+      )}
+      {noOrb && p.hasChat && <div className="h-3" />}
       {p.hasChat && (
         <div className="mb-3 max-h-[38vh] min-h-0 overflow-y-auto">
           <MessageList messages={p.messages} interim={p.interim} />

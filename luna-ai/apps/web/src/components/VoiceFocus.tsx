@@ -1,3 +1,4 @@
+import { useSettings } from '../stores/settings';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
@@ -29,6 +30,8 @@ export function VoiceFocus({
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(open);
+  // Tema Céu: bolha leve no lugar do globo de partículas
+  const lite = useSettings((s) => s.theme) === 'ceu';
   const [leaving, setLeaving] = useState(false);
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
 
@@ -68,7 +71,11 @@ export function VoiceFocus({
       </button>
       <div className={`flex w-full flex-1 items-center justify-center gap-6 px-6 pt-safe pb-safe ${landscape ? 'flex-row' : 'flex-col'}`}>
         <div className="focus-orb">
-          <LunaOrb state={state} levelRef={levelRef} size={size} onClick={onOrb} />
+          {lite ? (
+            <button className={`sky-orb ${state}`} style={{ width: size * 0.5, height: size * 0.5 }} onClick={onOrb} aria-label="Luna" />
+          ) : (
+            <LunaOrb state={state} levelRef={levelRef} size={size} onClick={onOrb} />
+          )}
         </div>
         <div className={`flex max-w-xl flex-col gap-3 ${landscape ? 'items-start text-left' : 'items-center text-center'}`}>
           <p className="hud-label text-sm">{STATE_LABEL[state]}</p>
