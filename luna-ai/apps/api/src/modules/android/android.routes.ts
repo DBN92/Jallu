@@ -46,7 +46,7 @@ export async function androidRoutes(app: FastifyInstance, opts: { distDir: strin
 
   /**
    * Instalar na Fire TV / Android TV: o app que baixa lá (Downloader) não tem o login da Luna. Quem está
-   * logado gera um endereço curto, fácil de digitar no controle, que baixa o app por 2 horas.
+   * logado gera um endereço curto, fácil de digitar no controle, que baixa o app por 24 horas.
    */
   // Guardados em arquivo: sobrevivem à atualização/reinício da Luna (antes o link “expirava” no reinício)
   const linksFile = join(opts.dataDir ?? '.', 'apk-links.json');
@@ -71,7 +71,7 @@ export async function androidRoutes(app: FastifyInstance, opts: { distDir: strin
     for (const [k, exp] of links) if (exp < now) links.delete(k);
     const bytes = randomBytes(5);
     const code = [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join('');
-    const expiresAt = now + 2 * 3600_000; // 2 h: dá tempo de instalar o Downloader e liberar a TV
+    const expiresAt = now + 24 * 3600_000; // 24 h: o Downloader sugere links antigos do histórico; o APK não tem segredos
     links.set(code, expiresAt);
     saveLinks();
     console.warn(`[app na TV] link ${code} gerado (vale até ${new Date(expiresAt).toLocaleTimeString('pt-BR')})`);

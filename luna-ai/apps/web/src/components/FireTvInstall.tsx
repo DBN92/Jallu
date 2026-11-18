@@ -5,7 +5,7 @@ import { Button } from './ui';
 
 /**
  * Instalar o app na Fire TV / Android TV: o app Downloader de lá não tem o login da Luna, então a Luna
- * gera um endereço curto (vale 2 h, mesmo se a Luna reiniciar) para digitar com o controle.
+ * gera um endereço curto (vale 24 h, mesmo se a Luna reiniciar) para digitar com o controle.
  */
 export function FireTvInstall() {
   const [link, setLink] = useState<{ url: string; until: string } | null>(null);
@@ -41,7 +41,7 @@ export function FireTvInstall() {
         <li>
           Permita a instalação: <b>Configurações › Minha Fire TV › Opções do desenvolvedor › Instalar apps desconhecidos › Downloader: ligado</b>. Se “Opções do desenvolvedor” não aparecer: em <b>Minha Fire TV › Sobre</b>, clique 7 vezes no nome do aparelho.
         </li>
-        <li>Abra o Downloader, digite o endereço acima e instale.</li>
+        <li>Abra o Downloader, apague o endereço que estiver lá, digite o endereço acima e instale. Não use os endereços que o Downloader sugere do histórico.</li>
         <li>Abra a Luna na TV (ela aparece junto dos apps), informe o endereço da Luna e entre com seu usuário.</li>
       </ol>
       <p className="text-xs text-white/40">Na TV a Luna abre no modo TV (controle pelo direcional). O chamado “Oi, Luna” e a câmera de presença são para o tablet: a Fire TV não tem microfone nem câmera para isso.</p>
