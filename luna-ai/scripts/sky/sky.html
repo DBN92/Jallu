@@ -8,7 +8,11 @@
  */
 const q = new URLSearchParams(location.search);
 const phase = q.get('phase') || 'manha', wx = q.get('wx') || 'limpo';
-const W = 1600, H = 1000;
+// camada: ceu (fundo: gradiente, sol, lua, estrelas) · nuvens (faixa larga, fundo transparente, desliza no app) · serra (frente, transparente)
+const layer = q.get('layer') || 'tudo';
+const show = (k) => layer === 'tudo' || layer === k;
+const H = 1000, W = layer === 'nuvens' ? 3200 : 1600;
+if (layer !== 'ceu' && layer !== 'tudo') document.body.style.background = 'transparent';
 const P = {
   manha: { sky: ['#4f8fd6', '#8cc3ef', '#cfe6f7', '#fbefd9'], sun: [0.73, 0.15, '#fffbe8', 300], light: '#ffffff', shade: '#9db3c9', az: 225, el: 38, hills: ['#6f8fa3', '#4f7a5f', '#2f5a3c'], haze: '#cfe6f7', hz: 0.55, gray: '#aab4bf' },
   dia: { sky: ['#2f6fc4', '#5b9fe0', '#a6d0f2', '#e2f0fa'], sun: [0.86, 0.08, '#ffffff', 260], light: '#ffffff', shade: '#8ea6bf', az: 240, el: 60, hills: ['#7a95a8', '#4d7b5a', '#2c5838'], haze: '#c6e1f5', hz: 0.5, gray: '#9ea9b4' },
@@ -23,30 +27,32 @@ let defs = `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${sky.map((c, i
 <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="${mix(P.haze, P.gray, C.gray)}" stop-opacity="0"/><stop offset="1" stop-color="${mix(P.haze, P.gray, C.gray)}" stop-opacity="1"/></linearGradient>
 <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".75" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
 <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect width="${W}" height="${H * C.h}" fill="url(#fg)"/></mask>`;
-let body = `<rect width="${W}" height="${H}" fill="url(#sky)"/>`;
-if (phase === 'noite') for (let i = 0; i < (wx === 'limpo' ? 330 : wx === 'nublado' ? 90 : 0); i++) { const z = r(); body += `<circle cx="${(r() * W) | 0}" cy="${(r() * H * 0.62) | 0}" r="${(0.5 + z * z * 1.9).toFixed(2)}" fill="#fff" opacity="${(0.25 + r() * 0.7).toFixed(2)}"/>`; }
-if (P.sun && wx !== 'chuva') { const [x, y, c, rad] = P.sun; const o = wx === 'limpo' ? 1 : 0.45;
+let body = show('ceu') ? `<rect width="${W}" height="${H}" fill="url(#sky)"/>` : '';
+if (show('ceu') && phase === 'noite') for (let i = 0; i < (wx === 'limpo' ? 330 : wx === 'nublado' ? 90 : 0); i++) { const z = r(); body += `<circle cx="${(r() * W) | 0}" cy="${(r() * H * 0.62) | 0}" r="${(0.5 + z * z * 1.9).toFixed(2)}" fill="#fff" opacity="${(0.25 + r() * 0.7).toFixed(2)}"/>`; }
+if (show('ceu') && P.sun && wx !== 'chuva') { const [x, y, c, rad] = P.sun; const o = wx === 'limpo' ? 1 : 0.45;
   defs += `<radialGradient id="sun"><stop offset="0" stop-color="#fff" stop-opacity="${o}"/><stop offset=".08" stop-color="${c}" stop-opacity="${0.9 * o}"/><stop offset=".25" stop-color="${c}" stop-opacity="${0.35 * o}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
   body += `<circle cx="${x * W}" cy="${y * H}" r="${rad}" fill="url(#sun)"/>`; }
-if (P.moon && wx !== 'chuva') { const [x, y] = P.moon; const o = wx === 'limpo' ? 1 : 0.5;
+if (show('ceu') && P.moon && wx !== 'chuva') { const [x, y] = P.moon; const o = wx === 'limpo' ? 1 : 0.5;
   defs += `<radialGradient id="mg"><stop offset="0" stop-color="#dfe6ff" stop-opacity=".35"/><stop offset="1" stop-color="#dfe6ff" stop-opacity="0"/></radialGradient>
   <filter id="crat"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="4" seed="5"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".35"/></feComponentTransfer><feComposite in2="SourceGraphic" operator="in"/></filter>`;
   body += `<g opacity="${o}"><circle cx="${x * W}" cy="${y * H}" r="175" fill="url(#mg)"/><circle cx="${x * W}" cy="${y * H}" r="42" fill="#f2f0e6"/><circle cx="${x * W}" cy="${y * H}" r="42" fill="#000" filter="url(#crat)"/></g>`; }
 const light = mix(P.light, '#c3c9d1', phase === 'noite' ? 0 : C.gray * 0.6), shade = mix(P.shade, '#2b333d', C.gray);
 defs += `<filter id="cl" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
- <feTurbulence type="fractalNoise" baseFrequency="${0.0028 * 1280 / W} ${0.009 * 800 / H}" numOctaves="6" seed="${phase.length * 3 + wx.length}" result="n"/>
+ <feTurbulence type="fractalNoise" baseFrequency="${0.0028 * 1280 / 1600} ${0.009 * 800 / H}" numOctaves="6" seed="${phase.length * 3 + wx.length}" result="n"/>
  <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  ${C.cover[0]} 0 0 0 ${C.cover[1]}" result="a"/>
  <feGaussianBlur in="a" stdDeviation="${wx === 'chuva' ? 5 : 3}" result="ab"/>
  <feDiffuseLighting in="ab" surfaceScale="9" diffuseConstant="1.15" lighting-color="${light}" result="lit"><feDistantLight azimuth="${P.az}" elevation="${P.el}"/></feDiffuseLighting>
  <feComposite in="lit" in2="ab" operator="in" result="l2"/>
  <feFlood flood-color="${shade}" result="sh"/><feComposite in="sh" in2="ab" operator="in" result="s2"/>
  <feBlend in="l2" in2="s2" mode="screen" result="c"/><feComposite in="c" in2="ab" operator="in"/></filter>`;
-body += `<rect width="${W}" height="${H}" filter="url(#cl)" opacity="${phase === 'noite' ? (wx === 'limpo' ? 0.45 : 0.5) : C.op}" mask="url(#fade)"/>`;
+if (show('nuvens')) body += `<rect width="${W}" height="${H}" filter="url(#cl)" opacity="${phase === 'noite' ? (wx === 'limpo' ? 0.45 : 0.5) : C.op}" mask="url(#fade)"/>`;
 const hills = P.hills.map((c) => mix(c, P.gray, C.gray * 0.5));
-[[0.0034, 0.7, 112], [0.0048, 0.775, 88], [0.0068, 0.862, 75]].forEach(([f, base, amp], i) => {
+if (show('serra')) [[0.0034, 0.7, 112], [0.0048, 0.775, 88], [0.0068, 0.862, 75]].forEach(([f, base, amp], i) => {
   let d = `M0 ${H} `; for (let x = 0; x <= W; x += 16) { const y = base * H + Math.sin(x * f + i * 2) * amp * 0.6 + Math.sin(x * f * 2.7 + i) * amp * 0.3 + Math.sin(x * f * 6.1 + i * 5) * amp * 0.12; d += `L${x} ${y.toFixed(1)} `; }
   body += `<path d="${d}L${W} ${H} Z" fill="${hills[i]}"/>`; if (i < 2) body += `<rect width="${W}" height="${H}" fill="url(#haze)" opacity="${P.hz + C.gray * 0.3}"/>`; });
-if (wx === 'chuva') { body += `<rect width="${W}" height="${H}" fill="url(#haze)" opacity=".35"/>`; defs += `<filter id="rb"><feGaussianBlur stdDeviation=".5"/></filter>`; let g = '';
+if (show('serra') && wx === 'chuva') body += `<rect width="${W}" height="${H}" fill="url(#haze)" opacity=".35"/>`;
+// a chuva agora cai animada no app (camada própria); aqui só na prévia completa
+if (layer === 'tudo' && wx === 'chuva') { defs += `<filter id="rb"><feGaussianBlur stdDeviation=".5"/></filter>`; let g = '';
   for (let i = 0; i < 1300; i++) { const x = r() * W * 1.2, y = r() * H, l = 25 + r() * 55; g += `<line x1="${x | 0}" y1="${y | 0}" x2="${(x - l * 0.25) | 0}" y2="${(y + l) | 0}" stroke="#dbe7f5" stroke-width="${(0.7 + r() * 1.4).toFixed(1)}" opacity="${((phase === 'noite' ? 0.3 : 0.55) * (0.3 + r() * 0.7)).toFixed(2)}" stroke-linecap="round"/>`; }
   body += `<g filter="url(#rb)">${g}</g>`; }
 const s = document.getElementById('s'); s.setAttribute('width', W); s.setAttribute('height', H); s.setAttribute('viewBox', `0 0 ${W} ${H}`); s.innerHTML = `<defs>${defs}</defs>${body}`;
