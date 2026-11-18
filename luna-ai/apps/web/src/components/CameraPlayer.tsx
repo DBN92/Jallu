@@ -27,12 +27,16 @@ type Mode = 'loading' | 'live' | 'images' | 'error';
  * Vídeo ao vivo da câmera. Tenta HLS (Safari nativo / hls.js no Android e computador);
  * se a câmera ou o HA não oferecerem vídeo contínuo, mostra imagens atualizadas a cada segundo.
  */
-export function CameraPlayer({ camera, className = '' }: { camera: CameraDto; className?: string }) {
+/**
+ * imagesOnly: sem vídeo ao vivo, só imagens (~1 por segundo). Para aparelhos fracos (Fire TV Stick): o
+ * player de vídeo na página guardava o vídeo na memória e a TV fechava a Luna.
+ */
+export function CameraPlayer({ camera, className = '', imagesOnly = false }: { camera: CameraDto; className?: string; imagesOnly?: boolean }) {
   if (camera.platform === 'web') return <WebCameraCard camera={camera} className={className} button />;
-  return <LiveCameraPlayer camera={camera} className={className} />;
+  return <LiveCameraPlayer camera={camera} className={className} imagesOnly={imagesOnly} />;
 }
 
-function LiveCameraPlayer({ camera, className = '' }: { camera: CameraDto; className?: string }) {
+function LiveCameraPlayer({ camera, className = '', imagesOnly = false }: { camera: CameraDto; className?: string; imagesOnly?: boolean }) {
   const video = useRef<HTMLVideoElement>(null);
   const [mode, setMode] = useState<Mode>('loading');
   const [tick, setTick] = useState(0);
@@ -53,7 +57,7 @@ function LiveCameraPlayer({ camera, className = '' }: { camera: CameraDto; class
     };
 
     (async () => {
-      if (!camera.stream) return fallback();
+      if (!camera.stream || imagesOnly) return fallback();
       try {
         const { url } = await api<{ url: string }>(`/api/cameras/${camera.entityId}/stream`, { method: 'POST' });
         const el = video.current;
@@ -63,7 +67,8 @@ function LiveCameraPlayer({ camera, className = '' }: { camera: CameraDto; class
         } else {
           const { default: Hls } = await import('hls.js');
           if (!Hls.isSupported()) return fallback('Este navegador não toca vídeo ao vivo; mostrando imagens.');
-          const h = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxBufferLength: 6 });
+          // backBufferLength: não guarda o que já passou (antes crescia sem limite com a câmera aberta)
+          const h = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxBufferLength: 6, maxMaxBufferLength: 10, backBufferLength: 4 });
           hls = h;
           h.on(Hls.Events.ERROR, (_e, data) => data.fatal && fallback('O vídeo ao vivo falhou; mostrando imagens.'));
           h.loadSource(url);
@@ -87,7 +92,7 @@ function LiveCameraPlayer({ camera, className = '' }: { camera: CameraDto; class
         video.current.load();
       }
     };
-  }, [camera.entityId, camera.stream]);
+  }, [camera.entityId, camera.stream, imagesOnly]);
 
   // Modo imagens: atualiza a foto ~1x por segundo (só com a aba visível)
   useEffect(() => {

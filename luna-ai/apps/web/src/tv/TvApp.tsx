@@ -697,7 +697,7 @@ export default function TvApp() {
         {camView && (
           <div className="tv-camfull">
             <div className="tv-screen">
-              {cam ? <CameraPlayer key={cam.entityId} camera={cam} /> : <p className="tv-empty">{cameras ? 'Câmera não encontrada.' : 'Carregando…'}</p>}
+              {cam ? <CameraPlayer key={cam.entityId} camera={cam} imagesOnly={LITE} /> : <p className="tv-empty">{cameras ? 'Câmera não encontrada.' : 'Carregando…'}</p>}
               {cam && <span className="tv-camname">{cam.name}</span>}
             </div>
             {cam?.ptz && (
