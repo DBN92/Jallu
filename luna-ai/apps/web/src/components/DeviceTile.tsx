@@ -1,3 +1,4 @@
+import { isSereno } from '../lib/theme';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Fan, Lightbulb, Plug, Power, Thermometer } from 'lucide-react';
 import type { DeviceDto } from '@luna/shared/types';
@@ -99,7 +100,7 @@ function BrightnessBar({ device, onLive }: { device: DeviceDto; onLive: (v: numb
 /** Cartão de aparelho (tela inicial e Minha casa): toque liga/desliga; luz com brilho tem a barra de arrastar. */
 export function DeviceTile({ device: d, index = 0 }: { device: DeviceDto; index?: number }) {
   const busy = useDevices((s) => s.busy[d.entityId]);
-  const sereno = useSettings((s) => s.theme) === 'sereno';
+  const sereno = isSereno(useSettings((s) => s.theme));
   const [liveBrightness, setLiveBrightness] = useState<number | null>(null);
   useEffect(() => setLiveBrightness(null), [d.brightness]);
   const Icon = iconFor(d);

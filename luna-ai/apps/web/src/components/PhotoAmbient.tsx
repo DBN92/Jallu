@@ -1,3 +1,4 @@
+import { isSereno } from '../lib/theme';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloudSun, Lightbulb, Video } from 'lucide-react';
@@ -18,7 +19,7 @@ let turn = 0;
 /** O descanso de tela do tema Sereno é de fotos em tela cheia (quando há fotos e elas estão escolhidas). */
 export function photoAmbientActive() {
   const s = useSettings.getState();
-  return s.theme === 'sereno' && s.ambientSlides.includes('photos') && !!usePhotos.getState().ids?.length;
+  return isSereno(s.theme) && s.ambientSlides.includes('photos') && !!usePhotos.getState().ids?.length;
 }
 
 /** Carrega a foto antes de mostrar (a troca nunca passa por tela vazia). Desiste após 6 s. */

@@ -1,5 +1,5 @@
 /** Temas visuais da Luna. “hud” é o visual original; os outros são os modernos (cantos arredondados). */
-export type ThemeId = 'hud' | 'sereno' | 'aurora' | 'neon' | 'grafite' | 'vidro';
+export type ThemeId = 'hud' | 'ceu' | 'sereno' | 'aurora' | 'neon' | 'grafite' | 'vidro';
 
 export interface ThemeInfo {
   id: ThemeId;
@@ -13,6 +13,7 @@ export interface ThemeInfo {
 }
 
 export const THEMES: ThemeInfo[] = [
+  { id: 'ceu', name: 'Céu', desc: 'O Sereno com o céu de fundo mudando com a hora e o tempo (sol, chuva, pôr do sol, noite)', fonts: 'Inter + Sora', swatch: ['#4f8fd6', '#e07a5f', '#ffc677', '#121d3d'], meta: '#0b0d12' },
   { id: 'sereno', name: 'Sereno', desc: 'Calmo e sólido, aparelhos animados e fotos em tela cheia no descanso', fonts: 'Inter + Sora', swatch: ['#0b0d12', '#151922', '#7dd3fc', '#a78bfa'], meta: '#0b0d12' },
   { id: 'aurora', name: 'Aurora', desc: 'Vidro escuro com brilhos ciano e violeta', fonts: 'Unbounded + Sora', swatch: ['#06070d', '#1a1d2b', '#22d3ee', '#8b5cf6'], meta: '#06070d' },
   { id: 'vidro', name: 'Vidro', desc: 'Cartões de vidro translúcido sobre fundo colorido', fonts: 'Inter', swatch: ['#2a1f6b', '#8f86c9', '#64d2ff', '#bf5af2'], meta: '#120e2b' },
@@ -23,12 +24,16 @@ export const THEMES: ThemeInfo[] = [
 
 export const DEFAULT_THEME: ThemeId = 'aurora';
 export const isModern = (t: ThemeId) => t !== 'hud';
+/** Temas que usam o visual Sereno (o Céu é o Sereno com o céu de fundo) */
+export const isSereno = (t: ThemeId) => t === 'sereno' || t === 'ceu';
 export const isTheme = (v: unknown): v is ThemeId => THEMES.some((t) => t.id === v);
 
 /** Aplica o tema no documento inteiro (CSS por data-theme) e avisa quem desenha em canvas. */
 export function applyTheme(id: ThemeId) {
   const root = document.documentElement;
-  root.dataset.theme = id;
+  // O Céu reaproveita todo o CSS do Sereno; a classe “sky” liga o céu de fundo
+  root.dataset.theme = id === 'ceu' ? 'sereno' : id;
+  root.classList.toggle('sky', id === 'ceu');
   const info = THEMES.find((t) => t.id === id)!;
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', info.meta);
   window.dispatchEvent(new CustomEvent('luna-theme', { detail: id }));

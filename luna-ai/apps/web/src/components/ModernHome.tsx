@@ -17,6 +17,7 @@ import { VacuumCard } from './VacuumCard';
 import { LitterCard } from './LitterCard';
 import { WasherCard } from './WasherCard';
 import { DeviceTile } from './DeviceTile';
+import { SkyTipChip } from './SkyBackdrop';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -269,6 +270,7 @@ export function ModernHome(p: ModernHomeProps) {
 
   const quick = (
     <div className="m-scroll -mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-1">
+      <SkyTipChip now={p.now} weather={p.weather} />
       <RecadosChips />
       <button className="m-chip" onClick={() => navigate('/listas')}>
         <ShoppingCart className="h-4 w-4" /> Compras{toBuy ? ` (${toBuy})` : ''}

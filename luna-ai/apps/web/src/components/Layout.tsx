@@ -6,6 +6,7 @@ import { useKioskMode } from '../hooks/useKioskMode';
 import { AnimatedBackground } from './AnimatedBackground';
 import { Bezel, Scene } from './Scene';
 import { CameraViewer } from './CameraViewer';
+import { SkyBackdrop } from './SkyBackdrop';
 import { useDevices } from '../stores/devices';
 
 export const NAV = [
@@ -35,6 +36,7 @@ export function Layout() {
   useKioskMode();
   return (
     <div className="app-bg layout-root relative flex h-full flex-col">
+      <SkyBackdrop />
       <Scene />
       <AnimatedBackground />
       <Bezel />

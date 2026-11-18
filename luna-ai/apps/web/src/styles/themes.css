@@ -371,3 +371,24 @@ html.calm-motion :is(.sv-anim, .sv-wind i, .sv-ph img, .sv-colon, .sv-rec, .sv-t
 .m-dim:focus-visible .m-dim-track { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-1) 60%, transparent); }
 /* enquanto arrasta, o cartão não “afunda” como num toque */
 html:not([data-theme='hud']) .m-tile:has(.m-dim.dragging), html:not([data-theme='hud']) .m-tile:has(.m-dim:active) { transform: none !important; filter: none !important; }
+
+/* ---------------- Céu (Sereno com o céu de fundo) ---------------- */
+.sky-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #0b0d12; }
+.sky-bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2.5s ease-in-out; }
+.sky-bg img.in { opacity: 1; }
+/* Sombra suave em cima (relógio) e embaixo (cartões e menu) para o texto branco ler bem até no céu claro */
+.sky-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5, 10, 20, var(--sky-top, 0.3)) 0%, rgba(5, 10, 20, var(--sky-mid, 0.08)) 38%, rgba(5, 10, 20, var(--sky-bot, 0.4)) 100%); }
+html[data-sky='manha'], html[data-sky='dia'] { --sky-top: 0.38; --sky-mid: 0.16; --sky-bot: 0.45; }
+html[data-sky='tarde'] { --sky-top: 0.25; --sky-mid: 0.05; --sky-bot: 0.4; }
+html[data-sky='noite'] { --sky-top: 0.15; --sky-mid: 0; --sky-bot: 0.3; }
+html.sky .app-bg { background: transparent; }
+html.sky[data-theme='sereno'] {
+  --card: rgba(13, 18, 30, 0.6); --card-solid: rgba(13, 18, 30, 0.82); --line: rgba(255, 255, 255, 0.12);
+}
+html.sky[data-sky='tarde'] { --card: rgba(34, 18, 40, 0.55); --card-solid: rgba(34, 18, 40, 0.82); --accent-1: #ffb35c; }
+html.sky[data-sky='noite'] { --card: rgba(12, 17, 34, 0.66); --card-solid: rgba(12, 17, 34, 0.86); --accent-1: #a5b4fc; }
+html.sky[data-sky='manha'] { --accent-1: #fcd34d; }
+html.sky .m-chip { background: rgba(13, 18, 30, 0.55); }
+html.sky .m-num, html.sky .m-label { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25); }
+.sky-tip { border-color: color-mix(in srgb, var(--accent-1) 55%, transparent) !important; }
+.sky-tip i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-1); flex: none; }

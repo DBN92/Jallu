@@ -1,3 +1,4 @@
+import { isSereno } from '../lib/theme';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Droplets, Lightbulb, Plug, Thermometer, ToggleLeft, Umbrella, Wind, Box, Disc3 } from 'lucide-react';
@@ -182,7 +183,7 @@ export function AmbientMode({ now, weather, onExit, hint, greet }: { now: Date; 
   }, []);
 
   // Tema Sereno: fotos em tela cheia
-  if (theme === 'sereno' && chosen.includes('photos') && hasPhotos) return <PhotoAmbient now={now} weather={weather} onExit={onExit} hint={hint} greet={greet} />;
+  if (isSereno(theme) && chosen.includes('photos') && hasPhotos) return <PhotoAmbient now={now} weather={weather} onExit={onExit} hint={hint} greet={greet} />;
 
   return createPortal(
     <div
