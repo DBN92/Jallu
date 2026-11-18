@@ -60,7 +60,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         AppDiag.init(prefs)
-        AppDiag.log("app aberto (onCreate) · Android ${Build.VERSION.RELEASE} · WebView ${try { android.webkit.WebView.getCurrentWebViewPackage()?.versionName } catch (_: Exception) { "?" }}")
+        AppDiag.log("app aberto (onCreate) · Android ${Build.VERSION.RELEASE} · WebView ${if (Build.VERSION.SDK_INT >= 26) try { android.webkit.WebView.getCurrentWebViewPackage()?.versionName } catch (_: Exception) { "?" } else "?"}")
         // Ao chegar alguém com a tela apagada, a Luna aparece por cima do bloqueio e acende a tela
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
         // Android 15 desenha o app por baixo das barras do sistema: quando elas estão à vista (ou o teclado
@@ -290,7 +290,7 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String) { AppDiag.log("página carregou: ${url.take(80)}"); if (moving) moveStep(view, url) }
             /** O navegador interno travou ou foi fechado pelo Android: recria a tela em vez de ficar preta */
             override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
-                AppDiag.log("navegador interno caiu (crash=${detail.didCrash()}): recriando a tela")
+                AppDiag.log("navegador interno caiu (crash=${if (Build.VERSION.SDK_INT >= 26) detail.didCrash() else "?"}): recriando a tela")
                 if (web === view) { web = null; view.destroy(); runOnUiThread { showWeb() } }
                 return true
             }

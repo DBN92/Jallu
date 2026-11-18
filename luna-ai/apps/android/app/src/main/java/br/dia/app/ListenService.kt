@@ -72,7 +72,7 @@ class ListenService : Service() {
                 return
             }
             try {
-                if (action == ACTION_STOP) ctx.startService(i) else ctx.startForegroundService(i)
+                if (action == ACTION_STOP) ctx.startService(i) else Compat.startForegroundService(ctx, i)
             } catch (e: Exception) {
                 // Android 12+ não deixa iniciar o microfone em segundo plano: abre o app para iniciar
                 status = "erro ao ligar a escuta: ${e.javaClass.simpleName}"
@@ -116,7 +116,7 @@ class ListenService : Service() {
             }
         }
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Escuta do chamado “Oi, Luna”", NotificationManager.IMPORTANCE_LOW))
+        Compat.channel(this, CHANNEL, "Escuta do chamado “Oi, Luna”", NotificationManager.IMPORTANCE_LOW)
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, notification("Preparando…"), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             else startForeground(NOTIF_ID, notification("Preparando…"))
@@ -750,7 +750,7 @@ class ListenService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val toggle = if (paused) ACTION_RESUME else ACTION_PAUSE
         val action = PendingIntent.getService(this, 1, Intent(this, ListenService::class.java).setAction(toggle), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return Notification.Builder(this, CHANNEL)
+        return Compat.builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_dia)
             .setContentTitle("Luna")
             .setContentText(text)

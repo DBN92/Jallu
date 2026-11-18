@@ -25,7 +25,7 @@ object AppUpdater {
     @Volatile private var running = false
     private var lastCheck = 0L
 
-    fun canInstall(ctx: Context) = ctx.packageManager.canRequestPackageInstalls()
+    fun canInstall(ctx: Context) = Compat.canInstallPackages(ctx)
 
     /** Confere se há versão nova (no máximo a cada 3 h, ou já se force) */
     fun check(ctx: Context, prefs: Prefs, force: Boolean = false) {

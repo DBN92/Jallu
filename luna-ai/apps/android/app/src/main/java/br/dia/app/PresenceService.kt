@@ -41,7 +41,7 @@ class PresenceService : Service() {
 
         fun start(ctx: Context) {
             if (running) return
-            try { ctx.startForegroundService(Intent(ctx, PresenceService::class.java)) } catch (_: Exception) {}
+            try { Compat.startForegroundService(ctx, Intent(ctx, PresenceService::class.java)) } catch (_: Exception) {}
         }
 
         fun stop(ctx: Context) {
@@ -73,8 +73,8 @@ class PresenceService : Service() {
         running = true
         instance = this
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Presença (acende a tela quando alguém chega)", NotificationManager.IMPORTANCE_MIN))
-        val n = Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_stat_dia).setContentTitle("Luna").setContentText("Percebe quando alguém chega perto da tela").setOngoing(true).build()
+        Compat.channel(this, CHANNEL, "Presença (acende a tela quando alguém chega)", NotificationManager.IMPORTANCE_MIN)
+        val n = Compat.builder(this, CHANNEL).setSmallIcon(R.drawable.ic_stat_dia).setContentTitle("Luna").setContentText("Percebe quando alguém chega perto da tela").setOngoing(true).build()
         try {
             if (Build.VERSION.SDK_INT >= 30) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA) else startForeground(NOTIF_ID, n)
         } catch (_: Exception) {

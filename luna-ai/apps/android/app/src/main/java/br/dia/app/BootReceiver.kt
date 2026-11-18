@@ -23,10 +23,10 @@ class BootReceiver : BroadcastReceiver() {
             try { ctx.startActivity(open); return } catch (_: Exception) {}
         }
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("inicio", "Abrir a Luna", NotificationManager.IMPORTANCE_DEFAULT))
+        Compat.channel(ctx, "inicio", "Abrir a Luna", NotificationManager.IMPORTANCE_DEFAULT)
         nm.notify(
             8,
-            Notification.Builder(ctx, "inicio")
+            Compat.builder(ctx, "inicio")
                 .setSmallIcon(R.drawable.ic_stat_dia)
                 .setContentTitle("Luna")
                 .setContentText("Toque para abrir a Luna e ligar o chamado “Oi, Luna”.")
