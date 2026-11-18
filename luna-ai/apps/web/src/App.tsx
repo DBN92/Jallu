@@ -12,6 +12,7 @@ import { useAssistant } from './stores/assistant';
 import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
+import { useDpadNav } from './hooks/useDpadNav';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
 import { useLists } from './stores/lists';
@@ -159,6 +160,9 @@ export default function App() {
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [orientation]);
+
+  // Controle remoto da TV nas telas antes do modo TV (login, sem conexão)
+  useDpadNav(tv && (status === 'login' || status === 'setup' || status === 'offline'));
 
   if (status === 'loading') return <Splash />;
   if (status === 'offline') {

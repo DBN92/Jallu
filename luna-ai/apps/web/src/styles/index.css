@@ -343,3 +343,6 @@ button { cursor: pointer; }
 /* No app Android: aviso parado (sem animação) */
 html.in-app .recado-alert::after, html.in-app .recado-alert-icon { animation: none; opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) { .recado-alert::after, .recado-alert-icon { animation: none; } }
+
+/* Controle remoto da TV (login e telas fora do modo TV): destaque bem visível no item selecionado */
+html.dpad :is(input, button, a, select, textarea, [tabindex]):focus { outline: 3px solid #22d3ee !important; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.25) !important; }
