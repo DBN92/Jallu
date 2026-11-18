@@ -56,7 +56,7 @@ export default defineConfig({
         // Avisos no celular (push): receber e abrir a tela certa ao tocar
         importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//, /^\/ws/, /^\/casa3d\.html/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/ws/, /^\/casa3d\.html/, /^\/apk\//],
         // Dados da API nunca são cacheados pelo service worker (privacidade e estado real)
         runtimeCaching: [],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
