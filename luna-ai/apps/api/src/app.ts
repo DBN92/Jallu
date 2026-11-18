@@ -48,6 +48,7 @@ import { watchRoutes } from './modules/watches/watches.routes';
 import { siriRoutes } from './modules/siri/siri.routes';
 import { tvRoutes } from './modules/tv/tv.routes';
 import { TvDuckService } from './modules/tv/tv-duck.service';
+import { TvPanelService } from './modules/tv/tv-panel.service';
 import { LitterService } from './modules/litter/litter.service';
 import { litterRoutes } from './modules/litter/litter.routes';
 import { WasherService } from './modules/washer/washer.service';
@@ -143,6 +144,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const webCameras = new WebCamerasService(dataDir);
   // Silencia a TV escolhida enquanto a Luna escuta (o microfone misturava a TV com o pedido)
   const tvDuck = new TvDuckService(ha, dataDir);
+  const tvPanel = new TvPanelService(db, devices, dataDir);
   cameras.setWeb(webCameras);
   void vacuumPhotos.init();
   const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
@@ -287,7 +289,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     if (piper.available) void piper.speak(text).catch(() => undefined);
   };
   if (!deps.disableWatchTimer) siri.startPrewarm((t) => piper.speak(t), () => piper.available, env.TZ);
-  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;

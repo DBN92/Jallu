@@ -14,6 +14,7 @@ import { DirectCameras } from '../components/DirectCameras';
 import { WebCameras } from '../components/WebCameras';
 import { TuyaCameras } from '../components/TuyaCameras';
 import { TvDuckSettings } from '../components/TvDuckSettings';
+import { TvPanelSettings } from '../components/TvPanelSettings';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -480,6 +481,10 @@ export default function SettingsPage() {
 
       <Section title="TV no mudo enquanto a Luna escuta">
         <TvDuckSettings isAdmin={isAdmin} />
+      </Section>
+
+      <Section title="Painel da TV (Fire TV)">
+        <TvPanelSettings isAdmin={isAdmin} />
       </Section>
 
       <Section title="Siri e Atalhos (iPhone)">

@@ -10,7 +10,7 @@ import { useTv } from '../stores/tv';
 import { useClock, useWeather } from '../hooks/useWeather';
 import { useHealth } from '../hooks/useHudData';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
-import { nextFocus, tvKey, type TvKey } from '../lib/tv';
+import { isLiteTv, nextFocus, tvKey, type TvKey } from '../lib/tv';
 import { STATE_LABEL } from '../lib/text';
 import { LunaOrb } from '../components/LunaOrb';
 import { CameraPlayer, CameraThumb } from '../components/CameraPlayer';
@@ -42,21 +42,7 @@ function nextRain(w: WeatherDto | null) {
 }
 
 /** Cenário 3D (cidade, piso, moldura) — desenhado uma vez. */
-/**
- * TV leve (Fire TV Stick e outros aparelhos fracos, e todos os temas modernos): sem cenário 3D, sem o globo
- * de partículas (canvas) e com as imagens das câmeras renovadas devagar. No Android 7 o navegador interno
- * roda dentro do app: faltando memória, o Android fechava a Luna inteira.
- */
-const LITE = (() => {
-  try {
-    const theme = document.documentElement.dataset.theme ?? 'hud';
-    const oldAndroid = /Android [4-9](\.|;)/.test(navigator.userAgent);
-    const lowMem = ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 2;
-    return theme !== 'hud' || oldAndroid || lowMem;
-  } catch {
-    return true;
-  }
-})();
+const LITE = isLiteTv();
 
 function TvScene() {
   const skyline = useMemo(() => {

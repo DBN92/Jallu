@@ -13,7 +13,7 @@ import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useDpadNav } from './hooks/useDpadNav';
-import { isTvDevice } from './lib/tv';
+import { isLiteTv, isTvDevice } from './lib/tv';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
 import { useLists } from './stores/lists';
@@ -44,6 +44,7 @@ const LitterPage = lazy(() => import('./pages/LitterPage'));
 const WasherPage = lazy(() => import('./pages/WasherPage'));
 const House3DPage = lazy(() => import('./pages/House3DPage'));
 const TvApp = lazy(() => import('./tv/TvApp'));
+const TvPanel = lazy(() => import('./tv/TvPanel'));
 
 /** Recarrega os aparelhos e guarda a fase atual dos aspiradores (base para detectar começou/terminou). */
 const loadDevices = () => useDevices.getState().load(true).then(() => useVacuumShow.getState().seed(Object.values(useDevices.getState().devices)));
@@ -181,7 +182,7 @@ export default function App() {
   if (tv)
     return (
       <Suspense fallback={<Splash />}>
-        <TvApp />
+        {isLiteTv() ? <TvPanel /> : <TvApp />}
         <GestureToast />
         <VacuumCelebration tv />
         <WasherDone tv />

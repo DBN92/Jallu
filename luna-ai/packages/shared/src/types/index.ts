@@ -525,3 +525,31 @@ export const HOUSE_AUTOMATIONS = [
 export type HouseAutomationId = (typeof HOUSE_AUTOMATIONS)[number]['id'];
 /** Vínculos salvos: id da maquete → entidade do Home Assistant (null = “nenhuma”, escolhido pelo administrador). */
 export type HouseLinksDto = Partial<Record<HouseAutomationId, string | null>>;
+
+/* ---------- Painel da TV (Fire TV: controle manual) ---------- */
+
+/** Um passo de cena: “lights” = todas as luzes; “room:sala” = luzes com “sala” no nome; ou um entity_id real. */
+export interface TvSceneStep {
+  target: string;
+  on: boolean;
+  /** Brilho (1–100) ao ligar uma luz que aceita brilho */
+  brightness?: number;
+}
+export type TvSceneIcon = 'film' | 'moon' | 'sun' | 'off' | 'bed' | 'spark';
+export interface TvSceneDto {
+  id: string;
+  name: string;
+  icon: TvSceneIcon;
+  /** Explicação curta mostrada no cartão */
+  hint: string;
+  steps: TvSceneStep[];
+}
+export interface TvPanelDto {
+  scenes: TvSceneDto[];
+  /** Cenas são as padrão (ninguém editou) */
+  scenesDefault: boolean;
+  /** Luzes/aparelhos do Início, na ordem */
+  favorites: string[];
+  /** true = escolhidas pelo histórico de uso; false = escolhidas à mão nos Ajustes */
+  favoritesAuto: boolean;
+}

@@ -8,6 +8,22 @@ export function isTvDevice(ua: string = typeof navigator !== 'undefined' ? navig
   return /\bAFT[A-Z0-9]{1,6}\b|Fire ?TV|Android ?TV|GoogleTV|Google TV|BRAVIA|SmartTV|SMART-TV|\bTV Safari\b|AppleTV|Tizen|Web0S|WebOS/i.test(ua);
 }
 
+/**
+ * TV leve (Fire TV Stick e outros aparelhos fracos, e todos os temas modernos): usa o painel simples
+ * (sem cenário 3D nem canvas). No Android 7 o navegador interno roda dentro do app: faltando memória,
+ * o Android fechava a Luna inteira.
+ */
+export function isLiteTv(): boolean {
+  try {
+    const theme = document.documentElement.dataset.theme ?? 'hud';
+    const oldAndroid = /Android [4-9](\.|;)/.test(navigator.userAgent);
+    const lowMem = ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 2;
+    return theme !== 'hud' || oldAndroid || lowMem;
+  } catch {
+    return true;
+  }
+}
+
 export type TvKey = 'up' | 'down' | 'left' | 'right' | 'ok' | 'back' | 'prev' | 'next' | 'play';
 
 /** Converte o evento de teclado em uma tecla do controle (null = não é do controle). */
