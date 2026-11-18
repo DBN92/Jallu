@@ -38,6 +38,22 @@ export function skyWeather(weather: WeatherDto | null): SkyWx {
   return 'limpo';
 }
 
+/** Efeito animado por cima do céu, pelo código WMO do tempo agora */
+export type SkyFx = 'nenhum' | 'garoa' | 'chuva' | 'tempestade' | 'neve' | 'neblina';
+export function skyFx(weather: WeatherDto | null): SkyFx {
+  const c = weather?.current.weatherCode;
+  if (c === undefined) return 'nenhum';
+  if (c >= 95) return 'tempestade';
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'neve';
+  if (c >= 51 && c <= 57) return 'garoa';
+  if ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) return 'chuva';
+  if (c === 45 || c === 48) return 'neblina';
+  return 'nenhum';
+}
+
+/** Ventando (rajada de folhas e nuvens mais rápidas) a partir de 25 km/h */
+export const skyWindy = (weather: WeatherDto | null) => (weather?.current.windSpeed ?? 0) >= 25;
+
 export const skyUrl = (p: SkyPhase, w: SkyWx) => `/sky/${p}-${w}.jpg`;
 
 export type SkyTipAction = 'boa-noite' | 'acender-sala';

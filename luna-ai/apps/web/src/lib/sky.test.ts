@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WeatherDto } from '@luna/shared/types';
-import { skyPhase, skyTip, skyWeather } from './sky';
+import { skyFx, skyPhase, skyTip, skyWeather, skyWindy } from './sky';
 
 const wx = (code: number, rainAt: number[] = []): WeatherDto =>
   ({
@@ -36,5 +36,19 @@ describe('tema Céu', () => {
     expect(skyTip(at(22), wx(0), { lightsOn: 3, salaOff: false })).toMatchObject({ action: 'boa-noite' });
     expect(skyTip(at(22), wx(0), { lightsOn: 0, salaOff: true })).toBeNull();
     expect(skyTip(at(14), wx(63), { lightsOn: 0, salaOff: true })?.text).toMatch(/janelas/);
+  });
+  it('efeitos: garoa, chuva, tempestade, neve, neblina e vento', () => {
+    expect(skyFx(wx(0))).toBe('nenhum');
+    expect(skyFx(wx(53))).toBe('garoa');
+    expect(skyFx(wx(63))).toBe('chuva');
+    expect(skyFx(wx(81))).toBe('chuva');
+    expect(skyFx(wx(95))).toBe('tempestade');
+    expect(skyFx(wx(73))).toBe('neve');
+    expect(skyFx(wx(45))).toBe('neblina');
+    expect(skyFx(null)).toBe('nenhum');
+    expect(skyWindy(wx(0))).toBe(false);
+    const w = wx(0);
+    w.current.windSpeed = 32;
+    expect(skyWindy(w)).toBe(true);
   });
 });

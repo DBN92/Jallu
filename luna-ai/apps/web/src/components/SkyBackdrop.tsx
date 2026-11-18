@@ -3,7 +3,8 @@ import type { WeatherDto } from '@luna/shared/types';
 import { useSettings } from '../stores/settings';
 import { useDevices } from '../stores/devices';
 import { useClock, useWeather } from '../hooks/useWeather';
-import { skyPhase, skyTip, skyUrl, skyWeather, type SkyPhase, type SkyWx } from '../lib/sky';
+import { skyFx, skyPhase, skyTip, skyUrl, skyWeather, skyWindy, type SkyFx, type SkyPhase, type SkyWx } from '../lib/sky';
+import { useSkyPreview } from '../stores/skyPreview';
 import { normalizeName } from '../lib/houseLinks';
 import { api, errorMessage } from '../services/api';
 
@@ -47,40 +48,66 @@ export function SkyBackdrop() {
 
 interface Scene {
   key: string;
+  /** Nome das imagens (fase-tempo) */
+  asset: string;
   phase: SkyPhase;
   wx: SkyWx;
+  fx: SkyFx;
+  windy: boolean;
 }
 
-function Sky() {
+/** Tempo de verdade, ou o da prévia escolhida nos Ajustes */
+function useSkyState() {
   const now = useClock();
   const { data: weather, reload } = useWeather('home');
+  const preview = useSkyPreview((s) => s.preview);
   // O tempo muda ao longo do dia: atualiza a cada 30 min
   useEffect(() => {
     const t = setInterval(() => void reload(), 30 * 60_000);
     return () => clearInterval(t);
   }, [reload]);
+  if (!preview) return { now, weather };
+  const at = new Date(now);
+  if (preview.hour !== undefined) at.setHours(preview.hour, 0, 0, 0);
+  const base = weather ?? ({ hourly: [], daily: [], current: {} } as unknown as WeatherDto);
+  return { now: at, weather: { ...base, current: { ...base.current, weatherCode: preview.code, windSpeed: preview.wind ?? 5 } } as WeatherDto };
+}
+
+function Sky() {
+  const { now, weather } = useSkyState();
   const phase = skyPhase(now, weather);
   const wx = skyWeather(weather);
-  const key = `${phase}-${wx}`;
-  const [layers, setLayers] = useState<(Scene & { n: number; shown: boolean })[]>([{ key, phase, wx, n: 0, shown: true }]);
+  const fx = skyFx(weather);
+  const windy = skyWindy(weather);
+  const asset = `${phase}-${wx}`;
+  const key = `${asset}-${fx}-${windy ? 'vento' : ''}`;
+  const [layers, setLayers] = useState<(Scene & { n: number; shown: boolean })[]>([{ key, asset, phase, wx, fx, windy, n: 0, shown: true }]);
   const n = useRef(0);
   const geo = useCover();
 
   useEffect(() => {
-    document.documentElement.dataset.sky = phase;
-  }, [phase]);
-  useEffect(() => () => void delete document.documentElement.dataset.sky, []);
+    const root = document.documentElement;
+    root.dataset.sky = phase;
+    root.dataset.skyFx = fx;
+  }, [phase, fx]);
+  useEffect(
+    () => () => {
+      delete document.documentElement.dataset.sky;
+      delete document.documentElement.dataset.skyFx;
+    },
+    [],
+  );
 
   // Troca de céu: carrega as camadas novas antes e faz o dissolve
   useEffect(() => {
     if (layers[layers.length - 1]?.key === key) return;
     let alive = true;
     const timers: number[] = [];
-    const urls = [skyUrl(phase, wx), `/sky/${key}-nuvens.webp`, `/sky/${key}-serra.webp`];
+    const urls = [skyUrl(phase, wx), `/sky/${asset}-nuvens.webp`, `/sky/${asset}-serra.webp`];
     void Promise.all(urls.map((u) => new Promise((ok) => Object.assign(new Image(), { onload: ok, onerror: ok, src: u })))).then(() => {
       if (!alive) return;
       const k = ++n.current;
-      setLayers((l) => [...l.slice(-1), { key, phase, wx, n: k, shown: false }]);
+      setLayers((l) => [...l.slice(-1), { key, asset, phase, wx, fx, windy, n: k, shown: false }]);
       timers.push(window.setTimeout(() => setLayers((l) => l.map((x) => (x.n === k ? { ...x, shown: true } : x))), 50));
       timers.push(window.setTimeout(() => setLayers((l) => l.filter((x) => x.n === k)), FADE_MS + 300));
     });
@@ -95,30 +122,78 @@ function Sky() {
   return (
     <div className="sky-bg" aria-hidden="true">
       {layers.map((l) => {
-        const sun = l.wx !== 'chuva' ? SUN[l.phase] : undefined;
+        const sun = l.wx !== 'chuva' && l.fx === 'nenhum' ? SUN[l.phase] : undefined;
         const cloudW = IW * 2 * s;
+        const night = l.phase === 'noite' ? 'dim' : '';
         return (
           <div key={l.n} className={`sky-scene ${l.shown ? 'in' : ''}`}>
             <img src={skyUrl(l.phase, l.wx)} alt="" decoding="async" style={box(0, IW, IH)} />
             {sun && <div className={`sky-rays ${l.wx === 'limpo' ? '' : 'faint'} ${l.phase}`} style={{ left: x0 + sun[0] * IW * s, top: y0 + sun[1] * IH * s }} />}
             <img
               className="sky-clouds"
-              src={`/sky/${l.key}-nuvens.webp`}
+              src={`/sky/${l.asset}-nuvens.webp`}
               alt=""
               decoding="async"
-              style={{ ...box(0, IW * 2, IH * CLOUD_H[l.wx]), ['--travel' as string]: `${Math.min(0, vw - x0 - cloudW)}px`, animationDuration: l.wx === 'chuva' ? '300s' : '420s' }}
+              style={{ ...box(0, IW * 2, IH * CLOUD_H[l.wx]), ['--travel' as string]: `${Math.min(0, vw - x0 - cloudW)}px`, animationDuration: l.windy ? '90s' : l.wx === 'chuva' ? '300s' : '420s' }}
             />
-            <img src={`/sky/${l.key}-serra.webp`} alt="" decoding="async" style={box(HILLS_Y, IW, IH - HILLS_Y)} />
-            {l.wx === 'chuva' && (
-              <div className={`sky-rain ${l.phase === 'noite' ? 'dim' : ''}`}>
+            {l.fx === 'tempestade' && <Lightning />}
+            <img src={`/sky/${l.asset}-serra.webp`} alt="" decoding="async" style={box(HILLS_Y, IW, IH - HILLS_Y)} />
+            {l.fx === 'neblina' && (
+              <div className="sky-fog">
+                <i className="a" />
+                <i className="b" />
+              </div>
+            )}
+            {(l.fx === 'chuva' || l.fx === 'tempestade' || l.fx === 'garoa') && (
+              <div className={`sky-rain ${night} ${l.fx}`}>
+                <i className="far" />
+                {l.fx !== 'garoa' && <i className="near" />}
+              </div>
+            )}
+            {l.fx === 'neve' && (
+              <div className={`sky-snow ${night}`}>
                 <i className="far" />
                 <i className="near" />
               </div>
             )}
+            {l.windy && <Wind leaves={l.fx === 'nenhum' || l.fx === 'neblina'} />}
           </div>
         );
       })}
       <div className="sky-scrim" />
+      <div className="sky-flash" />
+    </div>
+  );
+}
+
+/** Raio: um risco que aparece junto com o clarão (ver .sky-flash), em pontos que mudam a cada ciclo */
+function Lightning() {
+  const [spot, setSpot] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSpot((x) => (x + 1) % 3), 11_000);
+    return () => clearInterval(t);
+  }, []);
+  const left = ['22%', '64%', '41%'][spot];
+  return (
+    <svg className="sky-bolt" style={{ left }} viewBox="0 0 120 400" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M70 0 L58 60 L72 92 L50 150 L64 178 L38 252 L52 280 L30 400" />
+      <path d="M50 150 L28 196 L34 230" strokeWidth="2" />
+      <path d="M64 178 L88 226 L82 262 L96 300" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+/** Vento: riscos passando e algumas folhas voando */
+function Wind({ leaves }: { leaves: boolean }) {
+  return (
+    <div className="sky-wind">
+      <i className="streak" />
+      {leaves &&
+        [0, 1, 2, 3, 4, 5].map((k) => (
+          <svg key={k} className={`leaf l${k}`} viewBox="0 0 24 24">
+            <path d="M3 21C3 10 10 3 21 3c0 11-7 18-18 18zm0 0L14 10" />
+          </svg>
+        ))}
     </div>
   );
 }

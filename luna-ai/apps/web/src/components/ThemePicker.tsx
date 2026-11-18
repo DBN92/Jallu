@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import { THEMES } from '../lib/theme';
 import { useSettings } from '../stores/settings';
+import { useSkyPreview, type SkyPreview } from '../stores/skyPreview';
 
 /** Ajustes › Tema: troca o visual do app inteiro (fica salvo neste aparelho). */
 export function ThemePicker() {
@@ -59,7 +60,44 @@ export function ThemePicker() {
           </button>
         );
       })}
+      {theme === 'ceu' && <SkyPreviewChips />}
       <p className="text-xs text-white/40 sm:col-span-2">O tema muda o app inteiro (tela inicial, casa, câmeras, ajustes e modo TV) e fica salvo neste aparelho.</p>
+    </div>
+  );
+}
+
+const PREVIEWS: SkyPreview[] = [
+  { label: 'Sol', code: 0, hour: 10 },
+  { label: 'Nublado', code: 3, hour: 13 },
+  { label: 'Garoa', code: 53, hour: 9 },
+  { label: 'Chuva', code: 63, hour: 15 },
+  { label: 'Tempestade', code: 95, hour: 16 },
+  { label: 'Vento', code: 1, wind: 40, hour: 11 },
+  { label: 'Neblina', code: 45, hour: 7 },
+  { label: 'Neve', code: 73, hour: 12 },
+  { label: 'Pôr do sol', code: 1, hour: 18 },
+  { label: 'Noite', code: 0, hour: 23 },
+];
+
+/** Tema Céu: ver na hora como fica cada tempo (dura 1 minuto e volta ao tempo de verdade) */
+function SkyPreviewChips() {
+  const preview = useSkyPreview((s) => s.preview);
+  const show = useSkyPreview((s) => s.show);
+  return (
+    <div className="sm:col-span-2">
+      <p className="mb-2 text-xs text-white/55">Ver como fica (por 1 minuto, depois volta ao tempo de agora):</p>
+      <div className="flex flex-wrap gap-2">
+        {PREVIEWS.map((p) => (
+          <button key={p.label} type="button" onClick={() => show(preview?.label === p.label ? null : p)} aria-pressed={preview?.label === p.label} className={`rounded-full border px-3 py-1.5 text-xs ${preview?.label === p.label ? 'border-sky-300/60 bg-sky-300/20 text-white' : 'border-white/15 text-white/70'}`}>
+            {p.label}
+          </button>
+        ))}
+        {preview && (
+          <button type="button" onClick={() => show(null)} className="rounded-full px-3 py-1.5 text-xs text-sky-300 underline">
+            Voltar ao tempo de agora
+          </button>
+        )}
+      </div>
     </div>
   );
 }

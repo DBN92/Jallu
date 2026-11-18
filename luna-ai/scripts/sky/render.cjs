@@ -3,7 +3,8 @@
 //   <fase>-<tempo>.jpg         fundo (gradiente, sol, lua, estrelas) 1600×1000
 //   <fase>-<tempo>-nuvens.webp nuvens numa faixa larga e transparente (o app desliza devagar)
 //   <fase>-<tempo>-serra.webp  serra e neblina na frente das nuvens
-//   chuva-perto.png / chuva-longe.png  gotas que se repetem (o app faz cair)
+//   chuva-*.png, neve-*.png, neblina.webp, vento.png  quadros que se repetem (o app anima)
+// Só os quadros repetidos: node scripts/sky/render.cjs --tiles
 const path = require('node:path');
 const fs = require('node:fs');
 let chromium;
@@ -44,7 +45,8 @@ async function toWebp(page, png, scale, quality) {
     await p.waitForFunction(() => document.title === 'pronto');
     await p.waitForTimeout(200);
   };
-  for (const phase of ['manha', 'dia', 'tarde', 'noite'])
+  const onlyTiles = process.argv.includes('--tiles');
+  for (const phase of onlyTiles ? [] : ['manha', 'dia', 'tarde', 'noite'])
     for (const wx of ['limpo', 'nublado', 'chuva']) {
       await load(`phase=${phase}&wx=${wx}&layer=ceu`);
       save(`${phase}-${wx}.jpg`, await p.screenshot({ type: 'jpeg', quality: 82, clip: { x: 0, y: 0, width: 1600, height: 1000 } }));
@@ -85,6 +87,94 @@ async function toWebp(page, png, scale, quality) {
       { n, len, wid, alpha },
     );
     save(`${name}.png`, Buffer.from(b64, 'base64'));
+  }
+  // Neve: flocos macios (círculos com borda suave) num quadro que se repete
+  for (const [name, n, size, alpha] of [['neve-longe', 70, [1.5, 3], 0.7], ['neve-perto', 22, [3.5, 6.5], 0.9]]) {
+    const b64 = await p.evaluate(
+      ({ n, size, alpha }) => {
+        const c = document.createElement('canvas');
+        c.width = 256;
+        c.height = 512;
+        const g = c.getContext('2d');
+        let seed = 13;
+        const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        for (let i = 0; i < n; i++) {
+          const x = r() * 256, y = r() * 512, rad = size[0] + r() * (size[1] - size[0]), a = alpha * (0.6 + r() * 0.4);
+          for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 512], [0, -512]]) {
+            const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad);
+            gr.addColorStop(0, `rgba(255,255,255,${a})`);
+            gr.addColorStop(0.55, `rgba(255,255,255,${a * 0.75})`);
+            gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr;
+            g.beginPath();
+            g.arc(x + dx, y + dy, rad, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
+        return c.toDataURL('image/png').split(',')[1];
+      },
+      { n, size, alpha },
+    );
+    save(`${name}.png`, Buffer.from(b64, 'base64'));
+  }
+  // Neblina: faixa de névoa que se repete na horizontal (o app desliza)
+  {
+    const b64 = await p.evaluate(() => {
+      const c = document.createElement('canvas');
+      c.width = 1600;
+      c.height = 420;
+      const g = c.getContext('2d');
+      let seed = 21;
+      const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 70; i++) {
+        const x = r() * 1600, y = 120 + r() * 260, rx = 140 + r() * 260, a = 0.12 + r() * 0.14;
+        for (const dx of [-1600, 0, 1600]) {
+          const gr = g.createRadialGradient(x + dx, y, 0, x + dx, y, rx);
+          gr.addColorStop(0, `rgba(235,240,245,${a})`);
+          gr.addColorStop(1, 'rgba(235,240,245,0)');
+          g.fillStyle = gr;
+          g.save();
+          g.translate(x + dx, y);
+          g.scale(1, 0.35);
+          g.translate(-(x + dx), -y);
+          g.beginPath();
+          g.arc(x + dx, y, rx, 0, Math.PI * 2);
+          g.fill();
+          g.restore();
+        }
+      }
+      return c.toDataURL('image/webp', 0.7).split(',')[1];
+    });
+    save('neblina.webp', Buffer.from(b64, 'base64'));
+  }
+  // Vento: riscos finos e longos (passam rápido para a esquerda)
+  {
+    const b64 = await p.evaluate(() => {
+      const c = document.createElement('canvas');
+      c.width = 800;
+      c.height = 400;
+      const g = c.getContext('2d');
+      let seed = 5;
+      const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      g.lineCap = 'round';
+      for (let i = 0; i < 26; i++) {
+        const x = r() * 800, y = r() * 400, l = 120 + r() * 260, a = 0.12 + r() * 0.18;
+        for (const dx of [-800, 0, 800]) {
+          const gr = g.createLinearGradient(x + dx, 0, x + dx + l, 0);
+          gr.addColorStop(0, 'rgba(255,255,255,0)');
+          gr.addColorStop(0.5, `rgba(255,255,255,${a})`);
+          gr.addColorStop(1, 'rgba(255,255,255,0)');
+          g.strokeStyle = gr;
+          g.lineWidth = 1 + r() * 1.2;
+          g.beginPath();
+          g.moveTo(x + dx, y);
+          g.quadraticCurveTo(x + dx + l / 2, y - 6 + r() * 12, x + dx + l, y);
+          g.stroke();
+        }
+      }
+      return c.toDataURL('image/png').split(',')[1];
+    });
+    save('vento.png', Buffer.from(b64, 'base64'));
   }
   await b.close();
 })();
