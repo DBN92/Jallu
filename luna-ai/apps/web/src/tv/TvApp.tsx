@@ -42,6 +42,22 @@ function nextRain(w: WeatherDto | null) {
 }
 
 /** Cenário 3D (cidade, piso, moldura) — desenhado uma vez. */
+/**
+ * TV leve (Fire TV Stick e outros aparelhos fracos, e todos os temas modernos): sem cenário 3D, sem o globo
+ * de partículas (canvas) e com as imagens das câmeras renovadas devagar. No Android 7 o navegador interno
+ * roda dentro do app: faltando memória, o Android fechava a Luna inteira.
+ */
+const LITE = (() => {
+  try {
+    const theme = document.documentElement.dataset.theme ?? 'hud';
+    const oldAndroid = /Android [4-9](\.|;)/.test(navigator.userAgent);
+    const lowMem = ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 2;
+    return theme !== 'hud' || oldAndroid || lowMem;
+  } catch {
+    return true;
+  }
+})();
+
 function TvScene() {
   const skyline = useMemo(() => {
     let x = 0;
@@ -379,7 +395,7 @@ export default function TvApp() {
   const camCard = (c: CameraDto, i: number, ids: string[], live?: boolean, first?: boolean) => (
     <button key={c.entityId} className="tv-item" {...F(`cam:${c.entityId}`, first)} onClick={() => openCamera(ids, i)}>
       <div className="tv-cam">
-        <CameraThumb camera={c} everyMs={live ? 4000 : 8000} />
+        <CameraThumb camera={c} everyMs={LITE ? (live ? 30_000 : 10_000) : live ? 4000 : 8000} />
         {!c.available && <b className="tv-live" style={{ background: '#334155' }}>offline</b>}
         <span className="lbl">{c.name}</span>
       </div>
@@ -429,7 +445,7 @@ export default function TvApp() {
   const globe = (tags: boolean) => (
     <div className="tv-center">
       <div className="tv-radar" />
-      <LunaOrb state={remoteState} size={470} />
+      {LITE ? <div className={`tv-orb ${remoteState}`} aria-hidden="true" /> : <LunaOrb state={remoteState} size={470} />}
       {tags && (
         <>
           <div className="tv-tag" style={{ left: 0, top: '12%' }}>
@@ -635,9 +651,9 @@ export default function TvApp() {
   }
 
   return (
-    <div className="tv-root">
+    <div className={`tv-root ${LITE ? 'lite' : ''}`}>
       <div ref={stageRef} className="tv-stage" style={{ transform: `translate(${stage.x}px, ${stage.y}px) scale(${stage.scale})` }}>
-        <TvScene />
+        {!LITE && <TvScene />}
         {!camView && !saver && (
           <div className="tv-safe">
             <header className="tv-head">
@@ -761,7 +777,7 @@ function Saver({ now, weather, lightsOn, outletsOn, cameras }: { now: Date; weat
                 {(i % cameras.length) + 1}/{cameras.length}
               </i>
             </div>
-            <CameraThumb camera={cam} everyMs={4000} className="aspect-video w-full" />
+            <CameraThumb camera={cam} everyMs={LITE ? 15_000 : 4000} className="aspect-video w-full" />
           </div>
         )}
         <div style={{ marginTop: 24, textAlign: 'center', fontSize: 20, letterSpacing: '0.2em', color: 'rgba(0,229,255,.55)' }}>QUALQUER TECLA PARA VOLTAR</div>

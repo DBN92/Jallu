@@ -217,3 +217,72 @@ html:not([data-theme='hud']) .tv-live { border-radius: 999px; }
 html:not([data-theme='hud']) .tv-big { font-family: var(--font-display); font-weight: 300; text-shadow: none; color: var(--tx); }
 html:not([data-theme='hud']) .tv-reply { transform: translateX(-50%); animation: none; }
 html:not([data-theme='hud']) .tv-dots i.on { background: var(--accent-1); box-shadow: none; }
+
+/* ================= TV leve (Fire TV Stick): visual Sereno, sem 3D, sem brilho, sem desfoque =================
+ * Tudo sólido e plano: só o item selecionado ganha contorno e um leve zoom. Nada de sombra/filtro/máscara —
+ * cada efeito desses custa memória de vídeo, que na Fire TV Stick (1 GB) fazia o Android fechar a Luna. */
+.tv-root.lite {
+  --bg: #0b0d12; --card: #151922; --card2: #1b2130; --line: rgba(255, 255, 255, 0.08); --tx: #eef1f6; --muted: #9aa3b5;
+  --accent-1: #7dd3fc; --accent-2: #a78bfa; --warm: #fbbf24;
+  background: var(--bg);
+}
+.tv-root.lite * { text-shadow: none !important; box-shadow: none !important; filter: none !important; }
+.tv-root.lite .tv-stage { background: var(--bg); color: var(--tx); font-family: 'Inter', 'Sora', sans-serif; }
+.tv-root.lite :is(.tv-mid, .tv-camrow, .tv-camgrid, .tv-camfull, .tv-saver) { perspective: none; }
+.tv-root.lite :is(.tv-col, .tv-col.l, .tv-col.r, .tv-col.r.soft, .tv-grid, .tv-camrow .tilt, .tv-camgrid .tv-grid, .tv-saver .l, .tv-saver .r, .tv-pad, .tv-screen, .tv-panel, .tv-item) { transform: none; transform-style: flat; }
+.tv-root.lite .tv-panel { clip-path: none; border-radius: 28px; border: 1px solid var(--line); background: var(--card); }
+.tv-root.lite .tv-panel::before, .tv-root.lite .tv-panel::after { display: none; }
+.tv-root.lite .tv-h { color: var(--muted); letter-spacing: 0.14em; font-weight: 600; }
+.tv-root.lite .tv-h i { color: var(--muted); opacity: 0.5; }
+.tv-root.lite :is(.tv-tile, .tv-cam) { clip-path: none; border-radius: 22px; border: 3px solid transparent; background: var(--card2); }
+.tv-root.lite .tv-tile { height: 132px; }
+.tv-root.lite .tv-tile svg { color: var(--muted); }
+.tv-root.lite .tv-tile .n { color: var(--tx); }
+.tv-root.lite .tv-tile .s { color: var(--muted); letter-spacing: 0.04em; text-transform: none; }
+.tv-root.lite .tv-tile.on { background: #2a2414; border-color: rgba(251, 191, 36, 0.55); }
+.tv-root.lite .tv-tile.on svg { color: var(--warm); }
+.tv-root.lite .tv-tile.on .s { color: #fde68a; }
+/* foco: contorno claro e zoom pequeno (só transform: barato para a TV) */
+.tv-root.lite .tv-item { transition: transform 0.12s ease-out; will-change: transform; }
+.tv-root.lite .tv-item[data-focused] { transform: scale(1.05); }
+.tv-root.lite .tv-item[data-focused] > :is(.tv-tile, .tv-cam) { border-color: var(--accent-1); }
+.tv-root.lite .tv-tab { border-radius: 999px; border: 2px solid transparent; color: var(--muted); letter-spacing: 0.04em; text-transform: none; }
+.tv-root.lite .tv-tab.on { color: #0b0d12; background: var(--accent-1); font-weight: 600; }
+.tv-root.lite .tv-tab[data-focused] { color: var(--tx); border-color: var(--tx); background: rgba(255, 255, 255, 0.08); }
+.tv-root.lite .tv-tab.on[data-focused] { color: #0b0d12; background: var(--accent-1); border-color: #fff; }
+.tv-root.lite .tv-pill { clip-path: none; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--tx); letter-spacing: 0.04em; text-transform: none; }
+.tv-root.lite .tv-brand p { font-family: inherit; letter-spacing: 0.3em; color: var(--muted); font-size: 20px; }
+.tv-root.lite .tv-brand b { font-family: 'Sora', 'Inter', sans-serif; font-weight: 300; color: var(--tx); }
+.tv-root.lite .tv-brand span { color: var(--muted); letter-spacing: 0.06em; text-transform: none; }
+.tv-root.lite .tv-tag { border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--tx); letter-spacing: 0.04em; text-transform: none; }
+.tv-root.lite .tv-state { color: var(--muted); letter-spacing: 0.2em; font-family: inherit; bottom: 70px; }
+.tv-root.lite .tv-bar { text-transform: none; letter-spacing: 0.04em; color: var(--muted); }
+.tv-root.lite .tv-bar .tr { border-radius: 9px; background: rgba(255, 255, 255, 0.08); }
+.tv-root.lite .tv-bar .fl { border-radius: 9px; background: var(--accent-1); }
+.tv-root.lite .tv-bar .fl.warn { background: #fb7185; }
+.tv-root.lite .tv-bar span:last-child { font-family: 'Sora', 'Inter', sans-serif; color: var(--tx); }
+.tv-root.lite .tv-env div { border-radius: 18px; border: 0; background: var(--card2); }
+.tv-root.lite .tv-env b { font-family: 'Sora', 'Inter', sans-serif; font-weight: 300; color: var(--tx); }
+.tv-root.lite :is(.tv-env small, .tv-small, .tv-sec) { color: var(--muted); letter-spacing: 0.06em; text-transform: none; }
+.tv-root.lite .tv-camfull { background: var(--bg); }
+.tv-root.lite .tv-screen { border-radius: 28px; border: 1px solid var(--line); }
+.tv-root.lite .tv-camname { border-radius: 999px; border: 1px solid var(--line); background: var(--card); letter-spacing: 0.04em; text-transform: none; }
+.tv-root.lite .tv-pad { border: 1px solid var(--line); background: var(--card); }
+.tv-root.lite .tv-pad i { color: var(--tx); }
+.tv-root.lite .tv-pad b { border-color: var(--accent-1); letter-spacing: 0.06em; }
+.tv-root.lite .tv-key { border-radius: 12px; border-color: var(--line); color: var(--tx); font-family: inherit; }
+.tv-root.lite .tv-hint { color: var(--muted); }
+.tv-root.lite .tv-live { border-radius: 999px; }
+.tv-root.lite .tv-big { font-family: 'Sora', 'Inter', sans-serif; font-weight: 300; color: var(--tx); }
+.tv-root.lite .tv-reply { transform: translateX(-50%); animation: none; }
+.tv-root.lite .tv-dots i { background: rgba(255, 255, 255, 0.2); }
+.tv-root.lite .tv-dots i.on { background: var(--accent-1); }
+.tv-root.lite .tv-toast { border-radius: 999px; }
+.tv-root.lite .tv-saver { transition: none; }
+.tv-root.lite .tv-fade { animation: none; }
+
+/* Luna leve: uma esfera de cor no lugar do globo de partículas; só “respira” quando está ouvindo/falando */
+.tv-orb { width: 380px; height: 380px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 38%), conic-gradient(from 200deg, #7dd3fc, #a78bfa, #f0abfc, #7dd3fc); opacity: 0.9; }
+.tv-orb.listening, .tv-orb.speaking, .tv-orb.processing, .tv-orb.acting { animation: tv-breathe 1.4s ease-in-out infinite; will-change: transform; }
+.tv-orb.error { opacity: 0.5; }
+@keyframes tv-breathe { 50% { transform: scale(1.07); } }
