@@ -13,6 +13,7 @@ import { useAuth } from './stores/auth';
 import { useDevices } from './stores/devices';
 import { tvActive, useSettings } from './stores/settings';
 import { useDpadNav } from './hooks/useDpadNav';
+import { isTvDevice } from './lib/tv';
 import { useCameras } from './stores/cameras';
 import { useRecados } from './stores/recados';
 import { useLists } from './stores/lists';
@@ -161,8 +162,9 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [orientation]);
 
-  // Controle remoto da TV nas telas antes do modo TV (login, sem conexão)
-  useDpadNav(tv && (status === 'login' || status === 'setup' || status === 'offline'));
+  // Controle remoto da TV nas telas fora do modo TV (login, sem conexão e a visão normal num aparelho de TV)
+  const tvDevice = isTvDevice();
+  useDpadNav((tv && (status === 'login' || status === 'setup' || status === 'offline')) || (tvDevice && !tv));
 
   if (status === 'loading') return <Splash />;
   if (status === 'offline') {
@@ -188,6 +190,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {tvDevice && <BackToTv />}
       <GestureToast />
       <RecadosLayer />
       <DimOverlay />
@@ -220,5 +223,19 @@ export default function App() {
         </Routes>
       </Suspense>
     </BrowserRouter>
+  );
+}
+
+/** Numa TV fora do modo TV: botão já selecionado para voltar (o controle não alcança o menu de ajustes fácil) */
+function BackToTv() {
+  const setTvMode = useSettings((s) => s.setTvMode);
+  return (
+    <button
+      autoFocus
+      onClick={() => setTvMode('auto')}
+      className="fixed top-3 right-3 z-[90] flex items-center gap-2 rounded-full bg-cyan-400 px-5 py-3 text-base font-semibold text-[#06070d] shadow-lg"
+    >
+      📺 Voltar para a visão TV
+    </button>
   );
 }

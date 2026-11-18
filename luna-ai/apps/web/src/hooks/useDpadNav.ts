@@ -9,7 +9,7 @@ const visible = (el: HTMLElement) => {
 };
 
 /**
- * Controle remoto (Fire TV / Android TV) nas telas fora do modo TV — login e “sem conexão”. O navegador
+ * Controle remoto (Fire TV / Android TV) nas telas fora do modo TV — login, “sem conexão” e a visão normal. O navegador
  * da TV não anda sozinho entre os campos: as setas levam ao campo/botão mais próximo naquela direção
  * (com destaque visível), e o OK abre o teclado no campo ou aperta o botão.
  */
@@ -20,7 +20,8 @@ export function useDpadNav(enabled: boolean) {
     const items = () => [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(visible);
     // começa no primeiro campo
     const t = setTimeout(() => {
-      if (!document.activeElement || document.activeElement === document.body || !(document.activeElement as HTMLElement).matches?.('input, textarea')) {
+      // só quando nada está selecionado (um botão com autoFocus, ex.: “Voltar para a visão TV”, fica)
+      if (!document.activeElement || document.activeElement === document.body) {
         const list = items();
         (list.find((el) => el.tagName === 'INPUT') ?? list[0])?.focus();
       }
