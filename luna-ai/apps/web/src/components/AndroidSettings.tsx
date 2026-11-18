@@ -3,6 +3,7 @@ import { api, errorMessage } from '../services/api';
 import { nativeApp, nativeStatus, type NativeStatus } from '../lib/native';
 import { AppUpdateSettings } from './AppUpdateSettings';
 import { VoiceIdSettings } from './VoiceIdSettings';
+import { FireTvInstall } from './FireTvInstall';
 import { Banner, Button, Toggle } from './ui';
 
 interface ApkInfo {
@@ -59,6 +60,7 @@ export function AndroidSettings() {
               <li>No app, informe o endereço da Luna (o mesmo do navegador) e entre com seu usuário.</li>
               <li>Volte aqui em Configurações › App Android e ligue o chamado “Oi, Luna”.</li>
             </ol>
+            <FireTvInstall />
           </>
         ) : (
           <p className="text-white/40">O app Android ainda não está disponível neste servidor. Atualize a Luna.</p>

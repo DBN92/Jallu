@@ -24,6 +24,17 @@ describe('App Android (tablet)', () => {
     expect((await ctx.app.inject({ method: 'GET', url: '/api/android/apk', headers: { authorization: 'Bearer luna_tokeninvalido0000000000000' } })).statusCode).toBe(401);
   });
 
+  it('Fire TV: link curto e temporário para baixar o app sem login (só quem está logado gera)', async () => {
+    ctx = await makeApp();
+    expect((await ctx.app.inject({ method: 'POST', url: '/api/android/download-link' })).statusCode).toBe(401);
+    const link = (await ctx.inject('POST', '/api/android/download-link')).json;
+    expect(link.path).toMatch(/^\/apk\/[A-Z2-9]{5}$/);
+    const r = await ctx.app.inject({ method: 'GET', url: link.path.toLowerCase() }); // digitado em minúsculas no controle
+    expect(r.statusCode).toBe(200);
+    expect(r.rawPayload.subarray(0, 2).toString()).toBe('PK');
+    expect((await ctx.app.inject({ method: 'GET', url: '/apk/ZZZZZ' })).statusCode).toBe(404);
+  });
+
   it('avisa quando o servidor não tem o APK', async () => {
     ctx = await makeApp({ LUNA_ANDROID_DIST: '/nonexistent' });
     expect((await ctx.inject('GET', '/api/android/version')).status).toBe(404);

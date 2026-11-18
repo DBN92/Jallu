@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Faixa do app na tela inicial da Fire TV / Android TV (320×180): a onda da Luna sobre o fundo escuro -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp" android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#0B0D18" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#00000000" android:strokeColor="#22D3EE" android:strokeWidth="9" android:strokeLineCap="round"
+        android:pathData="M70,90C88,52 106,52 124,90S160,128 178,90S214,52 250,90" />
+    <path android:fillColor="#00000000" android:strokeColor="#8B5CF6" android:strokeWidth="6" android:strokeLineCap="round" android:strokeAlpha="0.85"
+        android:pathData="M70,90C94,116 112,116 136,90S172,64 196,90S226,108 250,90" />
+</vector>
