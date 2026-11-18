@@ -19,6 +19,7 @@ import { LitterCard } from './LitterCard';
 import { WasherCard } from './WasherCard';
 import { DeviceTile } from './DeviceTile';
 import { SkyTipChip } from './SkyBackdrop';
+import { SkyHome } from './SkyHome';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -63,8 +64,14 @@ export interface ModernHomeProps {
   gesturesOn: boolean;
 }
 
-/** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da Luna e controles diretos. */
+/** Tela inicial dos temas modernos; no tema Céu, a versão minimalista (SkyHome). */
 export function ModernHome(p: ModernHomeProps) {
+  const ceu = useSettings((s) => s.theme) === 'ceu';
+  return ceu ? <SkyHome {...p} /> : <ModernHomeCards {...p} />;
+}
+
+/** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da Luna e controles diretos. */
+function ModernHomeCards(p: ModernHomeProps) {
   const navigate = useNavigate();
   // Tema Céu: sem o globo de partículas (o céu já anima o fundo; poupa o tablet)
   const noOrb = useSettings((s) => s.theme) === 'ceu';
