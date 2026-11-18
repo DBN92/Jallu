@@ -384,9 +384,9 @@ html:not([data-theme='hud']) .m-tile:has(.m-dim.dragging), html:not([data-theme=
 .sky-rays { position: absolute; width: 1500px; height: 1500px; margin: -750px 0 0 -750px; pointer-events: none; opacity: 0.9;
   -webkit-mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 100%); mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 100%); }
 .sky-rays::before, .sky-rays::after { content: ''; position: absolute; inset: 0; border-radius: 50%; will-change: transform; }
-.sky-rays::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 246, 214, 0.16) 2.5deg, transparent 5deg, transparent 12deg); animation: sky-spin 160s linear infinite; }
-.sky-rays::after { background: repeating-conic-gradient(from 5deg, transparent 0deg, rgba(255, 238, 200, 0.1) 4deg, transparent 8deg, transparent 19deg); animation: sky-spin 230s linear infinite reverse, sky-pulse 9s ease-in-out infinite alternate; }
-.sky-rays.tarde::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 196, 140, 0.18) 2.5deg, transparent 5deg, transparent 12deg); }
+.sky-rays::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 221, 90, 0.2) 2.5deg, transparent 5deg, transparent 12deg); animation: sky-spin 160s linear infinite; }
+.sky-rays::after { background: repeating-conic-gradient(from 5deg, transparent 0deg, rgba(255, 210, 80, 0.13) 4deg, transparent 8deg, transparent 19deg); animation: sky-spin 230s linear infinite reverse, sky-pulse 9s ease-in-out infinite alternate; }
+.sky-rays.tarde::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 178, 70, 0.22) 2.5deg, transparent 5deg, transparent 12deg); }
 .sky-rays.faint { opacity: 0.35; }
 @keyframes sky-spin { to { transform: rotate(360deg); } }
 @keyframes sky-pulse { from { opacity: 0.4; } to { opacity: 1; } }

@@ -14,9 +14,9 @@ const show = (k) => layer === 'tudo' || layer === k;
 const H = 1000, W = layer === 'nuvens' ? 3200 : 1600;
 if (layer !== 'ceu' && layer !== 'tudo') document.body.style.background = 'transparent';
 const P = {
-  manha: { sky: ['#4f8fd6', '#8cc3ef', '#cfe6f7', '#fbefd9'], sun: [0.73, 0.15, '#fffbe8', 300], light: '#ffffff', shade: '#9db3c9', az: 225, el: 38, hills: ['#6f8fa3', '#4f7a5f', '#2f5a3c'], haze: '#cfe6f7', hz: 0.55, gray: '#aab4bf' },
-  dia: { sky: ['#2f6fc4', '#5b9fe0', '#a6d0f2', '#e2f0fa'], sun: [0.86, 0.08, '#ffffff', 260], light: '#ffffff', shade: '#8ea6bf', az: 240, el: 60, hills: ['#7a95a8', '#4d7b5a', '#2c5838'], haze: '#c6e1f5', hz: 0.5, gray: '#9ea9b4' },
-  tarde: { sky: ['#2b2d5c', '#7a4a7a', '#e07a5f', '#ffc677'], sun: [0.5, 0.75, '#ffe2a8', 520], light: '#ffb98a', shade: '#5a3a63', az: 190, el: 12, hills: ['#6b4560', '#3e2a45', '#1d1426'], haze: '#e98a6a', hz: 0.45, gray: '#6e6170' },
+  manha: { sky: ['#4f8fd6', '#8cc3ef', '#cfe6f7', '#fbefd9'], sun: [0.73, 0.15, '#ffe14d', 330], light: '#ffffff', shade: '#9db3c9', az: 225, el: 38, hills: ['#6f8fa3', '#4f7a5f', '#2f5a3c'], haze: '#cfe6f7', hz: 0.55, gray: '#aab4bf' },
+  dia: { sky: ['#2f6fc4', '#5b9fe0', '#a6d0f2', '#e2f0fa'], sun: [0.86, 0.08, '#ffe54a', 300], light: '#ffffff', shade: '#8ea6bf', az: 240, el: 60, hills: ['#7a95a8', '#4d7b5a', '#2c5838'], haze: '#c6e1f5', hz: 0.5, gray: '#9ea9b4' },
+  tarde: { sky: ['#2b2d5c', '#7a4a7a', '#e07a5f', '#ffc677'], sun: [0.5, 0.75, '#ffb23a', 520], light: '#ffb98a', shade: '#5a3a63', az: 190, el: 12, hills: ['#6b4560', '#3e2a45', '#1d1426'], haze: '#e98a6a', hz: 0.45, gray: '#6e6170' },
   noite: { sky: ['#03050c', '#08102a', '#121d3d', '#1f2c52'], moon: [0.62, 0.15], light: '#3e4b6a', shade: '#0a0f20', az: 110, el: 30, hills: ['#18213a', '#0e1426', '#06090f'], haze: '#1a2547', hz: 0.3, gray: '#1c2230' },
 }[phase];
 const C = { limpo: { cover: [3.4, -1.68], gray: 0, op: 0.95, h: 0.47 }, nublado: { cover: [2.8, -0.85], gray: 0.45, op: 1, h: 0.62 }, chuva: { cover: [2.4, -0.55], gray: 0.72, op: 1, h: 1 } }[wx];
@@ -30,7 +30,7 @@ let defs = `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">${sky.map((c, i
 let body = show('ceu') ? `<rect width="${W}" height="${H}" fill="url(#sky)"/>` : '';
 if (show('ceu') && phase === 'noite') for (let i = 0; i < (wx === 'limpo' ? 330 : wx === 'nublado' ? 90 : 0); i++) { const z = r(); body += `<circle cx="${(r() * W) | 0}" cy="${(r() * H * 0.62) | 0}" r="${(0.5 + z * z * 1.9).toFixed(2)}" fill="#fff" opacity="${(0.25 + r() * 0.7).toFixed(2)}"/>`; }
 if (show('ceu') && P.sun && wx !== 'chuva') { const [x, y, c, rad] = P.sun; const o = wx === 'limpo' ? 1 : 0.45;
-  defs += `<radialGradient id="sun"><stop offset="0" stop-color="#fff" stop-opacity="${o}"/><stop offset=".08" stop-color="${c}" stop-opacity="${0.9 * o}"/><stop offset=".25" stop-color="${c}" stop-opacity="${0.35 * o}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+  defs += `<radialGradient id="sun"><stop offset="0" stop-color="#fffbe0" stop-opacity="${o}"/><stop offset=".06" stop-color="${c}" stop-opacity="${o}"/><stop offset=".1" stop-color="${c}" stop-opacity="${o}"/><stop offset=".13" stop-color="${c}" stop-opacity="${0.55 * o}"/><stop offset=".3" stop-color="${c}" stop-opacity="${0.2 * o}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
   body += `<circle cx="${x * W}" cy="${y * H}" r="${rad}" fill="url(#sun)"/>`; }
 if (show('ceu') && P.moon && wx !== 'chuva') { const [x, y] = P.moon; const o = wx === 'limpo' ? 1 : 0.5;
   defs += `<radialGradient id="mg"><stop offset="0" stop-color="#dfe6ff" stop-opacity=".35"/><stop offset="1" stop-color="#dfe6ff" stop-opacity="0"/></radialGradient>
