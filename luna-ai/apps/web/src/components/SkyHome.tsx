@@ -118,28 +118,115 @@ export function SkyHome(p: ModernHomeProps) {
     flash(err ?? (going ? 'Aspirador voltando para a base' : 'Aspirador começou'));
   };
 
-  /* ---------- gaveta: arrastar ou tocar na alça ---------- */
-  const drag = useRef<{ y: number; moved: boolean } | null>(null);
-  const [dy, setDy] = useState(0);
+  /* ---------- gaveta: arrastar ou tocar na alça ----------
+   * O arraste mexe direto no estilo da gaveta (sem redesenhar a tela pelo React a cada movimento),
+   * um quadro por vez; ao soltar, decide pela velocidade (um “peteleco” já abre/fecha) ou pela posição. */
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dimRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; base: number; max: number; pos: number; lastY: number; lastT: number; v: number; moved: boolean; raf: number } | null>(null);
+  const paint = () => {
+    const d = drag.current;
+    const el = sheetRef.current;
+    if (!d || !el) return;
+    d.raf = 0;
+    el.style.transform = `translate3d(0, ${d.pos}px, 0)`;
+    if (dimRef.current) dimRef.current.style.opacity = String(1 - d.pos / d.max);
+  };
   const onDown = (e: RPointerEvent) => {
-    drag.current = { y: e.clientY, moved: false };
+    const el = sheetRef.current;
+    if (!el) return;
+    const base = new DOMMatrixReadOnly(getComputedStyle(el).transform).m42;
+    drag.current = { y0: e.clientY, base, max: Math.max(1, el.offsetHeight - 72), pos: base, lastY: e.clientY, lastT: e.timeStamp, v: 0, moved: false, raf: 0 };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const onMove = (e: RPointerEvent) => {
-    if (!drag.current) return;
-    const d = e.clientY - drag.current.y;
-    if (Math.abs(d) > 6) drag.current.moved = true;
-    setDy(sheet ? Math.max(0, d) : Math.min(0, d));
+    const d = drag.current;
+    const el = sheetRef.current;
+    if (!d || !el) return;
+    const dy = e.clientY - d.y0;
+    if (!d.moved && Math.abs(dy) > 4) {
+      d.moved = true;
+      el.style.transition = 'none';
+      if (dimRef.current) {
+        dimRef.current.style.transition = 'none';
+        dimRef.current.style.visibility = 'visible';
+      }
+    }
+    if (!d.moved) return;
+    const dt = Math.max(1, e.timeStamp - d.lastT);
+    d.v = d.v * 0.6 + ((e.clientY - d.lastY) / dt) * 0.4;
+    d.lastY = e.clientY;
+    d.lastT = e.timeStamp;
+    d.pos = Math.min(d.max, Math.max(0, d.base + dy));
+    if (!d.raf) d.raf = requestAnimationFrame(paint);
   };
   const onUp = () => {
     const d = drag.current;
     drag.current = null;
     if (!d) return;
-    if (!d.moved) setSheet((s) => !s);
-    else if (dy < -50) setSheet(true);
-    else if (dy > 50) setSheet(false);
-    setDy(0);
+    if (d.raf) cancelAnimationFrame(d.raf);
+    if (!d.moved) {
+      setSheet((s) => !s);
+      return;
+    }
+    const open = d.v < -0.3 ? true : d.v > 0.3 ? false : d.pos < d.max / 2;
+    const el = sheetRef.current;
+    if (el) {
+      el.style.transition = '';
+      el.style.transform = '';
+    }
+    if (dimRef.current) {
+      dimRef.current.style.transition = '';
+      dimRef.current.style.opacity = '';
+      dimRef.current.style.visibility = '';
+    }
+    setSheet(open);
   };
+
+  // Conteúdo da gaveta não muda ao abrir/fechar: não é refeito no meio da animação
+  const sheetBody = useMemo(
+    () => (
+        <div className="sh-body m-scroll">
+          <form onSubmit={p.onSubmit} className="m-input mb-4">
+            <input ref={p.inputRef} value={p.text} onChange={(e) => p.setText(e.target.value)} placeholder="Escreva para a Luna…" enterKeyHint="send" autoComplete="off" maxLength={4000} />
+            {p.text.trim() && (
+              <button type="submit" aria-label="Enviar">
+                <SendHorizontal className="h-5 w-5" />
+              </button>
+            )}
+          </form>
+          <div className="sh-sec">
+            <span>Luzes e aparelhos</span>
+            <button onClick={() => navigate('/casa')}>
+              ver todos <ChevronRight className="inline h-4 w-4" />
+            </button>
+          </div>
+          <div className="sh-tiles">
+            {fav.map((d, i) => (
+              <DeviceTile key={d.entityId} device={d} index={i} />
+            ))}
+          </div>
+          <div className="sh-sec">
+            <span>Casa</span>
+          </div>
+          <div className="sh-cards">
+            <GarageCard />
+            <VacuumCard />
+            <LitterCard />
+            <WasherCard />
+          </div>
+          <nav className="sh-nav">
+            {NAV.filter((n) => n.to !== '/').map(({ to, label, icon: Icon }) => (
+              <NavLink key={to} to={to}>
+                <Icon className="h-5 w-5" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+    ),
+    [fav, p.text, p.onSubmit, p.setText, p.inputRef, navigate],
+  );
 
   const chatOpen = p.hasChat || p.state !== 'idle';
   const listening = p.micActive || p.state === 'listening' || p.state === 'speaking';
@@ -236,50 +323,13 @@ export function SkyHome(p: ModernHomeProps) {
       {toast && <div className="sh-toast">{toast}</div>}
 
       {/* Gaveta */}
-      {sheet && <div className="sh-dim" onClick={() => setSheet(false)} />}
-      <div className={`sh-sheet m-card ${sheet ? 'open' : ''}`} style={dy ? { transform: `translateY(calc(var(--sh-y) + ${dy}px))`, transition: 'none' } : undefined}>
+      <div ref={dimRef} className={`sh-dim ${sheet ? 'on' : ''}`} onClick={() => setSheet(false)} />
+      <div ref={sheetRef} className={`sh-sheet m-card ${sheet ? 'open' : ''}`}>
         <div className="sh-handle" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} role="button" aria-label={sheet ? 'Fechar gaveta' : 'Abrir gaveta: casa, aparelhos e menu'}>
           <i />
-          {!sheet && <span>Arraste para cima: casa, aparelhos e menu</span>}
+          <span>Arraste para cima: casa, aparelhos e menu</span>
         </div>
-        <div className="sh-body m-scroll">
-          <form onSubmit={p.onSubmit} className="m-input mb-4">
-            <input ref={p.inputRef} value={p.text} onChange={(e) => p.setText(e.target.value)} placeholder="Escreva para a Luna…" enterKeyHint="send" autoComplete="off" maxLength={4000} />
-            {p.text.trim() && (
-              <button type="submit" aria-label="Enviar">
-                <SendHorizontal className="h-5 w-5" />
-              </button>
-            )}
-          </form>
-          <div className="sh-sec">
-            <span>Luzes e aparelhos</span>
-            <button onClick={() => navigate('/casa')}>
-              ver todos <ChevronRight className="inline h-4 w-4" />
-            </button>
-          </div>
-          <div className="sh-tiles">
-            {fav.map((d, i) => (
-              <DeviceTile key={d.entityId} device={d} index={i} />
-            ))}
-          </div>
-          <div className="sh-sec">
-            <span>Casa</span>
-          </div>
-          <div className="sh-cards">
-            <GarageCard />
-            <VacuumCard />
-            <LitterCard />
-            <WasherCard />
-          </div>
-          <nav className="sh-nav">
-            {NAV.filter((n) => n.to !== '/').map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to}>
-                <Icon className="h-5 w-5" />
-                {label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
+        {sheetBody}
       </div>
     </div>
   );
