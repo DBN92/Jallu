@@ -699,6 +699,10 @@ class MainActivity : Activity() {
 
         @JavascriptInterface fun changeServer() { runOnUiThread { showSetup() } }
 
+        /** Atalhos de aplicativos (TV): lista os apps instalados e abre o escolhido */
+        @JavascriptInterface fun listApps(): String = if (allowed()) AppLauncher.list(this@MainActivity) else "[]"
+        @JavascriptInterface fun launchApp(pkg: String): Boolean = allowed() && pkg.matches(Regex("[A-Za-z0-9_.]{1,200}")) && AppLauncher.launch(this@MainActivity, pkg)
+
         /** Aviso falado (ex.: lava e seca terminou). Texto curto, só da própria Luna. */
         @JavascriptInterface
         fun speak(text: String) {

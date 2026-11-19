@@ -15,6 +15,7 @@ import { useClock, useWeather } from '../hooks/useWeather';
 import { acquireScreen, releaseScreen } from '../lib/wakeLock';
 import { nextFocus, tvKey, type TvKey } from '../lib/tv';
 import { normalizeName } from '../lib/houseLinks';
+import { canLaunchApps, defaultApps, launchApp, listApps, saveApps, savedApps, type NativeApp } from '../lib/nativeApps';
 import { peopleLine } from '../components/PeopleCard';
 import { CameraPlayer, CameraThumb } from '../components/CameraPlayer';
 import './panel.css';
@@ -124,6 +125,20 @@ export default function TvPanel() {
   /** Brilho mostrado enquanto o pedido não volta do Home Assistant */
   const [dimLocal, setDimLocal] = useState<Record<string, number>>({});
   const [confirmClean, setConfirmClean] = useState<string | null>(null);
+  /** Atalhos de aplicativos (só no app Android da Luna): todos os instalados e os escolhidos para o Início */
+  const [apps, setApps] = useState<NativeApp[] | null>(null);
+  const [myApps, setMyApps] = useState<string[]>([]);
+  const [appsEdit, setAppsEdit] = useState(false);
+  useEffect(() => {
+    if (!canLaunchApps()) return;
+    // Depois da primeira tela: listar os apps (com os ícones) leva um instante na Fire TV
+    const t = window.setTimeout(() => {
+      const all = listApps();
+      setApps(all);
+      setMyApps(savedApps() ?? defaultApps(all));
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
   const lastInput = useRef(Date.now());
 
   useEffect(() => {
@@ -268,12 +283,15 @@ export default function TvPanel() {
   };
 
   /* ---------- voltar ---------- */
-  const deep = !!camView || tab !== 'inicio' || !!dimming;
+  const deep = !!camView || tab !== 'inicio' || !!dimming || appsEdit;
   const back = useRef<() => void>(() => undefined);
   back.current = () => {
     if (camView) setCamView(null);
     else if (dimming) setDimming(null);
-    else if (tab !== 'inicio') goTab('inicio');
+    else if (appsEdit) {
+      setAppsEdit(false);
+      setFocus('app:edit');
+    } else if (tab !== 'inicio') goTab('inicio');
   };
   useEffect(() => {
     if (deep && !history.state?.lunaTv) history.pushState({ lunaTv: 1 }, '');
@@ -486,6 +504,39 @@ export default function TvPanel() {
     </div>
   );
 
+  /* ---------- aplicativos ---------- */
+  const shownApps = (apps ?? []).length ? myApps.map((pkg) => apps!.find((a) => a.pkg === pkg)).filter((a): a is NativeApp => !!a) : [];
+  const openApp = (a: NativeApp) => {
+    if (!launchApp(a.pkg)) flash(`Não consegui abrir ${a.label}.`);
+  };
+  const flipApp = (pkg: string) => {
+    const next = myApps.includes(pkg) ? myApps.filter((x) => x !== pkg) : [...myApps, pkg];
+    setMyApps(next);
+    saveApps(next);
+  };
+  const appTile = (a: NativeApp, editing = false, first = false) => {
+    const on = myApps.includes(a.pkg);
+    return (
+      <button key={a.pkg} className={`tp-app ${editing && on ? 'sel' : ''} ${a.banner ? 'has-banner' : ''}`} {...F(`${editing ? 'pick' : 'app'}:${a.pkg}`, first)} onClick={() => (editing ? flipApp(a.pkg) : openApp(a))}>
+        {a.banner ? <img src={a.banner} alt="" /> : a.icon ? <img className="ic" src={a.icon} alt="" /> : null}
+        {!a.banner && <span className="lbl">{a.label}</span>}
+        {editing && <span className="chk">{on ? '✓' : ''}</span>}
+      </button>
+    );
+  };
+  const appsRow = canLaunchApps() && apps !== null && (
+    <>
+      <h2 className="tp-h">Aplicativos</h2>
+      <div className="tp-row c6">
+        {shownApps.map((a) => appTile(a))}
+        <button className="tp-app add" {...F('app:edit')} onClick={() => setAppsEdit(true)}>
+          <span className="plus">{shownApps.length ? '✎' : '+'}</span>
+          <span className="lbl">{shownApps.length ? 'Escolher apps' : 'Adicionar apps'}</span>
+        </button>
+      </div>
+    </>
+  );
+
   /* ---------- abas ---------- */
   let content: React.ReactNode;
   let hint: [string, string][] = [
@@ -494,7 +545,20 @@ export default function TvPanel() {
     ['segure OK', 'brilho'],
     ['↩', 'voltar'],
   ];
-  if (tab === 'inicio') {
+  if (appsEdit) {
+    hint = [
+      ['◀▶▲▼', 'navegar'],
+      ['OK', 'marca / desmarca'],
+      ['↩', 'pronto'],
+    ];
+    content = (
+      <>
+        <h2 className="tp-h">Aplicativos no Início · {myApps.length} escolhidos</h2>
+        {(apps ?? []).length ? <div className="tp-row c6">{(apps ?? []).map((a, i) => appTile(a, true, i === 0))}</div> : <p className="tp-empty">Nenhum aplicativo encontrado.</p>}
+        <p className="tp-note">Aparecem no Início na ordem em que você marca. Fica salvo nesta TV.</p>
+      </>
+    );
+  } else if (tab === 'inicio') {
     content = (
       <>
         {chips}
@@ -519,6 +583,7 @@ export default function TvPanel() {
             </div>
           </>
         )}
+        {appsRow}
         <h2 className="tp-h">Luzes{panel?.favoritesAuto ? ' que você mais usa' : ' favoritas'}</h2>
         {favorites.length ? (
           <div className="tp-row c6">{favorites.map((d, i) => tile(d, !panel?.scenes.length && i === 0))}</div>
@@ -671,7 +736,7 @@ export default function TvPanel() {
                 </button>
               </nav>
             </header>
-            <main className="tp-main" key={tab}>
+            <main className="tp-main" key={appsEdit ? "apps" : tab}>
               {content}
             </main>
             <Hint items={hint} />
