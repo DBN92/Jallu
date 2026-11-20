@@ -553,3 +553,25 @@ export interface TvPanelDto {
   /** true = escolhidas pelo histórico de uso; false = escolhidas à mão nos Ajustes */
   favoritesAuto: boolean;
 }
+
+/* ---------- Gravação das câmeras ---------- */
+export interface RecordingCameraDto {
+  entityId: string;
+  name: string;
+  /** Pasta da câmera dentro da pasta das gravações */
+  folder: string;
+  enabled: boolean;
+  /** Tem vídeo contínuo para gravar (câmeras de site ou só de imagens não têm) */
+  supported: boolean;
+  status: 'desligada' | 'iniciando' | 'gravando' | 'erro' | 'sem-video';
+  error: string | null;
+  since: string | null;
+}
+export interface RecordingsDto {
+  dir: string;
+  keepDays: number;
+  ffmpeg: boolean;
+  freeBytes: number | null;
+  totalBytes: number | null;
+  cameras: RecordingCameraDto[];
+}

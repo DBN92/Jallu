@@ -15,6 +15,11 @@ export class HomeAssistantRestClient {
     private readonly timeoutMs = 10_000,
   ) {}
 
+  /** Endereço completo no Home Assistant (para o ffmpeg ler o vídeo HLS, que já leva o token no caminho) */
+  url(path: string): string {
+    return `${this.baseUrl}${path}`;
+  }
+
   get configured(): boolean {
     return Boolean(this.baseUrl && this.token);
   }

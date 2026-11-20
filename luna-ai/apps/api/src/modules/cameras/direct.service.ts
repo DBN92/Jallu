@@ -389,6 +389,13 @@ export class DirectCamerasService {
     return p;
   }
 
+  /** Entrada do ffmpeg para gravar esta câmera (o endereço é pedido de novo a cada início: o da nuvem Tuya expira) */
+  async recordInput(entityId: string): Promise<string[]> {
+    const r = await this.row(entityId);
+    const src = await this.sourceUrl(r.url, r.username, r.password);
+    return this.input(src.url, src.tcp || r.transport === 'tcp' ? 'tcp' : 'udp');
+  }
+
   private async start(entityId: string): Promise<Session> {
     const ff = this.ffmpegPath();
     if (!ff) throw new AppError(503, 'ffmpeg não está instalado no servidor. Rode: sudo bash scripts/ffmpeg-setup.sh', 'no_ffmpeg');

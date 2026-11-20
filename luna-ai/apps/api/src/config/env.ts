@@ -67,6 +67,8 @@ const envSchema = z.object({
   LUNA_ANDROID_DIST: z.string().optional(),
   /** ffmpeg para câmeras diretas (RTSP). Vazio = runtime/ffmpeg/ffmpeg ou o do sistema. */
   FFMPEG_PATH: z.string().default(''),
+  /** Pasta das gravações das câmeras (Câmera/ano/mês/dia). Vazio = /DATA/Gravacoes no ZimaOS (ou a pasta de dados da Luna) */
+  RECORDINGS_DIR: z.string().default(''),
   /** Voz da Luna (Piper): por padrão runtime/piper, instalado por scripts/piper-setup.sh */
   PIPER_PATH: z.string().default(''),
   PIPER_MODEL: z.string().default(''),

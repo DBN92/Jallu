@@ -49,6 +49,8 @@ import { siriRoutes } from './modules/siri/siri.routes';
 import { tvRoutes } from './modules/tv/tv.routes';
 import { TvDuckService } from './modules/tv/tv-duck.service';
 import { TvPanelService } from './modules/tv/tv-panel.service';
+import { RecordingsService } from './modules/recordings/recordings.service';
+import { recordingsRoutes } from './modules/recordings/recordings.routes';
 import { LitterService } from './modules/litter/litter.service';
 import { litterRoutes } from './modules/litter/litter.routes';
 import { WasherService } from './modules/washer/washer.service';
@@ -145,6 +147,14 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   // Silencia a TV escolhida enquanto a Luna escuta (o microfone misturava a TV com o pedido)
   const tvDuck = new TvDuckService(ha, dataDir);
   const tvPanel = new TvPanelService(db, devices, dataDir);
+  // Gravação das câmeras: vídeo contínuo em Câmera/ano/mês/dia, 7 dias
+  const recordings = new RecordingsService(dataDir, env.RECORDINGS_DIR || (existsSync('/DATA') ? '/DATA/Gravacoes' : resolve(dataDir, 'gravacoes')), {
+    ffmpeg: () => directCameras.ffmpegPath(),
+    input: (id) => cameras.recordInput(id),
+    cameras: () => cameras.list(),
+    tz: env.TZ,
+    log: (m) => log.info(m),
+  });
   cameras.setWeb(webCameras);
   void vacuumPhotos.init();
   const watches = new WatchesService(db, () => (deps.watchFfmpeg !== undefined ? deps.watchFfmpeg : directCameras.ffmpegPath()), frame, devices, (e) => hub.broadcast(e), dataDir, env.TZ);
@@ -289,7 +299,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     if (piper.available) void piper.speak(text).catch(() => undefined);
   };
   if (!deps.disableWatchTimer) siri.startPrewarm((t) => piper.speak(t), () => piper.available, env.TZ);
-  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, recordings, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -387,6 +397,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(washerRoutes);
   await app.register(houseRoutes);
   await app.register(photosRoutes);
+  await app.register(recordingsRoutes);
   await app.register(recadosRoutes);
   await app.register(listsRoutes);
   await app.register(pushRoutes);
@@ -422,6 +433,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       app.services.litter.start();
     }
     if (!deps.disableHaWs) app.services.haWs.start();
+    // Gravações: espera o Home Assistant e o go2rtc subirem
+    if (env.NODE_ENV !== 'test') setTimeout(() => void app.services.recordings.start().catch((e) => app.log.warn(`gravação: ${(e as Error).message}`)), 20_000).unref();
     // Aquece o modelo local em segundo plano (tenta por até ~10 min, enquanto o Ollama sobe)
     if (env.NODE_ENV !== 'test') {
       let tries = 0;
@@ -438,6 +451,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     }
   });
   app.addHook('onClose', async () => {
+    app.services.recordings.stop();
     app.services.go2rtc.stop();
     app.services.haWs.stop();
     app.services.watches.stop();

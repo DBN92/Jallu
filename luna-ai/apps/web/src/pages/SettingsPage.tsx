@@ -15,6 +15,7 @@ import { WebCameras } from '../components/WebCameras';
 import { TuyaCameras } from '../components/TuyaCameras';
 import { TvDuckSettings } from '../components/TvDuckSettings';
 import { TvPanelSettings } from '../components/TvPanelSettings';
+import { RecordingsSettings } from '../components/RecordingsSettings';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -493,6 +494,10 @@ export default function SettingsPage() {
 
       <Section title="App Android (tablet)">
         <AndroidSettings />
+      </Section>
+
+      <Section title="Gravação das câmeras">
+        <RecordingsSettings isAdmin={isAdmin} />
       </Section>
 
       {isAdmin && (

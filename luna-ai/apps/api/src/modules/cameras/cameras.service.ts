@@ -234,6 +234,19 @@ export class CamerasService {
     return { url: `/api/cameras/hls/${m[1]}/${m[2]}` };
   }
 
+  /**
+   * Entrada do ffmpeg para gravar a câmera: direta (RTSP/Tuya) ou o vídeo HLS do Home Assistant.
+   * null = esta câmera não tem vídeo para gravar (só imagens, ou câmera de site).
+   */
+  async recordInput(entityId: string): Promise<string[] | null> {
+    if (this.direct?.isDirect(entityId)) return this.direct.recordInput(entityId);
+    const cam = await this.get(entityId);
+    if (!cam.stream || cam.platform === 'web') return null;
+    const r = await this.wsCommand<{ url: string }>({ type: 'camera/stream', entity_id: entityId, format: 'hls' });
+    if (!/^\/api\/hls\/[A-Za-z0-9_-]+\//.test(r.url)) throw new AppError(502, 'Resposta inesperada do Home Assistant para o vídeo.', 'stream_error');
+    return ['-rw_timeout', '20000000', '-fflags', '+genpts+discardcorrupt', '-protocol_whitelist', 'file,http,https,tcp,tls,crypto,hls', '-i', this.ha.url(r.url)];
+  }
+
   /** Repasse do HLS: só para sessões abertas pela Luna para um usuário autenticado. */
   async hls(token: string, path: string): Promise<Response> {
     const d = this.directTokens.get(token);
