@@ -21,7 +21,8 @@ export async function recordingsRoutes(app: FastifyInstance) {
   });
   app.get('/api/recordings/:entityId/days/:date/:file', { preHandler: requireAuth, config: { rateLimit: false } }, async (req, reply) => {
     const p = cam.extend({ date: z.string().max(10), file: z.string().max(20) }).parse(req.params);
-    const f = await recordings.open(p.entityId, p.date, p.file, req.headers.range);
+    const q = (req.query ?? {}) as { baixar?: string; ver?: string };
+    const f = await recordings.open(p.entityId, p.date, p.file, req.headers.range, !!q.ver);
     reply
       .code(f.status)
       .header('content-type', 'video/mp4')
@@ -29,7 +30,7 @@ export async function recordingsRoutes(app: FastifyInstance) {
       .header('content-length', String(f.end - f.start + 1))
       .header('cache-control', 'private, max-age=60');
     if (f.status === 206) reply.header('content-range', `bytes ${f.start}-${f.end}/${f.size}`);
-    if (req.query && (req.query as { baixar?: string }).baixar) reply.header('content-disposition', `attachment; filename="${p.date}_${p.file}"`);
+    if (q.baixar) reply.header('content-disposition', `attachment; filename="${p.date}_${p.file}"`);
     return reply.send(f.stream);
   });
 }

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { readdir, rm, rmdir, stat, statfs } from 'node:fs/promises';
+import { readdir, rename, rm, rmdir, stat, statfs } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { CameraDto, RecordingCameraDto, RecordingDayDto, RecordingFileDto, RecordingsDto } from '@luna/shared';
@@ -65,6 +66,22 @@ export function recordArgs(input: string[], dir: string, folder: string) {
   ];
 }
 
+/** Roda o ffmpeg e devolve o que ele escreveu (stderr). strict = código diferente de 0 é erro */
+function run(ff: string, args: string[], strict = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const p = spawn(ff, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr?.on('data', (d: Buffer) => (err = (err + d.toString()).slice(-4000)));
+    const t = setTimeout(() => p.kill('SIGKILL'), 120_000);
+    p.on('error', (e) => (clearTimeout(t), reject(e)));
+    p.on('exit', (code) => {
+      clearTimeout(t);
+      if (strict && code !== 0) reject(new Error(err.trim().split('\n').pop() || `ffmpeg saiu com ${code}`));
+      else resolve(err);
+    });
+  });
+}
+
 /** Pasta ano/mês/dia de uma data no fuso da casa */
 export function dayPath(d: Date, tz: string) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).map((x) => [x.type, x.value]));
@@ -83,6 +100,9 @@ export class RecordingsService {
   private cleaner: NodeJS.Timeout | null = null;
   private dayTimer: NodeJS.Timeout | null = null;
 
+  private cacheDir: string;
+  private remuxing = new Map<string, Promise<string>>();
+
   constructor(
     dataDir: string,
     readonly dir: string,
@@ -90,6 +110,7 @@ export class RecordingsService {
   ) {
     mkdirSync(dataDir, { recursive: true });
     this.file = join(dataDir, 'recordings.json');
+    this.cacheDir = join(dataDir, 'gravacoes-cache');
     try {
       this.saved = JSON.parse(readFileSync(this.file, 'utf8')) as Saved;
     } catch {
@@ -326,13 +347,54 @@ export class RecordingsService {
   }
 
   /** Abre o arquivo para assistir (com pedaços, para avançar/voltar no vídeo) */
-  async open(entityId: string, date: string, file: string, range?: string) {
+  private async filePath(entityId: string, date: string, file: string) {
     const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m || !/^\d{2}-\d{2}-\d{2}\.mp4$/.test(file)) throw badRequest('Arquivo inválido.');
     const path = join(await this.camDir(entityId), m[1]!, m[2]!, m[3]!, file);
     const st = await stat(path).catch(() => null);
     if (!st?.isFile()) throw notFound('Gravação não encontrada.');
-    const size = st.size;
+    return { path, st };
+  }
+
+  /**
+   * Versão para assistir no navegador: o arquivo gravado é “em pedaços” (não estraga se a gravação cair),
+   * mas o iPhone não toca esse formato direto; e vídeo H.265 precisa da marca “hvc1”. Reembala sem
+   * recomprimir (só copia, ~1 s) num MP4 comum, guardado num cache pequeno.
+   */
+  async playable(entityId: string, date: string, file: string): Promise<string> {
+    const { path, st } = await this.filePath(entityId, date, file);
+    const key = createHash('sha1').update(`${path}|${st.size}|${st.mtimeMs}`).digest('hex').slice(0, 20);
+    const out = join(this.cacheDir, `${key}.mp4`);
+    if (existsSync(out)) return out;
+    const running = this.remuxing.get(key);
+    if (running) return running;
+    const job = (async () => {
+      const ff = this.deps.ffmpeg();
+      if (!ff) throw badRequest('O conversor de vídeo (ffmpeg) não está instalado no servidor.');
+      mkdirSync(this.cacheDir, { recursive: true });
+      const info = await run(ff, ['-hide_banner', '-nostdin', '-i', path]).catch((e: Error) => e.message);
+      const hevc = /Video: (hevc|h265)/i.test(info);
+      const tmp = `${out}.${process.pid}.tmp.mp4`;
+      await run(ff, ['-hide_banner', '-nostdin', '-loglevel', 'error', '-i', path, '-map', '0:v:0', '-map', '0:a:0?', '-c', 'copy', ...(hevc ? ['-tag:v', 'hvc1'] : []), '-movflags', '+faststart', '-y', tmp], true);
+      await rename(tmp, out);
+      void this.pruneCache();
+      return out;
+    })().finally(() => this.remuxing.delete(key));
+    this.remuxing.set(key, job);
+    return job;
+  }
+
+  /** Cache das versões para assistir: fica com as 12 mais recentes */
+  private async pruneCache() {
+    const files = await readdir(this.cacheDir).catch(() => []);
+    const list = await Promise.all(files.filter((f) => f.endsWith('.mp4') && !f.includes('.tmp')).map(async (f) => ({ f, t: (await stat(join(this.cacheDir, f)).catch(() => null))?.mtimeMs ?? 0 })));
+    for (const { f } of list.sort((a, b) => b.t - a.t).slice(12)) await rm(join(this.cacheDir, f), { force: true });
+  }
+
+  /** Abre o arquivo para assistir (com pedaços, para avançar/voltar no vídeo). play = versão reembalada para o navegador */
+  async open(entityId: string, date: string, file: string, range?: string, play = false) {
+    const path = play ? await this.playable(entityId, date, file) : (await this.filePath(entityId, date, file)).path;
+    const size = (await stat(path)).size;
     const r = range?.match(/^bytes=(\d*)-(\d*)$/);
     if (r && (r[1] || r[2])) {
       let startB = r[1] ? Number(r[1]) : Math.max(0, size - Number(r[2]));

@@ -147,7 +147,7 @@ export default function RecordingsPage() {
               <video
                 ref={video}
                 key={src}
-                src={src}
+                src={`${src}?ver=1`}
                 className="aspect-video w-full bg-black"
                 controls
                 autoPlay
@@ -159,7 +159,7 @@ export default function RecordingsPage() {
                 }}
                 onTimeUpdate={(e) => setPos(e.currentTarget.currentTime)}
                 onEnded={() => files && playing < files.length - 1 && setPlaying(playing + 1)}
-                onError={() => setError('Este vídeo não toca neste aparelho (talvez a câmera grave em H.265). Use “Baixar” e abra num player como o VLC.')}
+                onError={() => setError('Este vídeo não toca neste aparelho (a câmera grava em H.265 e este navegador não lê esse formato). Use “Baixar” e abra num player como o VLC, ou assista pelo iPhone.')}
               />
               <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
                 <p className="m-num mr-auto text-lg">
@@ -177,7 +177,7 @@ export default function RecordingsPage() {
                     {s}×
                   </button>
                 ))}
-                <a className="m-chip" href={`${src}?baixar=1`} download>
+                <a className="m-chip" href={`${src}?ver=1&baixar=1`} download>
                   <Download className="h-4 w-4" /> Baixar
                 </a>
               </div>
