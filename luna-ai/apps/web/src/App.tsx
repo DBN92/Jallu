@@ -39,6 +39,7 @@ const ListsPage = lazy(() => import('./pages/ListsPage'));
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const CamerasPage = lazy(() => import('./pages/CamerasPage'));
+const RecordingsPage = lazy(() => import('./pages/RecordingsPage'));
 const VacuumPage = lazy(() => import('./pages/VacuumPage'));
 const LitterPage = lazy(() => import('./pages/LitterPage'));
 const WasherPage = lazy(() => import('./pages/WasherPage'));
@@ -214,6 +215,7 @@ export default function App() {
             <Route path="caixa-de-areia/:id" element={<LitterPage />} />
             <Route path="lava-e-seca/:id" element={<WasherPage />} />
             <Route path="cameras" element={<CamerasPage />} />
+            <Route path="gravacoes" element={<RecordingsPage />} />
             <Route path="clima" element={<WeatherPage />} />
             <Route path="memoria" element={<MemoryPage />} />
             <Route path="automacoes" element={<AutomationsPage />} />

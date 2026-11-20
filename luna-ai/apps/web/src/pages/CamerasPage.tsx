@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { Cctv, Move3d, RefreshCw } from 'lucide-react';
+import { Cctv, Film, Move3d, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Page } from '../components/Layout';
 import { CameraThumb } from '../components/CameraPlayer';
 import { CameraInfo } from '../components/CameraInfo';
@@ -8,6 +9,7 @@ import { useCameras } from '../stores/cameras';
 
 export default function CamerasPage() {
   const { cameras, error, load, open } = useCameras();
+  const navigate = useNavigate();
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), 30_000);
@@ -20,9 +22,14 @@ export default function CamerasPage() {
         title="Câmeras"
         subtitle={cameras ? `${cameras.length} câmera(s)` : 'Câmeras de segurança'}
         action={
-          <button onClick={() => void load()} className="rounded-sm border border-cyan-300/25 bg-ink-950/75 p-2 text-cyan-200/80" aria-label="Atualizar">
-            <RefreshCw className="h-4 w-4" />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/gravacoes')} className="flex items-center gap-1.5 rounded-sm border border-cyan-300/25 bg-ink-950/75 px-3 py-2 text-sm text-cyan-100/85" aria-label="Gravações">
+              <Film className="h-4 w-4" /> Gravações
+            </button>
+            <button onClick={() => void load()} className="rounded-sm border border-cyan-300/25 bg-ink-950/75 p-2 text-cyan-200/80" aria-label="Atualizar">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
         }
       />
       {error && <Banner>{error}</Banner>}

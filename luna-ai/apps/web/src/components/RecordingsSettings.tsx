@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { RecordingsDto } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { Toggle } from './ui';
@@ -63,6 +64,9 @@ export function RecordingsSettings({ isAdmin }: { isAdmin: boolean }) {
         ))}
         {!data.cameras.length && <p className="py-2 text-xs text-white/45">Nenhuma câmera.</p>}
       </div>
+      <Link to="/gravacoes" className="inline-block text-xs text-sky-300 underline">
+        Assistir gravações
+      </Link>
       {!isAdmin && <p className="text-xs text-white/45">Só o administrador liga ou desliga a gravação.</p>}
       {error && <p className="text-xs text-rose-300">{error}</p>}
     </div>

@@ -575,3 +575,17 @@ export interface RecordingsDto {
   totalBytes: number | null;
   cameras: RecordingCameraDto[];
 }
+export interface RecordingDayDto {
+  /** AAAA-MM-DD */
+  date: string;
+  files: number;
+}
+export interface RecordingFileDto {
+  /** HH-MM-SS.mp4 */
+  file: string;
+  /** Início em segundos desde a meia-noite */
+  start: number;
+  /** Duração aproximada em segundos */
+  seconds: number;
+  bytes: number;
+}

@@ -74,3 +74,31 @@ describe('gravação das câmeras', () => {
     expect(existsSync(join(dir, 'Garagem', '2026', '11', '20'))).toBe(true);
   });
 });
+
+describe('assistir as gravações (API)', () => {
+  it('lista dias e arquivos da câmera e entrega o vídeo em pedaços (Range)', async () => {
+    const { makeApp } = await import('./helpers');
+    const dir = mkdtempSync(join(tmpdir(), 'rec-api-'));
+    const ctx = await makeApp({ RECORDINGS_DIR: dir });
+    try {
+      ctx.ha.states.set('camera.garagem', { entity_id: 'camera.garagem', state: 'idle', attributes: { friendly_name: 'Garagem', supported_features: 2 } });
+      const day = join(dir, 'Garagem', '2026', '11', '20');
+      mkdirSync(day, { recursive: true });
+      writeFileSync(join(day, '14-00-00.mp4'), Buffer.alloc(4096, 1));
+      writeFileSync(join(day, '14-10-00.mp4'), Buffer.alloc(2048, 2));
+      writeFileSync(join(day, 'lixo.txt'), 'x');
+      expect((await ctx.inject('GET', '/api/recordings/camera.garagem/days')).json).toEqual([{ date: '2026-11-20', files: 2 }]);
+      const files = (await ctx.inject('GET', '/api/recordings/camera.garagem/days/2026-11-20')).json;
+      expect(files.map((f: { file: string; start: number }) => [f.file, f.start])).toEqual([['14-00-00.mp4', 50400], ['14-10-00.mp4', 51000]]);
+      expect(files[0].seconds).toBe(600);
+      const part = await ctx.app.inject({ method: 'GET', url: '/api/recordings/camera.garagem/days/2026-11-20/14-00-00.mp4', headers: { cookie: ctx.cookies, range: 'bytes=100-199' } });
+      expect(part.statusCode).toBe(206);
+      expect(part.headers['content-range']).toBe('bytes 100-199/4096');
+      expect(part.rawPayload.length).toBe(100);
+      expect((await ctx.inject('GET', '/api/recordings/camera.garagem/days/2026-11-20/..%2F..%2Fx.mp4')).status).toBe(400);
+      expect((await ctx.inject('GET', '/api/recordings/camera.garagem/days/2026-13-99')).json).toEqual([]);
+    } finally {
+      await ctx.app.close();
+    }
+  });
+});

@@ -1,9 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readdir, rm, rmdir, stat, statfs } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
-import type { CameraDto, RecordingCameraDto, RecordingsDto } from '@luna/shared';
-import { badRequest } from '../../lib/errors';
+import type { CameraDto, RecordingCameraDto, RecordingDayDto, RecordingFileDto, RecordingsDto } from '@luna/shared';
+import { badRequest, notFound } from '../../lib/errors';
 
 /** Cada arquivo tem 10 minutos (começando em hora “redonda”: 14-00, 14-10…) */
 const SEGMENT_S = 600;
@@ -80,7 +81,7 @@ export class RecordingsService {
   private saved: Saved;
   private recorders = new Map<string, Recorder>();
   private cleaner: NodeJS.Timeout | null = null;
-  private days: NodeJS.Timeout | null = null;
+  private dayTimer: NodeJS.Timeout | null = null;
 
   constructor(
     dataDir: string,
@@ -117,9 +118,9 @@ export class RecordingsService {
     for (const r of this.recorders.values()) this.halt(r);
     this.recorders.clear();
     if (this.cleaner) clearInterval(this.cleaner);
-    if (this.days) clearInterval(this.days);
+    if (this.dayTimer) clearInterval(this.dayTimer);
     this.cleaner = null;
-    this.days = null;
+    this.dayTimer = null;
   }
 
   /**
@@ -132,8 +133,8 @@ export class RecordingsService {
   }
 
   private scheduleCleanup() {
-    if (!this.days) {
-      this.days = setInterval(() => {
+    if (!this.dayTimer) {
+      this.dayTimer = setInterval(() => {
         for (const r of this.recorders.values())
           if (!r.stopped)
             try {
@@ -142,7 +143,7 @@ export class RecordingsService {
               /* sem permissão: o erro aparece na próxima tentativa */
             }
       }, 30 * 60_000);
-      this.days.unref();
+      this.dayTimer.unref();
     }
     if (this.cleaner) return;
     void this.cleanup();
@@ -270,6 +271,73 @@ export class RecordingsService {
       this.deps.log?.(`[gravação] ${r.name} parou (código ${code}): ${last}`);
       this.retry(r, last || `a gravação parou (código ${code})`);
     });
+  }
+
+  /* ---------- assistir ---------- */
+
+  /** Pasta da câmera (pelo nome atual dela) */
+  private async camDir(entityId: string) {
+    const cam = (await this.deps.cameras().catch(() => [] as CameraDto[])).find((c) => c.entityId === entityId);
+    if (!cam) throw notFound('Câmera não encontrada.');
+    return join(this.dir, folderName(cam.name, cam.entityId));
+  }
+
+  /** Dias com gravação desta câmera (mais recente primeiro) */
+  async days(entityId: string): Promise<RecordingDayDto[]> {
+    const base = await this.camDir(entityId);
+    const out: RecordingDayDto[] = [];
+    for (const y of (await readdir(base).catch(() => [])).filter((x) => /^\d{4}$/.test(x)))
+      for (const m of (await readdir(join(base, y)).catch(() => [])).filter((x) => /^\d{2}$/.test(x)))
+        for (const d of (await readdir(join(base, y, m)).catch(() => [])).filter((x) => /^\d{2}$/.test(x))) {
+          const files = (await readdir(join(base, y, m, d)).catch(() => [])).filter((f) => /^\d{2}-\d{2}-\d{2}\.mp4$/.test(f));
+          if (files.length) out.push({ date: `${y}-${m}-${d}`, files: files.length });
+        }
+    return out.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  /** Arquivos de um dia, em ordem, com início e duração aproximada (até o próximo arquivo, no máximo 10 min) */
+  async files(entityId: string, date: string): Promise<RecordingFileDto[]> {
+    const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) throw badRequest('Data inválida.');
+    const dir = join(await this.camDir(entityId), m[1]!, m[2]!, m[3]!);
+    const names = (await readdir(dir).catch(() => [])).filter((f) => /^\d{2}-\d{2}-\d{2}\.mp4$/.test(f)).sort();
+    const sec = (f: string) => {
+      const [h, mi, s] = f.slice(0, 8).split('-').map(Number);
+      return h! * 3600 + mi! * 60 + s!;
+    };
+    const out: RecordingFileDto[] = [];
+    for (let i = 0; i < names.length; i++) {
+      const st = await stat(join(dir, names[i]!)).catch(() => null);
+      if (!st || st.size < 1024) continue; // arquivo vazio (gravação que não pegou)
+      const start = sec(names[i]!);
+      // Último arquivo (talvez ainda gravando): do momento em que foi criado até a última escrita
+      const seconds = names[i + 1]
+        ? Math.min(sec(names[i + 1]!) - start, SEGMENT_S)
+        : st.birthtimeMs > 0
+          ? Math.min(SEGMENT_S, Math.round((st.mtimeMs - st.birthtimeMs) / 1000))
+          : SEGMENT_S;
+      out.push({ file: names[i]!, start, seconds: Math.max(1, seconds), bytes: st.size });
+    }
+    return out;
+  }
+
+  /** Abre o arquivo para assistir (com pedaços, para avançar/voltar no vídeo) */
+  async open(entityId: string, date: string, file: string, range?: string) {
+    const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m || !/^\d{2}-\d{2}-\d{2}\.mp4$/.test(file)) throw badRequest('Arquivo inválido.');
+    const path = join(await this.camDir(entityId), m[1]!, m[2]!, m[3]!, file);
+    const st = await stat(path).catch(() => null);
+    if (!st?.isFile()) throw notFound('Gravação não encontrada.');
+    const size = st.size;
+    const r = range?.match(/^bytes=(\d*)-(\d*)$/);
+    if (r && (r[1] || r[2])) {
+      let startB = r[1] ? Number(r[1]) : Math.max(0, size - Number(r[2]));
+      let endB = r[1] && r[2] ? Number(r[2]) : size - 1;
+      endB = Math.min(endB, size - 1);
+      if (startB > endB) startB = endB;
+      return { status: 206, size, start: startB, end: endB, stream: createReadStream(path, { start: startB, end: endB }) };
+    }
+    return { status: 200, size, start: 0, end: size - 1, stream: createReadStream(path) };
   }
 
   /**
