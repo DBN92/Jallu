@@ -18,7 +18,8 @@ fail() { printf '%s\n' "${C_R}✗${C_0} $*" >&2; exit 1; }
 env_get() {
   local key="$1" file="${LUNA_ENV_FILE:-$LUNA_ROOT/.env}"
   [ -f "$file" ] || return 0
-  grep -E "^${key}=" "$file" | tail -n1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+  # Sem a variável no .env devolve vazio (sem erro: os scripts usam set -e e pipefail)
+  { grep -E "^${key}=" "$file" || true; } | tail -n1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
 }
 
 # Altera/adiciona uma variável no .env

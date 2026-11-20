@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readdir, rm, rmdir, stat, statfs } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { CameraDto, RecordingCameraDto, RecordingDayDto, RecordingFileDto, RecordingsDto } from '@luna/shared';
 import { badRequest, notFound } from '../../lib/errors';
 
@@ -153,7 +153,10 @@ export class RecordingsService {
 
   async status(): Promise<RecordingsDto> {
     const cams = await this.deps.cameras().catch(() => [] as CameraDto[]);
-    const disk = await statfs(existsSync(this.dir) ? this.dir : '/').catch(() => null);
+    // Espaço do disco onde as gravações ficam (se a pasta ainda não existe, a pasta acima dela)
+    let probe = this.dir;
+    while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe);
+    const disk = await statfs(probe).catch(() => null);
     const list: RecordingCameraDto[] = cams.map((c) => {
       const r = this.recorders.get(c.entityId);
       const enabled = !!this.saved.cameras?.[c.entityId];
@@ -243,7 +246,8 @@ export class RecordingsService {
     try {
       this.ensureDays(folderName(r.name, r.entityId));
     } catch (e) {
-      return this.retry(r, `Sem permissão para gravar em ${this.dir}: ${(e as Error).message}`);
+      const code = (e as NodeJS.ErrnoException).code;
+      return this.retry(r, code === 'EROFS' || code === 'EACCES' || code === 'EPERM' ? `Sem permissão para gravar em ${this.dir}. No servidor, rode: sudo bash scripts/recordings-setup.sh` : `Não consegui criar a pasta em ${this.dir}: ${(e as Error).message}`);
     }
     const proc = spawn(ff, recordArgs(input, this.dir, folderName(r.name, r.entityId)), { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, TZ: this.deps.tz } });
     r.proc = proc;

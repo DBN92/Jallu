@@ -55,7 +55,7 @@ export function RecordingsSettings({ isAdmin }: { isAdmin: boolean }) {
           <div key={c.entityId} className="flex items-center justify-between gap-3 py-2.5">
             <div className="min-w-0">
               <p className="truncate font-medium">{c.name}</p>
-              <p className={`truncate text-[11.5px] ${c.status === 'gravando' ? 'text-rose-300' : c.status === 'erro' ? 'text-amber-200/80' : 'text-white/45'}`}>
+              <p className={`${c.status === 'erro' ? 'break-words' : 'truncate'} text-[11.5px] ${c.status === 'gravando' ? 'text-rose-300' : c.status === 'erro' ? 'text-amber-200/80' : 'text-white/45'}`}>
                 {!c.supported ? 'Sem vídeo contínuo (só imagens ou site): não dá para gravar' : c.enabled ? `${STATUS[c.status]}${c.error && c.status !== 'gravando' ? ` · ${c.error}` : ''}` : `Pasta: ${c.folder}`}
               </p>
             </div>
