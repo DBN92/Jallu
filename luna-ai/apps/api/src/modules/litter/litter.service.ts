@@ -55,6 +55,12 @@ export class LitterService extends EventEmitter {
   private lastRefresh = 0;
   private timer: NodeJS.Timeout | null = null;
   private alerted = new Map<string, string>(); // gato → dia do último aviso
+  /** Quando o peso mudou por último (o gato subiu na caixa): início provável da visita */
+  private weighedAt = new Map<string, number>();
+  /** Início de cada visita registrada (id → hora), até a limpeza automática fechar a conta */
+  private visitStart = new Map<string, { boxId: string; at: number }>();
+  /** Limpeza pedida à mão (Luna) por último: essa não serve para medir a visita */
+  private manualAt = new Map<string, number>();
 
   constructor(
     private readonly db: Db,
@@ -164,6 +170,8 @@ export class LitterService extends EventEmitter {
     if (evt.new_state) this.states.set(evt.entity_id, evt.new_state);
     const objectId = evt.entity_id.split('.')[1]!;
     const key = objectId.slice(prefix.length + 1);
+    if (key === SUFFIX.weight) this.weighedAt.set(prefix, this.now().getTime());
+    if (key === SUFFIX.status && evt.new_state?.state === 'clean' && evt.old_state?.state !== 'clean') await this.cleanStarted(prefix);
     if (key === SUFFIX.times) {
       const before = num(evt.old_state ?? undefined);
       const after = num(evt.new_state ?? undefined);
@@ -178,7 +186,11 @@ export class LitterService extends EventEmitter {
         const last = await this.db.litterVisit.findFirst({ where: { boxId: prefix }, orderBy: { at: 'desc' } });
         const repeated = last && this.now().getTime() - last.at.getTime() < 90_000 && last.weightKg === weight && last.durationS === durationS;
         if (!repeated) {
-          await this.db.litterVisit.create({ data: { boxId: prefix, at: this.now(), weightKg: weight, durationS, catId: await this.identify(weight) } });
+          const v = await this.db.litterVisit.create({ data: { boxId: prefix, at: this.now(), weightKg: weight, durationS, catId: await this.identify(weight) } });
+          // Início: quando o gato foi pesado (até 15 min antes), senão agora
+          const w = this.weighedAt.get(prefix);
+          const nowMs = this.now().getTime();
+          this.visitStart.set(v.id, { boxId: prefix, at: w && nowMs - w < 15 * 60_000 ? w : nowMs });
         }
       }
     } else if (key === SUFFIX.weight || key === SUFFIX.duration) {
@@ -196,6 +208,33 @@ export class LitterService extends EventEmitter {
       }
     }
     this.emit('update', prefix);
+  }
+
+  /** Espera antes da limpeza automática, em segundos (nuvem Tuya ou o número do Home Assistant) */
+  private async delaySeconds(prefix: string) {
+    const cloud = await this.cloudAutoState().catch(() => null);
+    return cloud?.delaySeconds ?? num(this.entity(prefix, 'number', 'delay').state) ?? 0;
+  }
+
+  /**
+   * A limpeza automática começou: o gato saiu “espera” segundos antes. Tempo na caixa =
+   * (início da limpeza − espera) − início da visita. Vale só para a última visita ainda sem essa
+   * conta, de até 40 min antes, e não para limpeza pedida à mão.
+   */
+  private async cleanStarted(prefix: string) {
+    const nowMs = this.now().getTime();
+    const manual = this.manualAt.get(prefix);
+    if (manual && nowMs - manual < 3 * 60_000) return;
+    const open = [...this.visitStart.entries()].filter(([, v]) => v.boxId === prefix && nowMs - v.at < 40 * 60_000).sort((a, b) => b[1].at - a[1].at);
+    for (const [id, v] of this.visitStart) if (v.boxId === prefix) this.visitStart.delete(id); // a limpeza fecha todas
+    const last = open[0];
+    if (!last) return;
+    const delay = await this.delaySeconds(prefix);
+    const seconds = Math.round((nowMs - delay * 1000 - last[1].at) / 1000);
+    console.warn(`[caixa de areia] limpeza automática começou: visita de ${seconds}s (espera ${delay}s)`);
+    // Conta que não faz sentido (relógio, espera mudada no meio): fica a duração que a caixa informou
+    if (seconds < 5 || seconds > 30 * 60) return;
+    await this.db.litterVisit.update({ where: { id: last[0] }, data: { durationS: seconds } }).catch(() => undefined);
   }
 
   // ---------------- Leitura ----------------
@@ -318,6 +357,7 @@ export class LitterService extends EventEmitter {
 
   async clean(prefix: string, actor: Actor): Promise<LitterBoxDto> {
     await this.refresh(true);
+    this.manualAt.set(prefix, this.now().getTime());
     const pref = await this.db.litterBoxPref.findUnique({ where: { id: prefix } });
     this.guard(prefix, actor, pref?.voiceAllowed ?? false);
     if (this.cloud) {

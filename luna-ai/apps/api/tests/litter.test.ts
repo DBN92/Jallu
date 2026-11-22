@@ -198,4 +198,34 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
     b = (await ctx.inject('GET', `/api/litter/${P}`)).json;
     expect(b.recent).toHaveLength(2);
   });
+
+  it('tempo na caixa = do início da visita até a limpeza automática, menos a espera configurada', async () => {
+    await withBox();
+    await change(`number.${P}_delay_clean_time`, '120'); // espera de 2 min antes de limpar
+    advance(10 * 60_000);
+    await change(`sensor.${P}_cat_weight`, '4.6'); // gato sobe na caixa
+    advance(3 * 60_000); // fica 3 min
+    await change(`sensor.${P}_excretion_times_day`, '1.0');
+    advance(2_000);
+    await change(`sensor.${P}_excretion_duration`, '35'); // a caixa informa um número que não bate
+    advance(120_000 - 2_000); // espera de 2 min
+    await change(`sensor.${P}_status`, 'clean'); // limpeza automática começou
+    await change(`sensor.${P}_status`, 'standby');
+    let box = (await ctx.inject('GET', `/api/litter/${P}`)).json;
+    expect(box.lastVisit.durationS).toBe(180);
+
+    // limpeza pedida à mão não serve de medida
+    advance(10 * 60_000);
+    await change(`sensor.${P}_cat_weight`, '5.0');
+    advance(60_000);
+    await change(`sensor.${P}_excretion_times_day`, '2.0');
+    advance(2_000);
+    await change(`sensor.${P}_excretion_duration`, '50');
+    await ctx.inject('POST', `/api/litter/${P}/clean`);
+    advance(5_000);
+    await change(`sensor.${P}_status`, 'clean');
+    box = (await ctx.inject('GET', `/api/litter/${P}`)).json;
+    expect(box.lastVisit.durationS).toBe(50);
+  });
 });
+
