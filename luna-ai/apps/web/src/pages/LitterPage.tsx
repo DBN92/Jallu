@@ -1,3 +1,4 @@
+import { squareJpeg } from '../stores/photos';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -25,8 +26,33 @@ function Switch({ on, onChange, disabled, name }: { on: boolean; onChange: (v: b
 }
 
 /** Editar nome e peso de um gato (o peso também é aprendido sozinho pelas visitas). */
-function CatEditor({ cat, onDone }: { cat: LitterCatDto; onDone: () => void }) {
+/** Avatar do gato: a foto do rosto, ou o gatinho na cor dele */
+function CatAvatar({ cat, index, size = 30 }: { cat: LitterCatDto | undefined; index: number; size?: number }) {
+  if (cat?.photo) return <img src={`/api/litter/cats/${cat.id}/photo?v=${cat.photo}`} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
+  return (
+    <span className="grid shrink-0 place-items-center rounded-full" style={{ width: size, height: size, fontSize: size / 2, background: CAT_COLORS[index % CAT_COLORS.length] }}>
+      🐱
+    </span>
+  );
+}
+
+function CatEditor({ cat, index, onDone }: { cat: LitterCatDto; index: number; onDone: () => void }) {
   const updateCat = useLitter((s) => s.updateCat);
+  const catPhoto = useLitter((s) => s.catPhoto);
+  const [sending, setSending] = useState(false);
+  const pickPhoto = async (f: File | undefined) => {
+    if (!f) return;
+    setSending(true);
+    setErr(null);
+    try {
+      const e = await catPhoto(cat.id, await squareJpeg(f));
+      if (e) setErr(e);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
   const [name, setName] = useState(cat.name);
   const [weight, setWeight] = useState(cat.weightKg !== null ? String(cat.weightKg).replace('.', ',') : '');
   const [err, setErr] = useState<string | null>(null);
@@ -39,6 +65,21 @@ function CatEditor({ cat, onDone }: { cat: LitterCatDto; onDone: () => void }) {
   };
   return (
     <div className="mt-2 space-y-2 rounded-2xl bg-white/5 p-3 text-sm">
+      <div className="flex items-center gap-3">
+        <CatAvatar cat={cat} index={index} size={64} />
+        <div className="flex flex-1 flex-wrap gap-2">
+          <label className={`m-chip cursor-pointer ${sending ? 'opacity-50' : ''}`}>
+            {sending ? 'Enviando…' : cat.photo ? 'Trocar foto' : 'Escolher foto'}
+            <input type="file" accept="image/*" className="hidden" disabled={sending} onChange={(e) => void pickPhoto(e.target.files?.[0])} />
+          </label>
+          {cat.photo && (
+            <button className="m-chip" disabled={sending} onClick={() => void catPhoto(cat.id, null)}>
+              Remover foto
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="m-muted text-[11.5px] opacity-70">Use uma foto com o rosto no meio: a Luna recorta um quadrado do centro.</p>
       <input className="w-full rounded-xl bg-black/30 px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} placeholder="Nome" aria-label="Nome do gato" />
       <input className="w-full rounded-xl bg-black/30 px-3 py-2" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="Peso em kg (vazio = a Luna aprende sozinha)" aria-label="Peso do gato" />
       {err && <p className="text-xs text-rose-300">{err}</p>}
@@ -161,16 +202,14 @@ export default function LitterPage() {
             {b.cats.map((c, i) => (
               <div key={c.id} className="border-t border-white/10 first:border-t-0">
                 <button className="flex w-full items-center gap-2.5 py-2 text-left" onClick={() => setEditing(editing === c.id ? null : c.id)} aria-label={`Editar ${c.name}`}>
-                  <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full text-[15px]" style={{ background: CAT_COLORS[i % CAT_COLORS.length] }}>
-                    🐱
-                  </span>
+                  <CatAvatar cat={c} index={i} size={36} />
                   <span className="flex-1 text-sm">{c.name}</span>
                   <span className="m-muted w-16 text-[12.5px] opacity-70">{c.weightKg !== null ? kg(c.weightKg) : 'aprendendo'}</span>
                   <span className="w-[72px] text-right text-[13px]">
                     {c.todayVisits} {c.todayVisits === 1 ? 'visita' : 'visitas'}
                   </span>
                 </button>
-                {editing === c.id && <CatEditor cat={c} onDone={() => setEditing(null)} />}
+                {editing === c.id && <CatEditor cat={c} index={i} onDone={() => setEditing(null)} />}
               </div>
             ))}
             {alerts.map((c) => (
@@ -178,7 +217,7 @@ export default function LitterPage() {
                 ⚠️ {c.alert}
               </p>
             ))}
-            <p className="m-muted mt-2.5 text-xs opacity-60">Toque num gato para dar o nome ou acertar o peso. Sem peso informado, a Luna aprende sozinha pelas primeiras visitas.</p>
+            <p className="m-muted mt-2.5 text-xs opacity-60">Toque num gato para pôr a foto, dar o nome ou acertar o peso. Sem peso informado, a Luna aprende sozinha pelas primeiras visitas.</p>
           </>,
         )}
 
@@ -188,7 +227,8 @@ export default function LitterPage() {
             <>
               {b.recent.map((v) => (
                 <div key={v.id} className="flex justify-between border-t border-white/10 py-1.5 text-[13.5px] first:border-t-0">
-                  <span>
+                  <span className="flex items-center gap-2">
+                    <CatAvatar cat={b.cats.find((c) => c.id === v.catId)} index={Math.max(0, b.cats.findIndex((c) => c.id === v.catId))} size={22} />
                     {hour(v.at)} · {v.catName ?? 'gato não reconhecido'}
                   </span>
                   <span className="m-muted opacity-70">

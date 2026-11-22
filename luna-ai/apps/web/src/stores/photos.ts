@@ -25,6 +25,17 @@ export async function shrinkJpeg(file: File, max = 1600): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Não consegui ler a foto.'))), 'image/jpeg', 0.85));
 }
 
+/** Recorte quadrado do centro (avatar), reduzido para `size` px, em JPEG */
+export async function squareJpeg(file: File, size = 400): Promise<Blob> {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = Math.min(size, side);
+  canvas.getContext('2d')!.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+  bmp.close();
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Não consegui ler a foto.'))), 'image/jpeg', 0.88));
+}
+
 export const usePhotos = create<PhotosState>((set) => ({
   ids: null,
   load: async () => {

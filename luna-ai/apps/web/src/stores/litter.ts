@@ -10,6 +10,8 @@ interface LitterState {
   setAuto: (id: string, on: boolean, delaySeconds?: number) => Promise<string | null>;
   setVoice: (id: string, allowed: boolean) => Promise<string | null>;
   updateCat: (catId: string, patch: { name?: string; weightKg?: number | null }) => Promise<string | null>;
+  /** Foto do rosto do gato (null = remove). Retorna a mensagem de erro ou null. */
+  catPhoto: (catId: string, photo: Blob | null) => Promise<string | null>;
 }
 
 /** Caixas de areia (normalmente uma). Atualiza sozinha quando o servidor avisa (litter_update). */
@@ -39,6 +41,13 @@ export const useLitter = create<LitterState>((set) => {
     clean: (id) => run(async () => replace(await api<LitterBoxDto>(`/api/litter/${id}/clean`, { method: 'POST' }))),
     setAuto: (id, on, delaySeconds) => run(async () => replace(await api<LitterBoxDto>(`/api/litter/${id}/auto`, { body: { on, delaySeconds } }))),
     setVoice: (id, allowed) => run(async () => replace(await api<LitterBoxDto>(`/api/litter/${id}/voice`, { body: { allowed } }))),
+    catPhoto: (catId, photo) =>
+      run(async () => {
+        if (!photo) return set({ boxes: await api<LitterBoxDto[]>(`/api/litter/cats/${catId}/photo`, { method: 'DELETE' }) });
+        const form = new FormData();
+        form.append('photo', photo, 'gato.jpg');
+        set({ boxes: await api<LitterBoxDto[]>(`/api/litter/cats/${catId}/photo`, { method: 'POST', form }) });
+      }),
     updateCat: (catId, patch) => run(async () => set({ boxes: await api<LitterBoxDto[]>(`/api/litter/cats/${catId}`, { method: 'PATCH', body: patch }) })),
   };
 });

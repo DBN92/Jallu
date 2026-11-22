@@ -227,5 +227,28 @@ describe('Caixa de areia (Smart Life / Tuya)', () => {
     box = (await ctx.inject('GET', `/api/litter/${P}`)).json;
     expect(box.lastVisit.durationS).toBe(50);
   });
+
+  it('foto do rosto de cada gato: envia, aparece no gato, entrega e remove', async () => {
+    await withBox();
+    const cat = (await ctx.inject('GET', '/api/litter')).json[0].cats[0];
+    expect(cat.photo).toBeNull();
+    const b = '----luna';
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(3000, 7)]);
+    const up = (id: string, buf: Buffer) =>
+      ctx.app.inject({
+        method: 'POST',
+        url: `/api/litter/cats/${id}/photo`,
+        payload: Buffer.concat([Buffer.from(`--${b}\r\ncontent-disposition: form-data; name="photo"; filename="f.jpg"\r\ncontent-type: image/jpeg\r\n\r\n`), buf, Buffer.from(`\r\n--${b}--\r\n`)]),
+        headers: { cookie: ctx.cookies, 'x-csrf-token': ctx.csrf, 'content-type': `multipart/form-data; boundary=${b}` },
+      });
+    const r = await up(cat.id, jpeg);
+    expect(r.statusCode).toBe(200);
+    expect(typeof r.json()[0].cats[0].photo).toBe('number');
+    const img = await ctx.app.inject({ method: 'GET', url: `/api/litter/cats/${cat.id}/photo`, headers: { cookie: ctx.cookies } });
+    expect(img.rawPayload.length).toBe(3004);
+    expect((await up(cat.id, Buffer.alloc(3000, 1))).statusCode).toBe(400);
+    expect((await up('naoexiste123', jpeg)).statusCode).toBe(404);
+    expect((await ctx.inject('DELETE', `/api/litter/cats/${cat.id}/photo`)).json[0].cats[0].photo).toBeNull();
+  });
 });
 

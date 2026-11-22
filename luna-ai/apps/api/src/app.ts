@@ -49,6 +49,7 @@ import { siriRoutes } from './modules/siri/siri.routes';
 import { tvRoutes } from './modules/tv/tv.routes';
 import { TvDuckService } from './modules/tv/tv-duck.service';
 import { TvPanelService } from './modules/tv/tv-panel.service';
+import { CatPhotos } from './modules/litter/cat-photos';
 import { RecordingsService } from './modules/recordings/recordings.service';
 import { recordingsRoutes } from './modules/recordings/recordings.routes';
 import { LitterService } from './modules/litter/litter.service';
@@ -179,6 +180,8 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   people.notify = (title, body) => void push.broadcast({ title, body, url: '/', tag: 'pessoas' }).catch(() => undefined);
   // Caixa de areia: entidades com cartão próprio (ficam fora da lista de aparelhos)
   const litter = new LitterService(db, ha, actionLogs, env.TZ);
+  const catPhotos = new CatPhotos(dataDir);
+  litter.catPhoto = (id) => catPhotos.version(id);
   // Caixa de areia pela nuvem Tuya (o botão do HA parou de funcionar para o modelo); acha o aparelho
   // (categoria msp) e o comando de limpeza manual que ele mesmo informa
   if (tuya.configured) {
@@ -299,7 +302,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     if (piper.available) void piper.speak(text).catch(() => undefined);
   };
   if (!deps.disableWatchTimer) siri.startPrewarm((t) => piper.speak(t), () => piper.available, env.TZ);
-  return { db, litter, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, recordings, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, litter, catPhotos, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, recordings, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;

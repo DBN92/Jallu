@@ -138,6 +138,14 @@ export class LitterService extends EventEmitter {
     return cats;
   }
 
+  /** Versão da foto de cada gato (definido pelo app ao montar os serviços) */
+  catPhoto: (catId: string) => number | null = () => null;
+
+  /** O gato existe? (para a foto) */
+  async hasCat(catId: string) {
+    return (await this.cats()).some((c) => c.id === catId);
+  }
+
   /** Nomes dos gatos cadastrados na caixa de areia */
   async catNames(): Promise<string[]> {
     return (await this.cats()).map((c) => c.name);
@@ -297,7 +305,7 @@ export class LitterService extends EventEmitter {
       if (c.weightKg !== null && historyAge > 86_400_000 && (!last || now.getTime() - last.getTime() > 86_400_000)) {
         alert = `${c.name} não usa a caixa há mais de 24 h.`;
       }
-      catDtos.push({ id: c.id, slot: c.slot, name: c.name, weightKg: c.weightKg, weightSet: c.weightSet, todayVisits: mine.filter((v) => this.day(v.at) === today).length, lastVisitAt: last?.toISOString() ?? null, alert });
+      catDtos.push({ id: c.id, slot: c.slot, name: c.name, photo: this.catPhoto(c.id), weightKg: c.weightKg, weightSet: c.weightSet, todayVisits: mine.filter((v) => this.day(v.at) === today).length, lastVisitAt: last?.toISOString() ?? null, alert });
     }
 
     const statusLabel = !available ? 'Indisponível' : (STATUS_LABEL[status] ?? 'Disponível');

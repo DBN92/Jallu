@@ -2,11 +2,31 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { litterAutoSchema, litterCatSchema } from '@luna/shared';
 import { requireAdmin, requireAuth } from '../../middleware/auth';
+import { AppError, notFound } from '../../lib/errors';
 
 const boxParams = z.object({ id: z.string().regex(/^[a-z0-9_]+$/, 'caixa inválida') });
 
 export async function litterRoutes(app: FastifyInstance) {
-  const { litter } = app.services;
+  const { litter, catPhotos } = app.services;
+  const catParams = z.object({ catId: z.string().min(1).max(40) });
+
+  // Foto do rosto de cada gato
+  app.get('/api/litter/cats/:catId/photo', { preHandler: requireAuth }, async (req, reply) => {
+    const buf = await catPhotos.read(catParams.parse(req.params).catId);
+    return reply.header('content-type', 'image/jpeg').header('cache-control', 'private, max-age=31536000, immutable').send(buf);
+  });
+  app.post('/api/litter/cats/:catId/photo', { preHandler: requireAuth }, async (req) => {
+    const { catId } = catParams.parse(req.params);
+    if (!(await litter.hasCat(catId))) throw notFound('Gato não encontrado.');
+    const file = await req.file();
+    if (!file) throw new AppError(400, 'Nenhuma foto enviada.', 'no_photo');
+    await catPhotos.save(catId, await file.toBuffer());
+    return litter.list();
+  });
+  app.delete('/api/litter/cats/:catId/photo', { preHandler: requireAuth }, async (req) => {
+    await catPhotos.remove(catParams.parse(req.params).catId);
+    return litter.list();
+  });
 
   app.get('/api/litter', { preHandler: requireAuth }, async () => litter.list());
   /**

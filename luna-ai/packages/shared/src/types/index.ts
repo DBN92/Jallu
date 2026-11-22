@@ -422,6 +422,8 @@ export interface LitterCatDto {
   id: string;
   slot: number;
   name: string;
+  /** Foto do rosto (versão, para não usar a antiga em cache), ou null sem foto */
+  photo: number | null;
   /** Peso de referência em kg (aprendido ou informado), ou null enquanto não há visitas */
   weightKg: number | null;
   weightSet: boolean;
