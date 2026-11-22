@@ -13,7 +13,6 @@ const label = 'm-label text-[11.5px] tracking-[0.12em] uppercase opacity-70';
 const CAT_COLORS = ['#22d3ee', '#8b5cf6', '#f472b6', '#fbbf24', '#34d399', '#fb7185'];
 const DELAYS = [60, 180, 300, 600];
 const hour = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-const dur = (s: number | null) => (s === null || s <= 0 ? null : s < 60 ? `${s} s` : `${Math.round(s / 60)} min`);
 const wait = (s: number) => (s >= 60 ? `${Math.round(s / 60)} min` : `${s} segundo${s === 1 ? '' : 's'}`);
 const weekday = (date: string, i: number) => (i === 6 ? 'hoje' : new Date(`${date}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''));
 
@@ -109,7 +108,7 @@ export default function LitterPage() {
               {b.name}
             </p>
             <p className="m-muted mt-1 mb-2 text-[13px] opacity-70">
-              {b.lastVisit ? `Última visita às ${hour(b.lastVisit.at)}${b.lastVisit.weightKg !== null ? ` · ${kg(b.lastVisit.weightKg)}` : ''}${dur(b.lastVisit.durationS) ? ` · ficou ${dur(b.lastVisit.durationS)}` : ''}` : 'Ainda sem visitas registradas pela Luna'}
+              {b.lastVisit ? `Última visita às ${hour(b.lastVisit.at)}${b.lastVisit.weightKg !== null ? ` · ${kg(b.lastVisit.weightKg)}` : ''}` : 'Ainda sem visitas registradas pela Luna'}
             </p>
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${b.available ? 'bg-emerald-400/15 text-emerald-100' : 'bg-white/10 text-white/60'}`}>{b.statusLabel}</span>
           </div>
@@ -193,8 +192,7 @@ export default function LitterPage() {
                     {hour(v.at)} · {v.catName ?? 'gato não reconhecido'}
                   </span>
                   <span className="m-muted opacity-70">
-                    {kg(v.weightKg)}
-                    {dur(v.durationS) ? ` · ${dur(v.durationS)}` : ''} · {ago(v.at)}
+                    {kg(v.weightKg)} · {ago(v.at)}
                   </span>
                 </div>
               ))}
