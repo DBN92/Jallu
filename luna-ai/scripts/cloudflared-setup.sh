@@ -31,6 +31,13 @@ read -r -s -p "Cole o token: " TOKEN; echo
 if [ -n "$TOKEN" ]; then
   TOKEN="${TOKEN#*--token }"; TOKEN="$(echo "$TOKEN" | tr -d '[:space:]')"
   [[ "$TOKEN" == eyJ* ]] || fail "Isso não parece um token de túnel (deveria começar com eyJ)."
+  # O token é um JSON em base64 com conta (a), túnel (t) e segredo (s). Cortado no meio, falta o segredo.
+  PAD="$TOKEN"; while [ $(( ${#PAD} % 4 )) -ne 0 ]; do PAD="$PAD="; done
+  JSON="$(printf '%s' "$PAD" | tr '_-' '/+' | base64 -d 2>/dev/null || true)"
+  if ! printf '%s' "$JSON" | grep -Eq '"s":"[^"]{20,}"' || ! printf '%s' "$JSON" | grep -q '}$'; then
+    fail "O token está incompleto (recebi ${#TOKEN} caracteres; um token inteiro tem uns 180 ou mais). Copie de novo pelo painel da Cloudflare, de preferência no computador, e cole tudo."
+  fi
+  ok "Token completo (${#TOKEN} caracteres)"
   umask 077; printf '%s' "$TOKEN" > "$TOKEN_FILE"; chmod 600 "$TOKEN_FILE"
 fi
 [ -s "$TOKEN_FILE" ] || fail "Nenhum token informado."
