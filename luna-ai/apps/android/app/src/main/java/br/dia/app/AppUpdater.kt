@@ -1,5 +1,6 @@
 package br.dia.app
 
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -90,16 +91,38 @@ object AppUpdater {
 
 /** Resultado da instalação: pede confirmação quando o Android exigir; registra o resto */
 class UpdateReceiver : BroadcastReceiver() {
+    companion object { const val NOTIFY_ID = 41 }
+
     override fun onReceive(ctx: Context, intent: Intent) {
         AppDiag.init(Prefs(ctx))
         when (val st = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -999)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 AppDiag.log("atualização: o Android pediu confirmação")
                 @Suppress("DEPRECATION")
-                val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-                if (confirm != null) try { ctx.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {}
+                val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
+                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // Com a Luna em segundo plano o Android não deixa abrir a janela: fica também um aviso
+                // para tocar e instalar (antes a atualização ficava esperando sem ninguém saber)
+                try { ctx.startActivity(confirm) } catch (_: Exception) {}
+                try {
+                    val nm = ctx.getSystemService(NotificationManager::class.java)
+                    Compat.channel(ctx, "atualizacao", "Atualização da Luna", NotificationManager.IMPORTANCE_HIGH)
+                    nm.notify(
+                        NOTIFY_ID,
+                        Compat.builder(ctx, "atualizacao")
+                            .setSmallIcon(R.drawable.ic_stat_dia)
+                            .setContentTitle("Versão nova da Luna pronta")
+                            .setContentText("Toque para instalar a atualização.")
+                            .setAutoCancel(true)
+                            .setContentIntent(PendingIntent.getActivity(ctx, 41, confirm, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                            .build(),
+                    )
+                } catch (_: Exception) {}
             }
-            PackageInstaller.STATUS_SUCCESS -> AppDiag.log("atualização: instalada")
+            PackageInstaller.STATUS_SUCCESS -> {
+                AppDiag.log("atualização: instalada")
+                try { ctx.getSystemService(NotificationManager::class.java).cancel(NOTIFY_ID) } catch (_: Exception) {}
+            }
             else -> AppDiag.log("atualização: falhou ($st) ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""}")
         }
     }
