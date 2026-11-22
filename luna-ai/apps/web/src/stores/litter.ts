@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { LitterBoxDto } from '@luna/shared';
 import { api, errorMessage } from '../services/api';
+import { useLitterShow } from '../components/LitterCelebration';
 
 interface LitterState {
   boxes: LitterBoxDto[] | null;
@@ -33,7 +34,9 @@ export const useLitter = create<LitterState>((set) => {
     busy: false,
     load: async () => {
       try {
-        set({ boxes: await api<LitterBoxDto[]>('/api/litter') });
+        const boxes = await api<LitterBoxDto[]>('/api/litter');
+        set({ boxes });
+        useLitterShow.getState().observe(boxes); // gatinho aliviado quando há visita nova
       } catch {
         set((s) => ({ boxes: s.boxes ?? [] }));
       }

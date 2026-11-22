@@ -25,6 +25,7 @@ import { usePresence } from './hooks/usePresence';
 import { useTv } from './stores/tv';
 import { GestureToast, useGestureToast, useGestureWatcher } from './gestures/useGestureWatcher';
 import { VacuumCelebration, useVacuumShow } from './components/VacuumCelebration';
+import { LitterCelebration } from './components/LitterCelebration';
 import { reloadLitter } from './stores/litter';
 import { reloadWasher } from './stores/washer';
 import { WasherDone, useWasherDone } from './components/WasherDone';
@@ -123,6 +124,8 @@ export default function App() {
     if (status === 'ready') {
       void loadSettings().catch(() => undefined);
       void loadDevices();
+      // Caixa de areia: guarda a última visita já vista (o gatinho só aparece para visitas novas)
+      reloadLitter();
     }
   }, [status, loadSettings]);
 
@@ -186,6 +189,7 @@ export default function App() {
         {isLiteTv() ? <TvPanel /> : <TvApp />}
         <GestureToast />
         <VacuumCelebration tv />
+        <LitterCelebration tv />
         <WasherDone tv />
       </Suspense>
     );
@@ -197,6 +201,7 @@ export default function App() {
       <RecadosLayer />
       <DimOverlay />
       <VacuumCelebration />
+      <LitterCelebration />
       <WasherDone />
       <Suspense
         fallback={

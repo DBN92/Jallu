@@ -1,0 +1,61 @@
+/* Comemoração da caixa de areia (gatinho aliviado). Só transform/opacity; com “menos animação” fica parado. */
+.lc-root { position: fixed; inset: 0; z-index: 70; color: #fff; }
+.lc-dim { position: absolute; inset: 0; background: rgba(3, 5, 10, 0.5); opacity: 0; animation: lc-in 0.5s ease forwards, lc-out 0.6s ease 5.1s forwards; }
+.lc-card {
+  position: absolute; left: 12px; right: 12px; bottom: max(14px, env(safe-area-inset-bottom)); max-width: 520px; margin: 0 auto; border-radius: 30px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)), #151a2c; border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55); transform: translateY(120%); animation: lc-up 0.6s cubic-bezier(0.2, 1.25, 0.4, 1) 0.1s forwards, lc-down 0.5s ease 5.1s forwards;
+}
+.lc-root.tv .lc-card { left: 50%; right: auto; top: 12vh; bottom: auto; width: min(560px, 50vw); margin: 0; transform: translate(-50%, 30px) scale(0.92); opacity: 0; animation: lc-pop 0.6s cubic-bezier(0.2, 1.3, 0.4, 1) 0.1s forwards, lc-fade 0.5s ease 5.1s forwards; border-radius: 40px; }
+@keyframes lc-in { to { opacity: 1; } }
+@keyframes lc-out { to { opacity: 0; } }
+@keyframes lc-up { to { transform: translateY(0); } }
+@keyframes lc-down { from { transform: translateY(0); } to { transform: translateY(120%); } }
+@keyframes lc-pop { to { transform: translate(-50%, 0) scale(1); opacity: 1; } }
+@keyframes lc-fade { from { transform: translate(-50%, 0) scale(1); opacity: 1; } to { transform: translate(-50%, 0) scale(0.95); opacity: 0; } }
+
+.lc-stage { position: relative; height: 250px; }
+.lc-mask { position: absolute; left: 0; right: 0; top: 0; bottom: 92px; overflow: hidden; }
+.lc-cat { position: absolute; left: 50%; bottom: -24px; width: 150px; height: 157px; margin-left: -75px; transform: translateY(170px); animation: lc-rise 0.9s cubic-bezier(0.2, 1.2, 0.4, 1) 0.7s forwards; }
+.lc-svg { width: 100%; height: 100%; overflow: visible; }
+@keyframes lc-rise { to { transform: translateY(0); } }
+.lc-tail { transform-origin: 150px 200px; animation: lc-wag 1.1s ease-in-out 1.6s infinite alternate; }
+@keyframes lc-wag { from { transform: rotate(-8deg); } to { transform: rotate(14deg); } }
+.lc-blush { opacity: 0; animation: lc-blush 0.4s ease 1.5s forwards; }
+@keyframes lc-blush { to { opacity: 0.8; } }
+.lc-eyes { transform-origin: 110px 100px; animation: lc-blink 0.25s ease 3.4s 1; }
+@keyframes lc-blink { 50% { transform: scaleY(0.2); } }
+.lc-head { transform-origin: 110px 150px; animation: lc-sigh 1.2s ease-in-out 1.6s 1; }
+@keyframes lc-sigh { 30% { transform: translateY(4px) rotate(-3deg); } 60% { transform: translateY(-2px) rotate(2deg); } }
+
+.lc-box { position: absolute; left: 50%; bottom: 14px; width: 210px; height: 84px; margin-left: -105px; }
+.lc-box > i { position: absolute; display: block; }
+.lc-rim { left: -8px; right: -8px; top: -10px; height: 22px; border-radius: 12px; background: linear-gradient(180deg, #fff, #e3e9f3); z-index: 1; }
+.lc-body { inset: 0; border-radius: 18px 18px 30px 30px; background: linear-gradient(180deg, #f5f7fb, #cfd8e6); }
+.lc-shine { position: absolute; inset: 0; border-radius: 18px 18px 30px 30px; overflow: hidden; z-index: 2; }
+.lc-shine i { position: absolute; top: -20%; bottom: -20%; width: 50px; left: -70px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent); transform: skewX(-20deg); animation: lc-sweep 1s ease-in-out 2.3s forwards; }
+@keyframes lc-sweep { to { left: 240px; } }
+
+.lc-ahh { position: absolute; left: 12%; top: 22%; font: 600 26px Sora, var(--font-display, sans-serif); opacity: 0; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3); animation: lc-ahh 1.8s ease 1.7s forwards; }
+@keyframes lc-ahh { 0% { opacity: 0; transform: translate(0, 16px) scale(0.8); } 25% { opacity: 1; transform: translate(-4px, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-24px, -34px) scale(1.05); } }
+.lc-puff { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: rgba(255, 255, 255, 0.8); opacity: 0; animation: lc-puff 1.6s ease-out forwards; }
+@keyframes lc-puff { 0% { opacity: 0; transform: scale(0.4); } 20% { opacity: 0.9; } 100% { opacity: 0; transform: translate(-40px, -70px) scale(1.4); } }
+.lc-spark { position: absolute; opacity: 0; animation: lc-spark 1.2s ease-out forwards; }
+@keyframes lc-spark { 0% { opacity: 0; transform: scale(0) rotate(0); } 40% { opacity: 1; transform: scale(1) rotate(45deg); } 100% { opacity: 0; transform: scale(0.6) rotate(90deg); } }
+.lc-bub { position: absolute; bottom: 30px; border-radius: 50%; border: 2px solid rgba(186, 230, 253, 0.9); background: rgba(186, 230, 253, 0.18); opacity: 0; animation: lc-bub 1.6s ease-out forwards; }
+@keyframes lc-bub { 0% { opacity: 0; transform: translateY(0) scale(0.5); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-100px) scale(1.1); } }
+
+.lc-txt { padding: 0 22px 22px; text-align: center; opacity: 0; transform: translateY(12px); animation: lc-txt 0.6s ease 2.6s forwards; }
+@keyframes lc-txt { to { opacity: 1; transform: none; } }
+.lc-title { font: 700 24px var(--font-display, Sora, sans-serif); margin: 0; }
+.lc-sub { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0 0; font: 500 14px Sora, sans-serif; color: rgba(255, 255, 255, 0.72); }
+.lc-sub img, .lc-av { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; display: inline-grid; place-items: center; background: linear-gradient(135deg, #fbcfe8, #a5b4fc); font-size: 14px; }
+.lc-root.tv .lc-stage { height: 320px; }
+.lc-root.tv .lc-title { font-size: 36px; }
+.lc-root.tv .lc-sub { font-size: 21px; }
+
+/* Menos animação / acessibilidade: cartão parado já no quadro final */
+@media (prefers-reduced-motion: reduce) {
+  .lc-root *, .lc-root { animation-duration: 0.01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+}
+html.calm-motion .lc-root *, html.calm-motion .lc-root { animation-duration: 0.01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
