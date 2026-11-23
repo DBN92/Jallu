@@ -27,9 +27,9 @@ export class OllamaProvider implements AIProvider {
     private readonly keepAlive: string | number = -1,
   ) {}
 
-  /** Modelos de “raciocínio” (qwen3, deepseek-r1…): desliga o pensamento longo para responder rápido. */
+  /** Modelos de “raciocínio” (qwen3, gemma4, deepseek-r1…): desliga o pensamento longo para responder rápido. */
   private get thinkingModel() {
-    return /^(qwen3|deepseek-r1|magistral|gpt-oss)/i.test(this.model);
+    return /^(qwen3|deepseek-r1|magistral|gpt-oss|gemma4|lfm|granite4|smollm3|phi4-mini-reasoning)/i.test(this.model);
   }
 
   isConfigured() {

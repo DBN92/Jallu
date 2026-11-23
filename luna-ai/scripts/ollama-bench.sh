@@ -46,11 +46,17 @@ const s = (ns) => (ns / 1e9).toFixed(1);
     await fetch(`${url}/api/generate`, { method: 'POST', body: JSON.stringify({ model, prompt: 'oi', stream: false, options: { num_predict: 1 } }) });
     for (const [i, q] of perguntas.entries()) {
       const t0 = Date.now();
-      const r = await (await fetch(`${url}/api/chat`, { method: 'POST', body: JSON.stringify({ model, stream: false, messages: [{ role: 'system', content: system }, { role: 'user', content: q }], options: { num_ctx: 4096, num_predict: 120 } }) })).json();
+      // Desliga o “pensar” (modelos de raciocínio gastam a resposta pensando); modelo sem essa opção: pede de novo sem ela
+      const ask = async (think) => (await fetch(`${url}/api/chat`, { method: 'POST', body: JSON.stringify({ model, stream: false, ...(think === undefined ? {} : { think }), messages: [{ role: 'system', content: system }, { role: 'user', content: q }], options: { num_ctx: 4096, num_predict: 120 } }) })).json();
+      let r = await ask(false);
+      if (r.error) r = await ask(undefined);
+      if (r.error) { console.log(`${i + 1}) erro: ${r.error}`); continue; }
       const total = ((Date.now() - t0) / 1000).toFixed(1);
       const ler = r.prompt_eval_count ? `ler ${r.prompt_eval_count} tokens em ${s(r.prompt_eval_duration)} s` : 'instruções já em cache';
       console.log(`${i + 1}) ${total} s no total · ${ler} · escrever ${(r.eval_count / (r.eval_duration / 1e9)).toFixed(1)} tokens/s`);
-      console.log(`   “${(r.message?.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 160)}”`);
+      const pensou = (r.message?.thinking ?? '').length + ((r.message?.content ?? '').match(/<think>[\s\S]*?(<\/think>|$)/)?.[0].length ?? 0);
+      const texto = (r.message?.content ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/\s+/g, ' ').trim();
+      console.log(`   “${texto.slice(0, 160)}”${pensou ? `  (gastou ${pensou} caracteres “pensando”)` : ''}`);
     }
   }
   console.log('\nMande este resultado para comparar. Menos segundos = mais rápido; leia as respostas para ver a qualidade.');
