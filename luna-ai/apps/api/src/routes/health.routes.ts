@@ -66,7 +66,7 @@ export async function healthRoutes(app: FastifyInstance) {
       database: db,
       homeAssistant: { ...haRes, websocket: haWs.connected },
       ollama: { ...ollamaRes, model: ollama.model },
-      openai: { ...openaiRes, configured: openai.isConfigured(), model: openai.model },
+      openai: { ...openaiRes, configured: openai.isConfigured(), model: openai.model, label: openai.label },
     };
     // Uso do servidor: carga média de 1 min / núcleos e memória (MemAvailable no Linux)
     const cpus = os.cpus().length || 1;

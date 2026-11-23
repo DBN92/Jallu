@@ -72,8 +72,8 @@ function Row({ label, hint, children }: { label: string; hint?: ReactNode; child
 
 const MODES: { value: AiMode; label: string; hint: string }[] = [
   { value: 'local', label: 'Local', hint: 'Somente Ollama. Nada sai de casa.' },
-  { value: 'hybrid', label: 'Híbrido', hint: 'Casa e conversas simples no local; tarefas complexas na OpenAI.' },
-  { value: 'cloud', label: 'Nuvem', hint: 'OpenAI primeiro, com o modelo local como reserva.' },
+  { value: 'hybrid', label: 'Híbrido', hint: 'Casa e conversas simples no local; voz e tarefas complexas na nuvem (Groq ou OpenAI).' },
+  { value: 'cloud', label: 'Nuvem', hint: 'Nuvem primeiro (mais rápido), com o modelo local como reserva.' },
 ];
 
 function HealthStatus() {
@@ -88,7 +88,7 @@ function HealthStatus() {
     ['Banco de dados', h.services.database],
     ['Home Assistant', { ...h.services.homeAssistant, detail: `${h.services.homeAssistant.detail}${h.services.homeAssistant.websocket ? ' · tempo real ativo' : ' · tempo real inativo'}` }],
     [`Ollama (${h.services.ollama.model})`, h.services.ollama],
-    [`OpenAI (${h.services.openai.model})`, h.services.openai],
+    [`${h.services.openai.label ?? 'OpenAI'} (${h.services.openai.model})`, h.services.openai],
   ] as const;
   return (
     <>
@@ -312,13 +312,13 @@ export default function SettingsPage() {
   useEffect(() => {
     void lunaVoiceAvailable().then(setLunaVoice);
   }, []);
-  const [caps, setCaps] = useState<{ realtime: boolean; realtimeVoices: string[] } | null>(null);
+  const [caps, setCaps] = useState<{ realtime: boolean; cloudTranscription?: boolean; realtimeVoices: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const wake = wakeWordSupport(voiceMode);
 
   useEffect(() => {
     if (!settings) void load();
-    api<{ realtime: boolean; realtimeVoices: string[] }>('/api/voice/capabilities').then(setCaps).catch(() => undefined);
+    api<{ realtime: boolean; cloudTranscription?: boolean; realtimeVoices: string[] }>('/api/voice/capabilities').then(setCaps).catch(() => undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = (patch: Parameters<typeof update>[0]) => update(patch).catch((e) => setError(errorMessage(e)));
@@ -351,7 +351,7 @@ export default function SettingsPage() {
           </div>
           <p className="mt-2 text-xs text-white/45">{MODES.find((m) => m.value === settings.aiMode)?.hint}</p>
         </div>
-        <Row label="Compartilhar memórias com a nuvem" hint="Permite que a OpenAI veja suas memórias salvas para respostas personalizadas.">
+        <Row label="Compartilhar memórias com a nuvem" hint="Permite que a IA na nuvem veja suas memórias salvas para respostas personalizadas.">
           <Toggle label="Memórias na nuvem" checked={settings.allowCloudMemory} onChange={(v) => void save({ allowCloudMemory: v })} />
         </Row>
       </Section>
@@ -465,8 +465,8 @@ export default function SettingsPage() {
             </label>
           )}
         </div>
-        <Row label="Transcrição na nuvem" hint="Se o navegador não reconhecer fala (comum em apps instalados no iPhone), o áudio é transcrito pela OpenAI.">
-          <Toggle label="Transcrição na nuvem" disabled={!caps?.realtime} checked={settings.allowCloudTranscription} onChange={(v) => void save({ allowCloudTranscription: v })} />
+        <Row label="Transcrição na nuvem" hint="O áudio do pedido é transcrito na nuvem (Groq, ou OpenAI sem a chave do Groq): mais preciso que o reconhecimento do aparelho.">
+          <Toggle label="Transcrição na nuvem" disabled={!caps?.cloudTranscription} checked={settings.allowCloudTranscription} onChange={(v) => void save({ allowCloudTranscription: v })} />
         </Row>
         <Row label="Palavra de ativação “Oi, Luna”" hint={
             wake.supported

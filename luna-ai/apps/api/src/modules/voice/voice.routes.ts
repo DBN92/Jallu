@@ -26,7 +26,7 @@ export async function voiceRoutes(app: FastifyInstance) {
 
   app.get('/api/voice/capabilities', { preHandler: requireAuth }, async () => ({
     realtime: voice.configured,
-    cloudTranscription: voice.configured,
+    cloudTranscription: voice.transcribeConfigured,
     realtimeVoices: VOICES,
   }));
 

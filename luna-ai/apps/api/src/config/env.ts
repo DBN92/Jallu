@@ -53,6 +53,16 @@ const envSchema = z.object({
   OPENAI_TRANSCRIBE_MODEL: z.string().default('gpt-4o-mini-transcribe'),
   OPENAI_TIMEOUT_MS: z.coerce.number().int().default(60_000),
 
+  /**
+   * Groq (nuvem rápida, com plano grátis). Com a chave, o Groq vira a “IA na nuvem” da Luna (respostas e
+   * transcrição da fala); a OpenAI fica só para a voz em tempo real, se houver OPENAI_API_KEY.
+   * Os modelos do Groq mudam: troque aqui se algum for desativado (console.groq.com/docs/models).
+   */
+  GROQ_API_KEY: z.string().default(''),
+  GROQ_MODEL: z.string().default('openai/gpt-oss-20b'),
+  GROQ_TRANSCRIBE_MODEL: z.string().default('whisper-large-v3'),
+  GROQ_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
+
   LUNA_AI_MODE: z.enum(['local', 'cloud', 'hybrid']).default('hybrid'),
   /** Modo híbrido: segundos (em ms) que o modelo local tem para começar a responder antes de passar para a OpenAI */
   LUNA_HYBRID_LOCAL_TIMEOUT_MS: z.coerce.number().int().min(3000).default(20_000),

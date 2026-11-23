@@ -51,7 +51,7 @@ export function StatusPanel({ health, server, ha, mini }: { health: HealthDto | 
               ['Servidor da Luna', server, server ? `online · ativo há ${round((health?.uptimeSeconds ?? 0) / 60)} min` : 'sem conexão'],
               ['Home Assistant', ha, health?.services.homeAssistant.detail ?? '—'],
               ['IA local (Ollama)', ollama?.ok ?? null, ollama ? `${ollama.model} · ${ollama.detail}` : '—'],
-              ['IA na nuvem (OpenAI)', health?.services.openai.configured ? health.services.openai.ok : null, health?.services.openai.configured ? health.services.openai.detail : 'desligada (opcional)'],
+              [`IA na nuvem (${health?.services.openai.label ?? 'OpenAI'})`, health?.services.openai.configured ? health.services.openai.ok : null, health?.services.openai.configured ? health.services.openai.detail : 'desligada (opcional)'],
               ['Banco de dados', health?.services.database.ok ?? null, health?.services.database.detail ?? '—'],
             ].map(([name, ok, detail]) => (
               <li key={String(name)} className="flex items-center justify-between gap-3 py-2">

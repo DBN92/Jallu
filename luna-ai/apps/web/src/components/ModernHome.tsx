@@ -225,7 +225,7 @@ function ModernHomeCards(p: ModernHomeProps) {
         {[
           ['Home Assistant', services?.homeAssistant.ok, services?.homeAssistant.ok ? 'conectado' : 'offline'],
           [`IA local${services?.ollama.model ? ` · ${services.ollama.model}` : ''}`, services?.ollama.ok, services?.ollama.ok ? 'pronta' : 'offline'],
-          ['IA na nuvem (OpenAI)', services?.openai.configured ? services.openai.ok : null, services?.openai.configured ? (services.openai.ok ? 'pronta' : 'erro') : 'desligada'],
+          [`IA na nuvem (${services?.openai.label ?? 'OpenAI'})`, services?.openai.configured ? services.openai.ok : null, services?.openai.configured ? (services.openai.ok ? 'pronta' : 'erro') : 'desligada'],
         ].map(([n, ok, t]) => (
           <div key={String(n)} className="flex items-center justify-between gap-3 border-b border-white/5 py-2 last:border-0">
             <span className="min-w-0 truncate">{n}</span>

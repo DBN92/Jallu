@@ -483,7 +483,7 @@ export class ChatService {
     for (const provider of order) {
       if (!(await provider.isAvailable())) {
         const detail = provider.name === 'ollama' ? (this.providers.ollama as { lastProblem?: string | null }).lastProblem : null;
-        notices.push(provider.name === 'ollama' ? `IA local indisponível: ${detail ?? 'o Ollama não respondeu.'}` : 'A OpenAI está indisponível ou não configurada.');
+        notices.push(provider.name === 'ollama' ? `IA local indisponível: ${detail ?? 'o Ollama não respondeu.'}` : `${cloudName(provider)} está indisponível ou não configurado.`);
         continue;
       }
       const memories = !provider.isCloud || settings.allowCloudMemory ? await this.memory.promptContext(user.id) : null;
@@ -510,7 +510,7 @@ export class ChatService {
           });
           if (!res.toolCalls.length) {
             const reply = res.content.trim() || this.fallbackReply(actions);
-            return { reply, provider: provider.name, model: provider.model, actions, notices: notices.length ? [...notices, `Respondi usando ${provider.name === 'ollama' ? 'o modelo local' : 'a OpenAI'}.`] : [] };
+            return { reply, provider: provider.name, model: provider.model, actions, notices: notices.length ? [...notices, `Respondi usando ${provider.name === 'ollama' ? 'o modelo local' : `a nuvem (${cloudName(provider)})`}.`] : [] };
           }
           messages.push({ role: 'assistant', content: res.content, toolCalls: res.toolCalls });
           for (const call of res.toolCalls.slice(0, 6)) {
@@ -525,7 +525,7 @@ export class ChatService {
       } catch (err) {
         // Se algo já foi executado, NÃO repete em outro provedor (evita ações duplicadas)
         if (actions.length) return { reply: this.fallbackReply(actions), provider: provider.name, model: provider.model, actions, notices: [...notices, (err as Error).message] };
-        notices.push(deadline?.signal.aborted ? `O modelo local demorou mais de ${Math.round(this.hybridLocalMs / 1000)} s; usei a OpenAI.` : err instanceof ProviderError ? err.message : `Falha em ${provider.name}.`);
+        notices.push(deadline?.signal.aborted ? `O modelo local demorou mais de ${Math.round(this.hybridLocalMs / 1000)} s; usei a nuvem (${cloudName(this.providers.openai)}).` : err instanceof ProviderError ? err.message : `Falha em ${provider.name}.`);
       } finally {
         if (timer) clearTimeout(timer);
       }
@@ -606,4 +606,9 @@ export class ChatService {
 /** “Agora são 21:15.” (a mesma frase que o pré-aquecimento da voz prepara para o minuto seguinte) */
 export function timeReply(date: Date, timeZone: string) {
   return `Agora são ${new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit' }).format(date)}.`;
+}
+
+/** Nome do serviço de nuvem para as mensagens (OpenAI ou Groq) */
+function cloudName(p: AIProvider) {
+  return (p as { label?: string }).label ?? 'OpenAI';
 }

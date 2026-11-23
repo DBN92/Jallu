@@ -139,7 +139,7 @@ describe('Modo híbrido não fica esperando o modelo local', () => {
       const r = await ctx.inject('POST', '/api/chat', { message: 'me conta uma curiosidade' });
       expect(r.json.reply).toBe('Resposta da nuvem.');
       expect(r.json.provider).toBe('openai');
-      expect(r.json.notices.join(' ')).toMatch(/demorou mais de 3 s; usei a OpenAI/);
+      expect(r.json.notices.join(' ')).toMatch(/demorou mais de 3 s; usei a nuvem \(OpenAI\)/);
       expect(Date.now() - t0).toBeLessThan(8000);
     } finally {
       await ctx.app.close();

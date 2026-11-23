@@ -145,8 +145,16 @@ export class FakeLlm {
     return json({}, 404);
   });
 
+  /** Endereços chamados na nuvem (OpenAI ou Groq) */
+  cloudUrls: string[] = [];
   openaiFetch = makeFetch(async (url, init) => {
     if (!this.available) throw new TypeError('fetch failed');
+    this.cloudUrls.push(url.href);
+    if (url.pathname.endsWith('/audio/transcriptions')) {
+      const form = init?.body as FormData;
+      this.requests.push({ model: form.get('model'), language: form.get('language') });
+      return json({ text: ' acende a luz da sala ' });
+    }
     if (url.pathname.endsWith('/chat/completions')) {
       this.requests.push(JSON.parse(String(init?.body)));
       const step = this.next();

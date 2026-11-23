@@ -200,7 +200,7 @@ export function SystemPanel() {
         <Status label="Servidor" ok={server} value={server ? 'online' : 'offline'} />
         <Status label="Home Assistant" ok={ha} value={ha ? 'tempo real' : ha === false ? 'offline' : '—'} />
         <Status label="IA local" ok={health ? health.services.ollama.ok : null} value={health?.services.ollama.model ?? '—'} />
-        <Status label="IA nuvem" ok={health?.services.openai.configured ? health.services.openai.ok : null} value={health?.services.openai.configured ? 'OpenAI' : 'desligada'} />
+        <Status label="IA nuvem" ok={health?.services.openai.configured ? health.services.openai.ok : null} value={health?.services.openai.configured ? (health.services.openai.label ?? 'OpenAI') : 'desligada'} />
         <Status label="Modo" ok={null} value={mode} />
         <Status label="Voz" ok={null} value={voiceMode === 'realtime' ? 'tempo real' : 'básica'} />
       </ul>

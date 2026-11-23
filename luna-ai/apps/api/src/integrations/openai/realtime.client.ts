@@ -14,10 +14,18 @@ export class OpenAIVoiceClient {
     private readonly realtimeModel: string,
     private readonly transcribeModel: string,
     private readonly fetchImpl: FetchLike = fetch,
+    /** Transcrição em outro serviço compatível (ex.: Groq/Whisper); sem isso, usa a OpenAI */
+    private readonly stt: { baseUrl: string; apiKey: string; model: string; label: string } | null = null,
   ) {}
 
+  /** Voz em tempo real (só OpenAI) */
   get configured() {
     return Boolean(this.apiKey);
+  }
+
+  /** Transcrição na nuvem disponível (Groq ou OpenAI) */
+  get transcribeConfigured() {
+    return Boolean(this.stt?.apiKey || this.apiKey);
   }
 
   async createRealtimeSecret(session: { instructions: string; voice: string; tools: unknown[]; wakeWord?: boolean }) {
@@ -65,20 +73,23 @@ export class OpenAIVoiceClient {
   }
 
   async transcribe(audio: Buffer, mimeType: string, filename: string): Promise<string> {
-    if (!this.configured) throw new ServiceUnavailableError('openai', 'Transcrição em nuvem indisponível: OPENAI_API_KEY não configurada.');
+    const svc = this.stt?.apiKey ? this.stt : { baseUrl: this.baseUrl, apiKey: this.apiKey, model: this.transcribeModel, label: 'OpenAI' };
+    if (!svc.apiKey) throw new ServiceUnavailableError('openai', 'Transcrição em nuvem indisponível: configure GROQ_API_KEY (ou OPENAI_API_KEY) no servidor.');
     const form = new FormData();
     form.append('file', new Blob([new Uint8Array(audio)], { type: mimeType }), filename);
-    form.append('model', this.transcribeModel);
+    form.append('model', svc.model);
     form.append('language', 'pt');
-    const res = await this.fetchImpl(`${this.baseUrl}/audio/transcriptions`, {
+    // Ajuda a reconhecer o nome da assistente
+    form.append('prompt', 'Luna. Oi, Luna, acenda a luz da sala.');
+    const res = await this.fetchImpl(`${svc.baseUrl}/audio/transcriptions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${this.apiKey}` },
+      headers: { Authorization: `Bearer ${svc.apiKey}` },
       body: form,
       signal: AbortSignal.timeout(30_000),
     }).catch(() => {
-      throw new ServiceUnavailableError('openai', 'Sem conexão com a OpenAI para transcrever o áudio.');
+      throw new ServiceUnavailableError('openai', `Sem conexão com o ${svc.label} para transcrever o áudio.`);
     });
-    if (!res.ok) throw new AppError(502, `Falha na transcrição (${res.status}).`, 'transcribe_error');
+    if (!res.ok) throw new AppError(502, `Falha na transcrição pelo ${svc.label} (${res.status}).`, 'transcribe_error');
     const data = (await res.json()) as { text: string };
     return data.text.trim();
   }

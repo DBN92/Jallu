@@ -3,7 +3,10 @@ import { ProviderError } from '../../modules/ai/types';
 
 type FetchLike = typeof fetch;
 
-/** Provedor de nuvem via API oficial da OpenAI (Chat Completions com function calling). */
+/**
+ * Provedor de nuvem no formato da OpenAI (Chat Completions com function calling). Serve para a OpenAI e
+ * para serviços compatíveis, como o Groq (label = nome mostrado nas mensagens e na saúde do sistema).
+ */
 export class OpenAIProvider implements AIProvider {
   readonly name = 'openai' as const;
   readonly isCloud = true;
@@ -15,7 +18,13 @@ export class OpenAIProvider implements AIProvider {
     readonly model: string,
     private readonly timeoutMs = 60_000,
     private readonly fetchImpl: FetchLike = fetch,
+    private readonly opts: { label?: string; extraBody?: Record<string, unknown> } = {},
   ) {}
+
+  /** Nome do serviço para as mensagens (“OpenAI”, “Groq”) */
+  get label() {
+    return this.opts.label ?? 'OpenAI';
+  }
 
   isConfigured() {
     return Boolean(this.apiKey);
@@ -29,23 +38,23 @@ export class OpenAIProvider implements AIProvider {
   }
 
   async status(): Promise<{ ok: boolean; detail: string }> {
-    if (!this.isConfigured()) return { ok: false, detail: 'OPENAI_API_KEY não configurada' };
+    if (!this.isConfigured()) return { ok: false, detail: 'Chave da nuvem não configurada' };
     try {
       const res = await this.fetchImpl(`${this.baseUrl}/models/${encodeURIComponent(this.model)}`, {
         headers: { Authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(5000),
       });
-      if (res.status === 401) return { ok: false, detail: 'Chave da OpenAI inválida' };
+      if (res.status === 401) return { ok: false, detail: `Chave do ${this.label} inválida` };
       if (res.status === 404) return { ok: false, detail: `Modelo ${this.model} não disponível na sua conta` };
-      return { ok: res.ok, detail: res.ok ? `Modelo ${this.model} disponível` : `OpenAI respondeu ${res.status}` };
+      return { ok: res.ok, detail: res.ok ? `${this.label} · ${this.model}` : `${this.label} respondeu ${res.status}` };
     } catch {
-      return { ok: false, detail: 'Sem conexão com a OpenAI' };
+      return { ok: false, detail: `Sem conexão com o ${this.label}` };
     }
   }
 
   async chat(messages: ChatMessage[], tools: ToolDefinition[], opts: { onDelta?: (text: string) => void; maxTokens?: number; signal?: AbortSignal } = {}): Promise<ProviderResponse> {
     void opts; // sem streaming aqui: a resposta completa é enviada ao final
-    if (!this.isConfigured()) throw new ProviderError('openai', 'A OpenAI não está configurada.', false);
+    if (!this.isConfigured()) throw new ProviderError('openai', `${this.label} não está configurado.`, false);
     const body = {
       model: this.model,
       temperature: 0.4,
@@ -63,6 +72,7 @@ export class OpenAIProvider implements AIProvider {
         return { role: m.role, content: m.content };
       }),
       tools: tools.length ? tools.map((t) => ({ type: 'function', function: t })) : undefined,
+      ...this.opts.extraBody,
     };
 
     let res: Response;
@@ -75,13 +85,13 @@ export class OpenAIProvider implements AIProvider {
       });
     } catch {
       this.availability = { at: Date.now(), ok: false };
-      throw new ProviderError('openai', 'Sem conexão com a OpenAI.');
+      throw new ProviderError('openai', `Sem conexão com o ${this.label}.`);
     }
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       if (res.status >= 500 || res.status === 429) this.availability = { at: Date.now(), ok: false };
       const reason = res.status === 401 ? 'chave inválida' : res.status === 429 ? 'limite de uso/créditos atingido' : `erro ${res.status}`;
-      throw new ProviderError('openai', `A OpenAI recusou a requisição (${reason}). ${text.slice(0, 120)}`.trim(), res.status !== 401);
+      throw new ProviderError('openai', `${this.label} recusou a requisição (${reason}). ${text.slice(0, 120)}`.trim(), res.status !== 401);
     }
     this.availability = { at: Date.now(), ok: true };
     const data = (await res.json()) as {

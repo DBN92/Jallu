@@ -228,7 +228,8 @@ export interface HealthDto {
     database: ServiceHealth;
     homeAssistant: ServiceHealth & { websocket: boolean };
     ollama: ServiceHealth & { model: string };
-    openai: ServiceHealth & { configured: boolean; model: string };
+    /** IA na nuvem (OpenAI ou Groq: veja label) */
+    openai: ServiceHealth & { configured: boolean; model: string; label?: string };
   };
 }
 

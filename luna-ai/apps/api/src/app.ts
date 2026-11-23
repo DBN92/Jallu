@@ -111,8 +111,23 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const automations = new AutomationsService(db, ha, devices, actionLogs);
   const keepAlive = /^-?\d+$/.test(env.OLLAMA_KEEP_ALIVE) ? Number(env.OLLAMA_KEEP_ALIVE) : env.OLLAMA_KEEP_ALIVE;
   const ollama = new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_MODEL, env.OLLAMA_TIMEOUT_MS, deps.fetch?.ollama, keepAlive);
-  const openai = new OpenAIProvider(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_MODEL, env.OPENAI_TIMEOUT_MS, deps.fetch?.openai);
-  const voice = new OpenAIVoiceClient(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_REALTIME_MODEL, env.OPENAI_TRANSCRIBE_MODEL, deps.fetch?.openai);
+  // IA na nuvem: Groq (rápido, com plano grátis) quando houver GROQ_API_KEY; senão a OpenAI
+  const groq = !!env.GROQ_API_KEY;
+  const openai = groq
+    ? new OpenAIProvider(env.GROQ_BASE_URL, env.GROQ_API_KEY, env.GROQ_MODEL, env.OPENAI_TIMEOUT_MS, deps.fetch?.openai, {
+        label: 'Groq',
+        // gpt-oss pensa antes de responder: pouco pensamento = resposta mais rápida
+        extraBody: /gpt-oss/i.test(env.GROQ_MODEL) ? { reasoning_effort: 'low' } : {},
+      })
+    : new OpenAIProvider(env.OPENAI_BASE_URL, env.OPENAI_API_KEY, env.OPENAI_MODEL, env.OPENAI_TIMEOUT_MS, deps.fetch?.openai);
+  const voice = new OpenAIVoiceClient(
+    env.OPENAI_BASE_URL,
+    env.OPENAI_API_KEY,
+    env.OPENAI_REALTIME_MODEL,
+    env.OPENAI_TRANSCRIBE_MODEL,
+    deps.fetch?.openai,
+    groq ? { baseUrl: env.GROQ_BASE_URL, apiKey: env.GROQ_API_KEY, model: env.GROQ_TRANSCRIBE_MODEL, label: 'Groq' } : null,
+  );
   const tools = new ToolExecutor(devices, weather, memory, settings, automations, env.TZ);
   const hub = new RealtimeHub();
   const cameras = new CamerasService(
