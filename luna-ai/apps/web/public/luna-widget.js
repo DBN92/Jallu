@@ -31,41 +31,59 @@ function cleanUrl(v) {
   return u ? (http ? 'http://' : 'https://') + u.replace(/\/+$/, '') : '';
 }
 
-async function configure(prevUrl, prevToken) {
+function savedUrl() {
+  return Keychain.contains(KEY_URL) ? Keychain.get(KEY_URL) : '';
+}
+
+/**
+ * Configuração pela área de transferência: em algumas versões do iOS o
+ * Scriptable devolve os campos de texto do alerta vazios, então o caminho
+ * principal é copiar na Luna e tocar em “Colar”.
+ */
+async function configure() {
+  if (!savedUrl() && DEFAULT_URL) Keychain.set(KEY_URL, cleanUrl(DEFAULT_URL));
+  const url = savedUrl();
   const a = new Alert();
-  a.title = 'Luna';
-  a.message = '1) Endereço da Luna\n2) Chave do app: na Luna, Ajustes › Siri e Atalhos › Criar chave (começa com luna_)';
-  a.addTextField('luna.seudominio.com', prevUrl || (Keychain.contains(KEY_URL) ? Keychain.get(KEY_URL) : DEFAULT_URL));
-  // Campo comum (não de senha): assim o iPhone não sugere senhas salvas no lugar da chave
-  a.addTextField('luna_…', prevToken || '');
-  a.addAction('Salvar e testar');
+  a.title = 'Configurar a Luna';
+  a.message = url
+    ? 'Endereço: ' + url + '\n\nNa Luna, abra Ajustes › Siri e Atalhos, toque em Criar chave e copie a chave (começa com luna_). Depois volte aqui e toque em “Colar chave”.'
+    : 'Copie o endereço da Luna (ex.: https://luna.seudominio.com) e toque em “Colar endereço”.';
+  a.addAction(url ? 'Colar chave' : 'Colar endereço');
+  if (url) a.addAction('Trocar endereço (colar)');
   a.addCancelAction('Cancelar');
-  if ((await a.presentAlert()) === -1) return false;
-  const url = cleanUrl(a.textFieldValue(0));
-  const token = String(a.textFieldValue(1) || '').trim().replace(/\s+/g, '');
-  if (!url) return retry('Falta o endereço da Luna.', url, token);
-  if (token && !/^(luna|dia)_/.test(token)) return retry('A chave começa com “luna_”. Parece que foi colada outra coisa (talvez uma senha).', url, token);
-  Keychain.set(KEY_URL, url);
-  if (token) Keychain.set(KEY_TOKEN, token);
-  if (!Keychain.contains(KEY_TOKEN)) return retry('Falta a chave do app.', url, token);
+  const i = await a.presentAlert();
+  if (i === -1) return false;
+  const clip = String(Pasteboard.pasteString() || '').trim().replace(/\s+/g, '');
+  if (!url || i === 1) {
+    if (!/^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}|^(https?:\/\/)?\d+\.\d+\.\d+\.\d+/i.test(clip)) {
+      return retry('O que está copiado não parece um endereço. Copie o endereço da Luna e tente de novo.');
+    }
+    Keychain.set(KEY_URL, cleanUrl(clip));
+    return configure();
+  }
+  if (!/^(luna|dia)_[A-Za-z0-9_-]{8,}$/.test(clip)) {
+    return retry(clip ? 'O que está copiado não é uma chave da Luna (ela começa com “luna_”). Copie a chave e tente de novo.' : 'A área de transferência está vazia. Copie a chave na Luna e tente de novo.');
+  }
+  Keychain.set(KEY_TOKEN, clip);
   try {
     await getData();
   } catch (e) {
-    return retry(String(e.message || e), url, token);
+    return retry(String(e.message || e));
   }
+  Pasteboard.copyString(''); // não deixa a chave na área de transferência
   await say('Pronto! ✅', 'A Luna respondeu. Agora adicione o widget do Scriptable na tela, escolha o script e o “Parameter” (veja em Luna › Ajustes › Widgets do iPhone).');
   return true;
 }
 
-/** Mostra o problema e oferece corrigir sem perder o que já foi digitado */
-async function retry(message, url, token) {
+/** Mostra o problema e oferece tentar de novo */
+async function retry(message) {
   const a = new Alert();
   a.title = 'Ainda não funcionou';
   a.message = message;
-  a.addAction('Corrigir');
+  a.addAction('Tentar de novo');
   a.addCancelAction('Fechar');
   if ((await a.presentAlert()) === -1) return false;
-  return configure(url, token);
+  return configure();
 }
 
 async function say(title, message) {

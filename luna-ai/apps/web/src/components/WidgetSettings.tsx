@@ -31,7 +31,7 @@ export function WidgetSettings() {
           Crie uma chave na seção <b>Siri e Atalhos</b> acima (pode chamar de “Widgets”) e copie.
         </li>
         <li>
-          No Scriptable, toque no script <b>Luna</b> › <b>Configurar endereço e chave</b>. O endereço (<b>{location.origin}</b>) já vem preenchido: cole só a chave no segundo campo e toque em <b>Salvar e testar</b>.
+          No Scriptable, toque no script <b>Luna</b> › <b>Configurar endereço e chave</b>. O endereço (<b>{location.origin}</b>) já vem no script: com a chave copiada, toque em <b>Colar chave</b>. A Luna testa na hora.
         </li>
         <li>
           Na tela de início, segure › <b>+</b> › <b>Scriptable</b> › escolha o tamanho. Segure o widget › <b>Editar widget</b> › Script: <b>Luna</b> · Parameter:
