@@ -16,6 +16,7 @@ import { TuyaCameras } from '../components/TuyaCameras';
 import { TvDuckSettings } from '../components/TvDuckSettings';
 import { TvPanelSettings } from '../components/TvPanelSettings';
 import { RecordingsSettings } from '../components/RecordingsSettings';
+import { WidgetSettings } from '../components/WidgetSettings';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -490,6 +491,10 @@ export default function SettingsPage() {
 
       <Section title="Siri e Atalhos (iPhone)">
         <SiriSettings />
+      </Section>
+
+      <Section title="Widgets do iPhone">
+        <WidgetSettings />
       </Section>
 
       <Section title="App Android (tablet)">

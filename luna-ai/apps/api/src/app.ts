@@ -52,6 +52,7 @@ import { TvPanelService } from './modules/tv/tv-panel.service';
 import { CatPhotos } from './modules/litter/cat-photos';
 import { RecordingsService } from './modules/recordings/recordings.service';
 import { recordingsRoutes } from './modules/recordings/recordings.routes';
+import { widgetRoutes } from './modules/widget/widget.routes';
 import { LitterService } from './modules/litter/litter.service';
 import { litterRoutes } from './modules/litter/litter.routes';
 import { WasherService } from './modules/washer/washer.service';
@@ -416,6 +417,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(houseRoutes);
   await app.register(photosRoutes);
   await app.register(recordingsRoutes);
+  await app.register(widgetRoutes);
   await app.register(recadosRoutes);
   await app.register(listsRoutes);
   await app.register(pushRoutes);

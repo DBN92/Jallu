@@ -61,7 +61,7 @@ export default defineConfig({
         runtimeCaching: [],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // O player de vídeo (hls.js) só é baixado quando uma câmera é aberta
-        globIgnores: ['**/hls-*.js', '**/casa3d-*.js', 'casa3d.html', 'mediapipe/**', 'models/**', '**/vision_bundle*.js', '**/gestures-*.js'],
+        globIgnores: ['luna-widget.js', '**/hls-*.js', '**/casa3d-*.js', 'casa3d.html', 'mediapipe/**', 'models/**', '**/vision_bundle*.js', '**/gestures-*.js'],
       },
     }),
   ],
