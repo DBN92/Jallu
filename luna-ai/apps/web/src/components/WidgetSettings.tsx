@@ -9,7 +9,8 @@ export function WidgetSettings() {
   const copy = async () => {
     setMsg(null);
     try {
-      const code = await (await fetch('/luna-widget.js', { cache: 'no-store' })).text();
+      // Já vai com o endereço desta Luna preenchido (só falta a chave)
+      const code = (await (await fetch('/luna-widget.js', { cache: 'no-store' })).text()).replace("const DEFAULT_URL = '';", `const DEFAULT_URL = '${location.origin}';`);
       await navigator.clipboard.writeText(code);
       setMsg('Script copiado! Agora cole no Scriptable (passo 2).');
     } catch {
@@ -30,7 +31,7 @@ export function WidgetSettings() {
           Crie uma chave na seção <b>Siri e Atalhos</b> acima (pode chamar de “Widgets”) e copie.
         </li>
         <li>
-          No Scriptable, toque no script <b>Luna</b> › <b>Configurar endereço e chave</b>: cole o endereço da Luna (<b>{location.origin}</b>) e a chave.
+          No Scriptable, toque no script <b>Luna</b> › <b>Configurar endereço e chave</b>. O endereço (<b>{location.origin}</b>) já vem preenchido: cole só a chave no segundo campo e toque em <b>Salvar e testar</b>.
         </li>
         <li>
           Na tela de início, segure › <b>+</b> › <b>Scriptable</b> › escolha o tamanho. Segure o widget › <b>Editar widget</b> › Script: <b>Luna</b> · Parameter:

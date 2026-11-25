@@ -20,28 +20,52 @@ const ACCENT = new Color('#7dd3fc');
 const REC = new Color('#fda4af');
 
 // ---------- configuração ----------
-async function configure() {
+// Endereço preenchido ao copiar pela Luna (Ajustes › Widgets do iPhone)
+const DEFAULT_URL = '';
+
+/** Limpa o endereço: tira espaços, “https://” repetido e barras no fim */
+function cleanUrl(v) {
+  let u = String(v || '').trim().replace(/\s+/g, '');
+  const http = /^(https?:\/\/)*http:\/\//i.test(u); // endereço da rede de casa (http://192.168…)
+  u = u.replace(/^(https?:\/\/)+/i, '');
+  return u ? (http ? 'http://' : 'https://') + u.replace(/\/+$/, '') : '';
+}
+
+async function configure(prevUrl, prevToken) {
   const a = new Alert();
   a.title = 'Luna';
-  a.message = 'Endereço da Luna e a chave do app (Luna › Ajustes › Siri › Criar chave).';
-  a.addTextField('https://luna.seudominio.com', Keychain.contains(KEY_URL) ? Keychain.get(KEY_URL) : 'https://');
-  a.addSecureTextField('luna_…', '');
-  a.addAction('Salvar');
+  a.message = '1) Endereço da Luna\n2) Chave do app: na Luna, Ajustes › Siri e Atalhos › Criar chave (começa com luna_)';
+  a.addTextField('luna.seudominio.com', prevUrl || (Keychain.contains(KEY_URL) ? Keychain.get(KEY_URL) : DEFAULT_URL));
+  // Campo comum (não de senha): assim o iPhone não sugere senhas salvas no lugar da chave
+  a.addTextField('luna_…', prevToken || '');
+  a.addAction('Salvar e testar');
   a.addCancelAction('Cancelar');
   if ((await a.presentAlert()) === -1) return false;
-  const url = a.textFieldValue(0).trim().replace(/\/+$/, '');
-  const token = a.textFieldValue(1).trim();
-  if (!/^https?:\/\//.test(url)) return say('Endereço inválido', 'Comece com https://');
+  const url = cleanUrl(a.textFieldValue(0));
+  const token = a.textFieldValue(1).trim().replace(/\s+/g, '');
+  if (!url) return retry('Falta o endereço da Luna.', url, token);
+  if (token && !/^(luna|dia)_/.test(token)) return retry('A chave começa com “luna_”. Parece que foi colada outra coisa (talvez uma senha).', url, token);
   Keychain.set(KEY_URL, url);
   if (token) Keychain.set(KEY_TOKEN, token);
+  if (!Keychain.contains(KEY_TOKEN)) return retry('Falta a chave do app.', url, token);
   try {
     await getData();
-    await say('Pronto!', 'A Luna respondeu. Agora adicione o widget do Scriptable na tela e escolha este script.');
-    return true;
   } catch (e) {
-    await say('Não consegui falar com a Luna', String(e.message || e));
-    return false;
+    return retry(String(e.message || e), url, token);
   }
+  await say('Pronto! ✅', 'A Luna respondeu. Agora adicione o widget do Scriptable na tela, escolha o script e o “Parameter” (veja em Luna › Ajustes › Widgets do iPhone).');
+  return true;
+}
+
+/** Mostra o problema e oferece corrigir sem perder o que já foi digitado */
+async function retry(message, url, token) {
+  const a = new Alert();
+  a.title = 'Ainda não funcionou';
+  a.message = message;
+  a.addAction('Corrigir');
+  a.addCancelAction('Fechar');
+  if ((await a.presentAlert()) === -1) return false;
+  return configure(url, token);
 }
 
 async function say(title, message) {
@@ -67,9 +91,22 @@ function request(path) {
 async function getData() {
   if (!base()) throw new Error('Abra o script no Scriptable para configurar.');
   const r = request('/api/widget');
-  const data = await r.loadJSON();
-  if (r.response && r.response.statusCode === 401) throw new Error('Chave inválida. Crie outra em Luna › Ajustes › Siri.');
-  if (!data || data.error) throw new Error((data && (data.message || data.error)) || 'A Luna não respondeu.');
+  let body;
+  try {
+    body = await r.loadString();
+  } catch (e) {
+    throw new Error('Não consegui chegar em ' + base() + '. Confira o endereço e a internet.');
+  }
+  const code = r.response ? r.response.statusCode : 0;
+  if (code === 401) throw new Error('A Luna recusou a chave (401). Crie uma chave nova em Luna › Ajustes › Siri e Atalhos e cole inteira.');
+  if (code === 404) throw new Error('A Luna desse endereço ainda não tem os widgets (404). Rode a atualização no servidor.');
+  let data = null;
+  try {
+    data = JSON.parse(body);
+  } catch (e) {
+    throw new Error('O endereço respondeu algo que não é a Luna (código ' + code + '). Confira o endereço.');
+  }
+  if (code !== 200 || !data || data.error) throw new Error((data && data.message) || 'A Luna respondeu com erro ' + code + '.');
   return data;
 }
 
