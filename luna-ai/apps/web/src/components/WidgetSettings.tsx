@@ -36,7 +36,7 @@ export function WidgetSettings() {
         <li>
           Na tela de início, segure › <b>+</b> › <b>Scriptable</b> › escolha o tamanho. Segure o widget › <b>Editar widget</b> › Script: <b>Luna</b> · Parameter:
           <span className="block text-white/60">
-            pequeno: <code>baba</code>, <code>resumo</code>, <code>gravacoes</code> ou <code>compras</code> · médio: <code>casa</code> · grande: vazio · tela de bloqueio: círculo <code>luiza</code> ou <code>luzes</code>, retângulo = lava e seca
+            pequeno: <code>baba</code>, <code>resumo</code>, <code>gravacoes</code> ou <code>compras</code> · médio: <code>casa</code> ou <code>cameras</code> (mosaico de 4) · grande: vazio ou <code>cameras</code> (6) · para escolher quais: <code>cameras: portão, quintal, garagem, luiza</code> · tela de bloqueio: círculo <code>luiza</code> ou <code>luzes</code>, retângulo = lava e seca
           </span>
         </li>
       </ol>

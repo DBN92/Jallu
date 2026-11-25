@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { CameraDto } from '@luna/shared';
@@ -10,7 +11,25 @@ import { normalize } from '../../lib/text';
  * (a mesma dos Atalhos da Siri, no cabeçalho Authorization). Só leitura: nada aqui liga ou desliga nada.
  */
 export async function widgetRoutes(app: FastifyInstance) {
-  const { devices, people, recados, weather, settings, cameras, litter, washer, recordings, lists, catPhotos } = app.services;
+  const { devices, people, recados, weather, settings, cameras, litter, washer, recordings, lists, catPhotos, directCameras } = app.services;
+
+  /** Diminui a imagem com o ffmpeg (o widget tem pouca memória: 4 fotos em tamanho cheio não cabem). Sem ffmpeg, volta a original. */
+  const shrink = (img: Buffer, width: number) =>
+    new Promise<Buffer>((done) => {
+      const ff = directCameras.ffmpegPath();
+      if (!ff) return done(img);
+      const p = spawn(ff, ['-v', 'error', '-i', 'pipe:0', '-vf', `scale='min(${width},iw)':-2`, '-frames:v', '1', '-q:v', '5', '-f', 'mjpeg', 'pipe:1']);
+      const out: Buffer[] = [];
+      const t = setTimeout(() => p.kill('SIGKILL'), 8000);
+      p.stdout.on('data', (b: Buffer) => out.push(b));
+      p.on('error', () => done(img));
+      p.on('close', (code) => {
+        clearTimeout(t);
+        done(code === 0 && out.length ? Buffer.concat(out) : img);
+      });
+      p.stdin.on('error', () => undefined);
+      p.stdin.end(img);
+    });
 
   /** Câmera da babá: a que tem choro/temperatura, ou com “babá/bebê/Luiza” no nome */
   const babyCam = (list: CameraDto[]) =>
@@ -77,15 +96,25 @@ export async function widgetRoutes(app: FastifyInstance) {
           }
         : null,
       shopping: { count: buy.length, items: buy.slice(0, 3).map((i) => i.name) },
+      // Mosaico de câmeras: nome, imagem pequena e se está gravando
+      cameras: cams.map((c) => ({
+        entityId: c.entityId,
+        name: c.name,
+        image: `/api/widget/camera/${c.entityId}?w=480`,
+        recording: !!rec?.cameras.some((r) => r.entityId === c.entityId && r.enabled && r.status === 'gravando'),
+      })),
     };
   });
 
   // Imagens para o widget (com a mesma chave): câmera e foto do gato
   app.get('/api/widget/camera/:entityId', { preHandler: cookieOrToken, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     const { entityId } = z.object({ entityId: z.string().regex(/^camera\.[a-z0-9_]+$/) }).parse(req.params);
+    const { w } = z.object({ w: z.coerce.number().int().min(160).max(1280).optional() }).parse(req.query);
     const res = await cameras.snapshot(entityId);
     if (!res.ok) throw notFound('Imagem da câmera indisponível agora.');
-    return reply.header('content-type', res.headers.get('content-type') ?? 'image/jpeg').header('cache-control', 'no-store').send(Buffer.from(await res.arrayBuffer()));
+    const img = Buffer.from(await res.arrayBuffer());
+    if (w) return reply.header('content-type', 'image/jpeg').header('cache-control', 'no-store').send(await shrink(img, w));
+    return reply.header('content-type', res.headers.get('content-type') ?? 'image/jpeg').header('cache-control', 'no-store').send(img);
   });
   app.get('/api/widget/cat/:catId', { preHandler: cookieOrToken }, async (req, reply) => {
     const { catId } = z.object({ catId: z.string().min(1).max(40) }).parse(req.params);

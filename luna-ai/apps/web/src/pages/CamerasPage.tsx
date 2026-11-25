@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Cctv, Film, Move3d, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Page } from '../components/Layout';
 import { CameraThumb } from '../components/CameraPlayer';
 import { CameraInfo } from '../components/CameraInfo';
@@ -10,6 +10,14 @@ import { useCameras } from '../stores/cameras';
 export default function CamerasPage() {
   const { cameras, error, load, open } = useCameras();
   const navigate = useNavigate();
+  // Vindo do widget do iPhone: /cameras?ver=camera.x abre essa câmera direto
+  const [params, setParams] = useSearchParams();
+  const ver = params.get('ver');
+  useEffect(() => {
+    if (!ver || !cameras?.some((c) => c.entityId === ver)) return;
+    open([ver, ...cameras.filter((x) => x.entityId !== ver).map((x) => x.entityId)]);
+    setParams({}, { replace: true });
+  }, [ver, cameras, open, setParams]);
   useEffect(() => {
     void load();
     const t = setInterval(() => void load(), 30_000);

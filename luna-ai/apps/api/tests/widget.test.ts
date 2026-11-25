@@ -23,5 +23,14 @@ describe('Widgets do iPhone', () => {
     expect(w).toHaveProperty('litter');
     expect(w).toHaveProperty('washer');
     expect(w).toHaveProperty('recordings');
+    // Mosaico: câmeras com imagem pequena; imagem inválida volta como veio
+    expect(Array.isArray(w.cameras)).toBe(true);
+    const cam = w.cameras[0];
+    if (cam) {
+      expect(cam.image).toMatch(/\?w=480$/);
+      const img = await ctx.app.inject({ method: 'GET', url: cam.image, headers: { authorization: `Bearer ${token}` } });
+      expect(img.statusCode).toBe(200);
+      expect(img.rawPayload.length).toBeGreaterThan(100);
+    }
   });
 });

@@ -3,8 +3,9 @@
 //
 // Na tela, ao adicionar o widget do Scriptable, escolha este script e em “Parameter” escreva:
 //   pequeno ........ baba | resumo | gravacoes | compras        (vazio = resumo)
-//   médio .......... casa
-//   grande ......... baba + resumo
+//   médio .......... casa | cameras (4 câmeras)
+//   grande ......... baba + resumo (vazio) | cameras (6 câmeras)
+//   escolher câmeras: cameras: portão, quintal, garagem, luiza
 //   tela de bloqueio: circular = luiza ou luzes · retangular = lava e seca · em linha = resumo curto
 //
 // A chave (a mesma dos Atalhos da Siri, em Ajustes › Siri na Luna) fica guardada no Keychain do iPhone.
@@ -326,6 +327,81 @@ function shoppingWidget(d, w) {
   if (d.shopping.count > 3) text(w, 'e mais ' + (d.shopping.count - 3), 10.5, { color: MUTED });
 }
 
+// Mosaico de câmeras
+function plain(v) {
+  return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+/** “cameras” = as primeiras; “cameras: portão, quintal” = essas, nessa ordem */
+function pickCameras(list, param, max) {
+  const all = list || [];
+  const i = param.indexOf(':');
+  const wanted = i >= 0 ? param.slice(i + 1).split(',').map(plain).filter(Boolean) : [];
+  if (!wanted.length) return all.slice(0, max);
+  const out = [];
+  for (const q of wanted) {
+    const c = all.find((x) => out.indexOf(x) < 0 && plain(x.name).indexOf(q) >= 0);
+    if (c) out.push(c);
+  }
+  return out.slice(0, max);
+}
+
+async function camerasWidget(d, w, param, family) {
+  const root = base() || '';
+  const large = family === 'large' || family === 'extraLarge';
+  const max = large ? 6 : 4;
+  const cams = pickCameras(d.cameras, param, max);
+  if (!cams.length) {
+    label(w, 'Câmeras');
+    w.addSpacer(6);
+    text(w, d.cameras && d.cameras.length ? 'Nenhuma câmera com esse nome. Confira o “Parameter”.' : 'Nenhuma câmera na Luna.', 11, { color: MUTED });
+    return;
+  }
+  w.setPadding(7, 7, 7, 7);
+  // Uma câmera só ocupa o widget inteiro; senão, 2 por linha
+  const cols = cams.length === 1 ? 1 : 2;
+  const rows = Math.ceil(cams.length / cols);
+  const rowH = cols === 1 ? (large ? 340 : 144) : large ? 108 : 70;
+  for (let r = 0; r < rows; r++) {
+    if (r) w.addSpacer(6);
+    const row = w.addStack();
+    row.layoutHorizontally();
+    for (let k = 0; k < cols; k++) {
+      if (k) row.addSpacer(6);
+      const c = cams[r * cols + k];
+      const tile = row.addStack();
+      tile.layoutVertically();
+      tile.size = new Size(0, rowH);
+      tile.cornerRadius = 13;
+      tile.backgroundColor = new Color('#ffffff', c ? 0.08 : 0);
+      if (!c) {
+        tile.addSpacer();
+        const fill = tile.addStack();
+        fill.addSpacer();
+        continue;
+      }
+      tile.url = root + '/cameras?ver=' + encodeURIComponent(c.entityId);
+      const img = await image(c.image);
+      if (img) tile.backgroundImage = img;
+      tile.setPadding(5, 7, 5, 7);
+      const top = tile.addStack();
+      top.addSpacer();
+      if (c.recording) {
+        const t = text(top, '● REC', 8.5, { bold: true, color: REC });
+        t.shadowColor = new Color('#000000', 0.8);
+        t.shadowRadius = 2;
+      }
+      tile.addSpacer();
+      const bottom = tile.addStack();
+      const n = text(bottom, img ? c.name : c.name + ' · sem imagem', 10.5, { bold: true, lines: 1, scale: 0.7 });
+      n.shadowColor = new Color('#000000', 0.9);
+      n.shadowRadius = 3;
+      n.shadowOffset = new Point(0, 1);
+      bottom.addSpacer();
+    }
+  }
+}
+
 // Tela de bloqueio (o iPhone pinta em uma cor só)
 function lockCircular(d, w, which) {
   w.addAccessoryWidgetBackground = true;
@@ -388,6 +464,11 @@ async function build(family, param) {
     lockInline(d, w);
     return w;
   }
+  if (p.indexOf('camera') === 0 || p.indexOf('câmera') === 0 || p.indexOf('mosaico') === 0) {
+    const w = newWidget(root + '/cameras');
+    await camerasWidget(d, w, p, family);
+    return w;
+  }
   if (family === 'medium') {
     const w = newWidget(root + '/caixa-de-areia/' + (d.litter ? d.litter.id : ''));
     await houseWidget(d, w);
@@ -445,6 +526,7 @@ if (config.runsInWidget) {
     ['Prévia: babá (pequeno)', ['small', 'baba']],
     ['Prévia: resumo (pequeno)', ['small', 'resumo']],
     ['Prévia: casa (médio)', ['medium', 'casa']],
+    ['Prévia: câmeras (médio)', ['medium', 'cameras']],
     ['Prévia: grande', ['large', '']],
     ['Prévia: gravações', ['small', 'gravacoes']],
     ['Prévia: compras', ['small', 'compras']],
