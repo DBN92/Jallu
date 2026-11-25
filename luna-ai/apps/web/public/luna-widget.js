@@ -42,7 +42,7 @@ async function configure(prevUrl, prevToken) {
   a.addCancelAction('Cancelar');
   if ((await a.presentAlert()) === -1) return false;
   const url = cleanUrl(a.textFieldValue(0));
-  const token = a.textFieldValue(1).trim().replace(/\s+/g, '');
+  const token = String(a.textFieldValue(1) || '').trim().replace(/\s+/g, '');
   if (!url) return retry('Falta o endereço da Luna.', url, token);
   if (token && !/^(luna|dia)_/.test(token)) return retry('A chave começa com “luna_”. Parece que foi colada outra coisa (talvez uma senha).', url, token);
   Keychain.set(KEY_URL, url);
