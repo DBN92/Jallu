@@ -61,9 +61,8 @@ export async function widgetRoutes(app: FastifyInstance) {
         ? {
             id: box.id,
             status: box.statusLabel,
-            cats: box.cats
-              .filter((c) => c.weightKg !== null || c.todayVisits > 0)
-              .map((c) => ({ id: c.id, name: c.name, today: c.todayVisits, photo: c.photo ? `/api/widget/cat/${c.id}?v=${c.photo}` : null })),
+            // Todos os gatos cadastrados (mesmo os que ainda não têm peso aprendido)
+            cats: box.cats.map((c) => ({ id: c.id, name: c.name, today: c.todayVisits, photo: c.photo ? `/api/widget/cat/${c.id}?v=${c.photo}` : null })),
             alert: box.cats.find((c) => c.alert)?.alert ?? null,
             lastVisit: box.lastVisit ? { at: box.lastVisit.at, cat: box.lastVisit.catName } : null,
           }

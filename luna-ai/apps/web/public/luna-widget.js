@@ -246,21 +246,28 @@ async function houseWidget(d, w) {
   left.addSpacer(6);
   const l = d.litter;
   if (l && l.cats.length) {
+    // Cabem até 6: com mais gatos, avatares e nomes ficam menores
+    const n = Math.min(l.cats.length, 6);
+    const sz = n <= 4 ? 32 : n === 5 ? 27 : 23;
     const cats = left.addStack();
-    cats.spacing = 7;
-    for (const c of l.cats.slice(0, 4)) {
+    cats.spacing = n <= 4 ? 7 : 4;
+    for (const c of l.cats.slice(0, 6)) {
       const col = cats.addStack();
       col.layoutVertically();
       col.centerAlignContent();
       const av = col.addStack();
-      av.size = new Size(32, 32);
-      av.cornerRadius = 16;
+      av.size = new Size(sz, sz);
+      av.cornerRadius = sz / 2;
       av.backgroundColor = new Color('#8b5cf6');
       av.centerAlignContent();
       const ph = c.photo ? await image(c.photo) : null;
       if (ph) av.backgroundImage = ph;
-      else text(av, '🐱', 15);
-      text(col, c.name + ' ' + c.today, 9.5, { lines: 1, scale: 0.6 });
+      else text(av, '🐱', Math.round(sz * 0.47));
+      if (n <= 4) text(col, c.name + ' ' + c.today, 9.5, { lines: 1, scale: 0.6 });
+      else {
+        text(col, c.name, 8, { lines: 1, scale: 0.6 });
+        text(col, String(c.today), 9, { bold: true, lines: 1 });
+      }
     }
     left.addSpacer(5);
     if (l.alert) pill(left, '⚠ ' + l.alert, true);
@@ -272,7 +279,7 @@ async function houseWidget(d, w) {
   // Lava e seca + aspirador
   const right = row.addStack();
   right.layoutVertically();
-  right.size = new Size(130, 0);
+  right.size = new Size(l && l.cats.length > 4 ? 108 : 130, 0);
   label(right, 'Lava e seca');
   right.addSpacer(4);
   if (d.washer) {
