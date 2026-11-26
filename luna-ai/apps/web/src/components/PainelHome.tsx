@@ -101,46 +101,64 @@ export function PainelHome(p: ModernHomeProps) {
   const dialDev = (dialId && devicesMap[dialId] && isDimmable(devicesMap[dialId]!) ? devicesMap[dialId] : null) ?? tiles.find(isDimmable) ?? Object.values(devicesMap).find(isDimmable) ?? null;
   const devValue = dialDev ? (dialDev.isOn ? (dialDev.brightness ?? 100) : 0) : 0;
   const [dragValue, setDragValue] = useState<number | null>(null);
-  const value = dragValue ?? devValue;
+  // Depois de soltar, o botão fica onde o dedo deixou até a luz confirmar o brilho novo
+  // (sem isso ele voltava ao valor antigo por um instante e só depois se alinhava)
+  const [pending, setPending] = useState<{ id: string; v: number } | null>(null);
+  const pend = pending && dialDev && pending.id === dialDev.entityId ? pending.v : null;
+  const value = dragValue ?? pend ?? devValue;
+  useEffect(() => {
+    if (pend === null) return;
+    if (Math.abs(devValue - pend) <= 3) {
+      setPending(null);
+      return;
+    }
+    const t = window.setTimeout(() => setPending(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [pend, devValue]);
   const dialRef = useRef<HTMLDivElement>(null);
-  const dialDrag = useRef<{ moved: boolean; x0: number; y0: number } | null>(null);
-  const valueAt = (x: number, y: number) => {
+  /** Giro relativo, como um botão de verdade: o valor muda o quanto o dedo gira, onde quer que tenha tocado */
+  const dialDrag = useRef<{ moved: boolean; x0: number; y0: number; last: number; v: number } | null>(null);
+  const angleAt = (x: number, y: number) => {
     const r = dialRef.current!.getBoundingClientRect();
-    const a = ((Math.atan2(x - (r.left + r.width / 2), -(y - (r.top + r.height / 2))) * 180) / Math.PI + 360) % 360;
-    let rel = (a - ARC_FROM + 360) % 360;
-    if (rel > ARC) rel = rel > ARC + (360 - ARC) / 2 ? 0 : ARC;
-    return Math.round((rel / ARC) * 100);
+    return (Math.atan2(x - (r.left + r.width / 2), -(y - (r.top + r.height / 2))) * 180) / Math.PI;
   };
   const dialDown = (e: RPointerEvent) => {
     if (!dialDev) return;
-    dialDrag.current = { moved: false, x0: e.clientX, y0: e.clientY };
+    dialDrag.current = { moved: false, x0: e.clientX, y0: e.clientY, last: angleAt(e.clientX, e.clientY), v: value };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
   const dialMove = (e: RPointerEvent) => {
     const d = dialDrag.current;
     if (!d) return;
-    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6) return;
-    d.moved = true;
-    setDragValue(valueAt(e.clientX, e.clientY));
+    const a = angleAt(e.clientX, e.clientY);
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 6) return;
+      d.moved = true;
+    }
+    let delta = a - d.last;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    d.last = a;
+    d.v = Math.max(0, Math.min(100, d.v + (delta / ARC) * 100));
+    setDragValue(Math.round(d.v));
   };
   const dialUp = async () => {
     const d = dialDrag.current;
     dialDrag.current = null;
     if (!d || !dialDev) return;
+    const v = Math.round(d.v);
+    if (d.moved) setPending({ id: dialDev.entityId, v });
+    setDragValue(null);
     try {
       if (!d.moved) {
         // Toque no meio: liga/desliga
         await useDevices.getState().toggle(dialDev);
-      } else {
-        const v = dragValue ?? devValue;
-        if (v <= 0) {
-          if (dialDev.isOn) await useDevices.getState().toggle(dialDev);
-        } else await useDevices.getState().brightness(dialDev.entityId, Math.max(1, v));
-      }
+      } else if (v <= 0) {
+        if (dialDev.isOn) await useDevices.getState().toggle(dialDev);
+      } else await useDevices.getState().brightness(dialDev.entityId, Math.max(1, v));
     } catch (err) {
+      setPending(null);
       flash(errorMessage(err));
-    } finally {
-      setDragValue(null);
     }
   };
 
@@ -212,7 +230,7 @@ export function PainelHome(p: ModernHomeProps) {
         <p className="pn-label">{dialDev ? dialDev.name : 'Brilho'}</p>
         <div
           ref={dialRef}
-          className={`pn-dial ${dialDev?.isOn || dragValue ? 'on' : ''} ${dragValue !== null ? 'drag' : ''}`}
+          className={`pn-dial ${value > 0 ? 'on' : ''} ${dragValue !== null || pend !== null ? 'drag' : ''}`}
           style={{ ['--a' as string]: `${angle}deg` }}
           onPointerDown={dialDown}
           onPointerMove={dialMove}
