@@ -31,7 +31,7 @@ export function VoiceFocus({
 }) {
   const [mounted, setMounted] = useState(open);
   // Tema Céu: bolha leve no lugar do globo de partículas
-  const lite = useSettings((s) => s.theme) === 'ceu';
+  const lite = ['ceu', 'painel'].includes(useSettings((s) => s.theme));
   const [leaving, setLeaving] = useState(false);
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
 

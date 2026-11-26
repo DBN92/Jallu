@@ -20,6 +20,7 @@ import { WasherCard } from './WasherCard';
 import { DeviceTile } from './DeviceTile';
 import { SkyTipChip } from './SkyBackdrop';
 import { SkyHome } from './SkyHome';
+import { PainelHome } from './PainelHome';
 
 type Filter = 'all' | 'lighting' | 'outlets' | 'other';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -64,10 +65,11 @@ export interface ModernHomeProps {
   gesturesOn: boolean;
 }
 
-/** Tela inicial dos temas modernos; no tema Céu, a versão minimalista (SkyHome). */
+/** Tela inicial dos temas modernos; no Céu, a versão minimalista (SkyHome); no Painel, o painel de vidro. */
 export function ModernHome(p: ModernHomeProps) {
-  const ceu = useSettings((s) => s.theme) === 'ceu';
-  return ceu ? <SkyHome {...p} /> : <ModernHomeCards {...p} />;
+  const theme = useSettings((s) => s.theme);
+  if (theme === 'painel') return <PainelHome {...p} />;
+  return theme === 'ceu' ? <SkyHome {...p} /> : <ModernHomeCards {...p} />;
 }
 
 /** Tela inicial dos temas modernos: cartões arredondados, nuvem de partículas da Luna e controles diretos. */
