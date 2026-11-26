@@ -213,7 +213,8 @@ export function PainelHome(p: ModernHomeProps) {
   const home = (people ?? []).filter((x) => x.home);
   const cams = p.cameras ?? [];
   const baby = babyCam(cams);
-  const shownCam = baby ?? cams.find((c) => c.available) ?? null;
+  // Miniaturas de todas as câmeras (a da babá primeiro), até 6
+  const shownCams = [...(baby ? [baby] : []), ...cams.filter((c) => c !== baby && c.available)].slice(0, 6);
   const babyTemp = baby?.info?.find((i) => i.kind === 'temperature')?.value ?? null;
   const crying = !!baby?.info?.some((i) => i.kind === 'cry' && i.active);
   const rain = p.weather?.hourly.slice(0, 12).find((h) => h.precipitationProbability >= 40);
@@ -362,14 +363,18 @@ export function PainelHome(p: ModernHomeProps) {
         <div className="pn-recados">
           <RecadosChips />
         </div>
-        {shownCam && (
-          <button className="pn-cam" onClick={() => openCameras([shownCam.entityId, ...cams.filter((c) => c !== shownCam).map((c) => c.entityId)])}>
-            <CameraThumb camera={shownCam} everyMs={15_000} className="pn-cam-img" />
-            <span>
-              {shownCam.name}
-              {baby === shownCam ? (crying ? ' · choro detectado' : ' · tudo calmo') : ''}
-            </span>
-          </button>
+        {shownCams.length > 0 && (
+          <div className={`pn-cams n${Math.min(shownCams.length, 6)}`}>
+            {shownCams.map((c) => (
+              <button key={c.entityId} className="pn-cam" onClick={() => openCameras([c.entityId, ...cams.filter((x) => x !== c).map((x) => x.entityId)])}>
+                <CameraThumb camera={c} everyMs={20_000} className="pn-cam-img" />
+                <span>
+                  {c.name}
+                  {c === baby && crying ? ' · choro!' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </section>
 
