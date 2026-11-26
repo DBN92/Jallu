@@ -530,8 +530,9 @@ html .sh-sheet .m-input { background: rgba(255, 255, 255, 0.12); border-color: r
 @keyframes sh-live { 50% { transform: scale(1.08); box-shadow: 0 0 0 18px rgba(255, 255, 255, 0.1), 0 12px 34px rgba(0, 0, 0, 0.2); } }
 html.calm-motion .sh-mic.live .sh-b { animation: none; outline: 3px solid #fff; }
 .sh-toast { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 210px); padding: 10px 20px; border-radius: 999px; background: rgba(12, 18, 32, 0.75); border: 1px solid rgba(255, 255, 255, 0.25); font-size: 14px; white-space: nowrap; }
-.sh-dim { position: absolute; inset: 0; z-index: 4; background: rgba(5, 10, 20, 0.3); opacity: 0; visibility: hidden; transition: opacity 0.45s ease, visibility 0s linear 0.45s; }
-.sh-dim.on { opacity: 1; visibility: visible; transition: opacity 0.45s ease; }
+/* Escurecido sempre na sua própria camada (só muda a opacidade): criá-lo na hora de soltar custava quadros */
+.sh-dim { position: absolute; inset: 0; z-index: 4; background: rgba(5, 10, 20, 0.3); opacity: 0; pointer-events: none; will-change: opacity; transition: opacity 0.45s ease; }
+.sh-dim.on { opacity: 1; pointer-events: auto; }
 /* Gaveta: fechada mostra só a alça (72 px); aberta sobe até ~80% da altura */
 .sh-sheet { position: absolute; z-index: 5; left: 50%; bottom: 0; width: min(800px, calc(100% - 24px)); height: min(82vh, 680px); margin-left: calc(min(800px, calc(100% - 24px)) / -2);
   padding: 0 !important; border-radius: 30px 30px 0 0 !important; border-bottom: 0 !important; transform: translate3d(0, calc(100% - 72px - env(safe-area-inset-bottom)), 0); transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; will-change: transform; contain: layout paint; }
@@ -541,10 +542,13 @@ html.sky[data-sky='manha'] .sky-home .sh-sheet, html.sky[data-sky='dia'] .sky-ho
 html.sky[data-sky='tarde'] .sky-home .sh-sheet { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 120px), rgba(44, 26, 50, 0.8); }
 /* Posição direto no transform (antes era uma variável CSS: trocar variável refaz o estilo de tudo dentro da gaveta) */
 .sh-sheet.open { transform: translate3d(0, 0, 0); }
+/* Gaveta fechada (fora da tela): as animações dos aparelhos lá dentro ficam paradas — ninguém vê e elas
+   gastavam o tablet a cada quadro. Seletores só nos elementos animados, para abrir não refazer a gaveta toda. */
+.sh-sheet:not(.open) :is(.sv-anim, .sv-wind i, .washer-spin, .animate-blink) { animation-play-state: paused !important; }
 .sh-handle { flex: none; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: grab; touch-action: none; font-size: 14px; }
 .sh-handle i { width: 46px; height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.7); }
 .sh-handle span { opacity: 0.88; }
-.sh-handle span { transition: opacity 0.3s; }
+.sh-handle span { transition: opacity 0.3s; will-change: opacity; } /* camada própria: sumir o texto não redesenha a gaveta */
 .sh-sheet.open .sh-handle span { opacity: 0; }
 .sh-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 22px calc(env(safe-area-inset-bottom) + 20px); }
 .sh-sec { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }

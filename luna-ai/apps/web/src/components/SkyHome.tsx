@@ -145,12 +145,21 @@ export function SkyHome(p: ModernHomeProps) {
   /** Abre/fecha: a animação começa na hora (classe direto na gaveta) e o React só atualiza depois
    * que ela termina — redesenhar a tela inicial bem no começo da animação era o tranco ao soltar. */
   const sheetT = useRef(0);
-  const animateSheet = (open: boolean) => {
+  const animateSheet = (open: boolean, ms = 450) => {
     window.clearTimeout(sheetT.current);
-    sheetRef.current?.classList.toggle('open', open);
-    dimRef.current?.classList.toggle('on', open);
+    const el = sheetRef.current;
+    const dim = dimRef.current;
+    // Duração sob medida (ao soltar o dedo) só nesta animação; depois volta à do CSS
+    if (el) el.style.transitionDuration = ms === 450 ? '' : `${ms}ms`;
+    if (dim) dim.style.transitionDuration = ms === 450 ? '' : `${ms}ms`;
+    el?.classList.toggle('open', open);
+    dim?.classList.toggle('on', open);
     skyBusy(open);
-    sheetT.current = window.setTimeout(() => setSheet(open), 480);
+    sheetT.current = window.setTimeout(() => {
+      if (el) el.style.transitionDuration = '';
+      if (dim) dim.style.transitionDuration = '';
+      setSheet(open);
+    }, ms + 30);
   };
   useEffect(() => () => window.clearTimeout(sheetT.current), []);
   const paint = () => {
@@ -179,7 +188,6 @@ export function SkyHome(p: ModernHomeProps) {
       el.style.transition = 'none';
       if (dimRef.current) {
         dimRef.current.style.transition = 'none';
-        dimRef.current.style.visibility = 'visible';
       }
     }
     if (!d.moved) return;
@@ -200,6 +208,11 @@ export function SkyHome(p: ModernHomeProps) {
       return;
     }
     const open = d.v < -0.3 ? true : d.v > 0.3 ? false : d.pos < d.max / 2;
+    // Como no iPhone: a gaveta continua na velocidade do dedo. A curva começa ~2,25× mais rápida que a
+    // média, então duração = 2,25 × distância que falta ÷ velocidade (entre 160 e 450 ms).
+    const left = open ? d.pos : d.max - d.pos;
+    const speed = Math.abs(d.v);
+    const ms = speed > 0.05 ? Math.round(Math.min(450, Math.max(160, (2.25 * left) / speed))) : 450;
     const el = sheetRef.current;
     if (el) {
       el.style.transition = '';
@@ -208,9 +221,8 @@ export function SkyHome(p: ModernHomeProps) {
     if (dimRef.current) {
       dimRef.current.style.transition = '';
       dimRef.current.style.opacity = '';
-      dimRef.current.style.visibility = '';
     }
-    animateSheet(open);
+    animateSheet(open, ms);
   };
 
   // Conteúdo da gaveta não muda ao abrir/fechar: não é refeito no meio da animação

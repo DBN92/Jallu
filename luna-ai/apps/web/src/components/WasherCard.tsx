@@ -3,53 +3,59 @@ import { useNavigate } from 'react-router-dom';
 import type { WasherDto } from '@luna/shared';
 import { useWasher } from '../stores/washer';
 
+const GLARE = 'M36 44 A20 20 0 0 1 58 39';
+
 /** Desenho da lava e seca (frente): painel, porta redonda e água girando quando está lavando. */
 export function WasherIcon({ size, spinning = false, water = true, glow }: { size: number; spinning?: boolean; water?: boolean; glow?: string }) {
+  // A água gira num <svg> próprio por cima da porta: girar um pedaço de dentro do desenho
+  // obrigava o navegador a refazer o layout a cada quadro; o <svg> inteiro gira na placa de vídeo.
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden>
-      <defs>
-        <linearGradient id="wa-body" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#f6f7fb" />
-          <stop offset="1" stopColor="#cfd4de" />
-        </linearGradient>
-        <radialGradient id="wa-glass" cx="45%" cy="40%" r="65%">
-          <stop offset="0" stopColor="#4a5163" />
-          <stop offset="1" stopColor="#1a1d27" />
-        </radialGradient>
-        <linearGradient id="wa-water" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="var(--accent-1, #22d3ee)" />
-          <stop offset="1" stopColor="var(--accent-2, #8b5cf6)" />
-        </linearGradient>
-        {glow && (
-          <radialGradient id="wa-glow">
-            <stop offset="0" stopColor={glow} stopOpacity=".45" />
-            <stop offset="1" stopColor={glow} stopOpacity="0" />
+    <span className="washer-icon" style={{ width: size, height: size }} aria-hidden>
+      <svg viewBox="0 0 100 100" width={size} height={size}>
+        <defs>
+          <linearGradient id="wa-body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#f6f7fb" />
+            <stop offset="1" stopColor="#cfd4de" />
+          </linearGradient>
+          <radialGradient id="wa-glass" cx="45%" cy="40%" r="65%">
+            <stop offset="0" stopColor="#4a5163" />
+            <stop offset="1" stopColor="#1a1d27" />
           </radialGradient>
-        )}
-        <clipPath id="wa-door">
-          <circle cx="50" cy="58" r="22" />
-        </clipPath>
-      </defs>
-      {glow && <circle cx="50" cy="54" r="48" fill="url(#wa-glow)" />}
-      <rect x="18" y="10" width="64" height="80" rx="10" fill="url(#wa-body)" />
-      <rect x="18" y="10" width="64" height="16" rx="10" fill="#e9ecf2" />
-      <rect x="25" y="16" width="14" height="4" rx="2" fill="#1f2937" />
-      <rect x="27" y="17" width="6" height="2" rx="1" fill="var(--accent-1, #22d3ee)" />
-      <circle cx="66" cy="18" r="2.4" fill="#9aa3b2" />
-      <circle cx="73" cy="18" r="3.2" fill="#b6bdc9" />
-      <circle cx="50" cy="58" r="26" fill="#aab1bd" />
-      <circle cx="50" cy="58" r="22" fill="url(#wa-glass)" />
+          <linearGradient id="wa-water" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="var(--accent-1, #22d3ee)" />
+            <stop offset="1" stopColor="var(--accent-2, #8b5cf6)" />
+          </linearGradient>
+          {glow && (
+            <radialGradient id="wa-glow">
+              <stop offset="0" stopColor={glow} stopOpacity=".45" />
+              <stop offset="1" stopColor={glow} stopOpacity="0" />
+            </radialGradient>
+          )}
+        </defs>
+        {glow && <circle cx="50" cy="54" r="48" fill="url(#wa-glow)" />}
+        <rect x="18" y="10" width="64" height="80" rx="10" fill="url(#wa-body)" />
+        <rect x="18" y="10" width="64" height="16" rx="10" fill="#e9ecf2" />
+        <rect x="25" y="16" width="14" height="4" rx="2" fill="#1f2937" />
+        <rect x="27" y="17" width="6" height="2" rx="1" fill="var(--accent-1, #22d3ee)" />
+        <circle cx="66" cy="18" r="2.4" fill="#9aa3b2" />
+        <circle cx="73" cy="18" r="3.2" fill="#b6bdc9" />
+        <circle cx="50" cy="58" r="26" fill="#aab1bd" />
+        <circle cx="50" cy="58" r="22" fill="url(#wa-glass)" />
+        {!water && <path d={GLARE} fill="none" stroke="#fff" strokeOpacity=".25" strokeWidth="2.5" strokeLinecap="round" />}
+      </svg>
       {water && (
-        <g clipPath="url(#wa-door)">
-          <g className={spinning ? 'washer-spin' : undefined} style={{ transformOrigin: '50px 58px' }}>
+        <span className="washer-door">
+          <svg viewBox="28 36 44 44" className={spinning ? 'washer-spin' : undefined}>
             <path d="M24 62 C34 56 42 66 50 61 C58 56 66 66 76 60 L76 84 L24 84 Z" fill="url(#wa-water)" opacity=".85" />
             <circle cx="43" cy="68" r="2" fill="#fff" opacity=".7" />
             <circle cx="57" cy="72" r="1.5" fill="#fff" opacity=".6" />
-          </g>
-        </g>
+          </svg>
+          <svg viewBox="28 36 44 44">
+            <path d={GLARE} fill="none" stroke="#fff" strokeOpacity=".25" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        </span>
       )}
-      <path d="M36 44 A20 20 0 0 1 58 39" fill="none" stroke="#fff" strokeOpacity=".25" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
+    </span>
   );
 }
 

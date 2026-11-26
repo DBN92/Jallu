@@ -324,7 +324,11 @@ button, a, [role='button'], [role='switch'], label, summary, .m-chip, .m-tile { 
 button { cursor: pointer; }
 
 /* Lava e seca: água girando na porta e etapa atual pulsando */
-.washer-spin { animation: spin 2.4s linear infinite; }
+.washer-icon { position: relative; display: inline-block; flex: none; vertical-align: middle; }
+.washer-icon > svg { display: block; }
+.washer-door { position: absolute; left: 28%; top: 36%; width: 44%; height: 44%; border-radius: 50%; overflow: hidden; }
+.washer-door svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.washer-spin { animation: spin 2.4s linear infinite; will-change: transform; }
 .washer-pulse { animation: blink 1.8s ease-in-out infinite; }
 @keyframes washer-pop { 0% { opacity: 0; transform: translateY(24px) scale(.96); } 100% { opacity: 1; transform: none; } }
 @keyframes washer-shirt { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
