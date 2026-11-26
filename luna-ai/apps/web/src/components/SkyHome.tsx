@@ -45,6 +45,24 @@ export function SkyHome(p: ModernHomeProps) {
     document.documentElement.classList.add('sky-home-on');
     return () => document.documentElement.classList.remove('sky-home-on');
   }, []);
+  // Céu parado enquanto a gaveta se mexe ou está aberta: o tablet não precisa animar nuvens/chuva
+  // (e refazer o vidro por cima delas) a cada quadro junto com a gaveta. Volta a andar depois de fechar.
+  const busyT = useRef(0);
+  const skyBusy = (on: boolean) => {
+    window.clearTimeout(busyT.current);
+    // Só na camada do céu (marcar o <html> recalcularia o estilo da página inteira e dava um tranco)
+    const sky = document.querySelector('.sky-bg');
+    if (!sky) return;
+    if (on) sky.classList.add('busy');
+    else busyT.current = window.setTimeout(() => sky.classList.remove('busy'), 500);
+  };
+  useEffect(
+    () => () => {
+      window.clearTimeout(busyT.current);
+      document.querySelector('.sky-bg')?.classList.remove('busy');
+    },
+    [],
+  );
   useEffect(() => {
     if (!useLitter.getState().boxes) void useLitter.getState().load();
     if (!usePeople.getState().list) void usePeople.getState().load();
@@ -124,6 +142,17 @@ export function SkyHome(p: ModernHomeProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const dimRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y0: number; base: number; max: number; pos: number; lastY: number; lastT: number; v: number; moved: boolean; raf: number } | null>(null);
+  /** Abre/fecha: a animação começa na hora (classe direto na gaveta) e o React só atualiza depois
+   * que ela termina — redesenhar a tela inicial bem no começo da animação era o tranco ao soltar. */
+  const sheetT = useRef(0);
+  const animateSheet = (open: boolean) => {
+    window.clearTimeout(sheetT.current);
+    sheetRef.current?.classList.toggle('open', open);
+    dimRef.current?.classList.toggle('on', open);
+    skyBusy(open);
+    sheetT.current = window.setTimeout(() => setSheet(open), 480);
+  };
+  useEffect(() => () => window.clearTimeout(sheetT.current), []);
   const paint = () => {
     const d = drag.current;
     const el = sheetRef.current;
@@ -146,6 +175,7 @@ export function SkyHome(p: ModernHomeProps) {
     const dy = e.clientY - d.y0;
     if (!d.moved && Math.abs(dy) > 4) {
       d.moved = true;
+      skyBusy(true);
       el.style.transition = 'none';
       if (dimRef.current) {
         dimRef.current.style.transition = 'none';
@@ -166,7 +196,7 @@ export function SkyHome(p: ModernHomeProps) {
     if (!d) return;
     if (d.raf) cancelAnimationFrame(d.raf);
     if (!d.moved) {
-      setSheet((s) => !s);
+      animateSheet(!sheetRef.current?.classList.contains('open'));
       return;
     }
     const open = d.v < -0.3 ? true : d.v > 0.3 ? false : d.pos < d.max / 2;
@@ -180,7 +210,7 @@ export function SkyHome(p: ModernHomeProps) {
       dimRef.current.style.opacity = '';
       dimRef.current.style.visibility = '';
     }
-    setSheet(open);
+    animateSheet(open);
   };
 
   // Conteúdo da gaveta não muda ao abrir/fechar: não é refeito no meio da animação
@@ -305,7 +335,7 @@ export function SkyHome(p: ModernHomeProps) {
 
       {/* Cinco botões */}
       <div className="sh-acts">
-        {btn('luzes', Lightbulb, 'Luzes', `${lightsOn} ${lightsOn === 1 ? 'acesa' : 'acesas'}`, () => setSheet(true), lightsOn > 0)}
+        {btn('luzes', Lightbulb, 'Luzes', `${lightsOn} ${lightsOn === 1 ? 'acesa' : 'acesas'}`, () => animateSheet(true), lightsOn > 0)}
         {btn('cams', Cctv, 'Câmeras', p.cameras ? `${camsOnline} online` : null, () => p.cameras?.length && openCameras(p.cameras.map((c) => c.entityId)))}
         <button className={`sh-act sh-mic ${listening ? 'live' : ''}`} onClick={p.onMic} aria-label={p.micActive ? 'Parar' : 'Falar com a Luna'}>
           <span className="sh-b">{p.micIcon}</span>
@@ -323,7 +353,7 @@ export function SkyHome(p: ModernHomeProps) {
       {toast && <div className="sh-toast">{toast}</div>}
 
       {/* Gaveta */}
-      <div ref={dimRef} className={`sh-dim ${sheet ? 'on' : ''}`} onClick={() => setSheet(false)} />
+      <div ref={dimRef} className={`sh-dim ${sheet ? 'on' : ''}`} onClick={() => animateSheet(false)} />
       <div ref={sheetRef} className={`sh-sheet m-card ${sheet ? 'open' : ''}`}>
         <div className="sh-handle" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} role="button" aria-label={sheet ? 'Fechar gaveta' : 'Abrir gaveta: casa, aparelhos e menu'}>
           <i />

@@ -467,6 +467,8 @@ html[data-sky='noite'] .sky-wind .leaf { fill: #33405a; stroke: #1c2435; }
   100% { transform: translate(-10vw, -20px) rotate(800deg); opacity: 0; }
 }
 html.calm-motion .sky-bg :is(.sky-snow i, .sky-fog i, .sky-wind .streak, .sky-wind .leaf, .sky-bolt, .sky-flash) { animation: none !important; }
+/* Gaveta em movimento ou aberta: o céu congela no quadro atual (sem pulo) e libera o tablet para a gaveta */
+.sky-bg.busy *, .sky-bg.busy *::before, .sky-bg.busy *::after { animation-play-state: paused !important; }
 html.calm-motion .sky-wind .leaf { display: none; }
 
 /* Vidro: cartões desfocam o céu atrás (só no tema Céu) */
@@ -531,13 +533,14 @@ html.calm-motion .sh-mic.live .sh-b { animation: none; outline: 3px solid #fff; 
 .sh-dim { position: absolute; inset: 0; z-index: 4; background: rgba(5, 10, 20, 0.3); opacity: 0; visibility: hidden; transition: opacity 0.45s ease, visibility 0s linear 0.45s; }
 .sh-dim.on { opacity: 1; visibility: visible; transition: opacity 0.45s ease; }
 /* Gaveta: fechada mostra só a alça (72 px); aberta sobe até ~80% da altura */
-.sh-sheet { --sh-y: calc(100% - 72px - env(safe-area-inset-bottom)); position: absolute; z-index: 5; left: 50%; bottom: 0; width: min(800px, calc(100% - 24px)); height: min(82vh, 680px); margin-left: calc(min(800px, calc(100% - 24px)) / -2);
-  padding: 0 !important; border-radius: 30px 30px 0 0 !important; border-bottom: 0 !important; transform: translate3d(0, var(--sh-y), 0); transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; will-change: transform; contain: layout paint; }
+.sh-sheet { position: absolute; z-index: 5; left: 50%; bottom: 0; width: min(800px, calc(100% - 24px)); height: min(82vh, 680px); margin-left: calc(min(800px, calc(100% - 24px)) / -2);
+  padding: 0 !important; border-radius: 30px 30px 0 0 !important; border-bottom: 0 !important; transform: translate3d(0, calc(100% - 72px - env(safe-area-inset-bottom)), 0); transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; will-change: transform; contain: layout paint; }
 /* A gaveta se mexe: sem desfoque ao vivo (refazer o desfoque a cada quadro é o que engasgava); vidro fosco */
 html.sky:not([data-theme='hud']) .sky-home .sh-sheet { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 120px), rgba(16, 23, 38, 0.8); }
 html.sky[data-sky='manha'] .sky-home .sh-sheet, html.sky[data-sky='dia'] .sky-home .sh-sheet { background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 120px), rgba(30, 48, 74, 0.78); }
 html.sky[data-sky='tarde'] .sky-home .sh-sheet { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 120px), rgba(44, 26, 50, 0.8); }
-.sh-sheet.open { --sh-y: 0px; }
+/* Posição direto no transform (antes era uma variável CSS: trocar variável refaz o estilo de tudo dentro da gaveta) */
+.sh-sheet.open { transform: translate3d(0, 0, 0); }
 .sh-handle { flex: none; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: grab; touch-action: none; font-size: 14px; }
 .sh-handle i { width: 46px; height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.7); }
 .sh-handle span { opacity: 0.88; }
