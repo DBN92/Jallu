@@ -738,7 +738,7 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-cams { flex: none; grid-template-columns: 1fr 1fr !important; grid-auto-rows: 130px; }
   .pn-news { flex: none; height: 300px; }
   .pn-grid { grid-template-rows: none !important; }
-  .pn-dial { width: 190px; }
+  .pn-dial { width: 190px; touch-action: pan-y; } /* aqui a tela rola: arrastar na vertical rola, não gira */
   .pn-grid { grid-template-rows: none; grid-auto-rows: 88px; overflow: visible; }
   .pn-chat, .pn-toast { position: fixed; }
   .pn-menu { position: fixed; }

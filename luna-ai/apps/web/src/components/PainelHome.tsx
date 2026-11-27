@@ -174,11 +174,16 @@ export function PainelHome(p: ModernHomeProps) {
   };
 
   /* ---------- toque liga/desliga; segurar uma luz com brilho a coloca no botão giratório ---------- */
-  const hold = useRef<{ t: number; fired: boolean } | null>(null);
-  const tileDown = (d: DeviceDto) => {
-    const h = { t: 0, fired: false };
+  // O liga/desliga vem do “click”, que o navegador não dispara quando o dedo rolou a tela; o segurar
+  // (meio segundo parado) é cancelado se o dedo andar mais de 10 px. Assim rolar não aciona nada.
+  const hold = useRef<{ t: number; x: number; y: number } | null>(null);
+  const skipClick = useRef<string | null>(null);
+  const tileDown = (e: RPointerEvent, d: DeviceDto) => {
+    skipClick.current = null;
+    const h = { t: 0, x: e.clientX, y: e.clientY };
     h.t = window.setTimeout(() => {
-      h.fired = true;
+      hold.current = null;
+      skipClick.current = d.entityId; // o toque que soltar agora não liga/desliga
       if (isDimmable(d)) {
         setDialId(d.entityId);
         saveDial(d.entityId);
@@ -187,20 +192,24 @@ export function PainelHome(p: ModernHomeProps) {
     }, 550);
     hold.current = h;
   };
-  const tileUp = (d: DeviceDto) => {
+  const tileMove = (e: RPointerEvent) => {
     const h = hold.current;
-    hold.current = null;
-    if (!h) return;
-    window.clearTimeout(h.t);
-    if (h.fired) return;
-    useDevices
-      .getState()
-      .toggle(d)
-      .catch((err: unknown) => flash(errorMessage(err)));
+    if (h && Math.hypot(e.clientX - h.x, e.clientY - h.y) > 10) tileCancel();
   };
   const tileCancel = () => {
     if (hold.current) window.clearTimeout(hold.current.t);
     hold.current = null;
+  };
+  const tileClick = (d: DeviceDto) => {
+    tileCancel();
+    if (skipClick.current === d.entityId) {
+      skipClick.current = null;
+      return;
+    }
+    useDevices
+      .getState()
+      .toggle(d)
+      .catch((err: unknown) => flash(errorMessage(err)));
   };
 
   /* ---------- cenas ---------- */
@@ -347,10 +356,12 @@ export function PainelHome(p: ModernHomeProps) {
             <button
               key={d.entityId}
               className={`pn-key ${d.isOn ? 'on' : ''} ${d.available ? '' : 'off-line'} ${dialDev?.entityId === d.entityId ? 'dial' : ''}`}
-              onPointerDown={() => tileDown(d)}
-              onPointerUp={() => tileUp(d)}
+              onPointerDown={(e) => tileDown(e, d)}
+              onPointerMove={tileMove}
+              onPointerUp={tileCancel}
               onPointerLeave={tileCancel}
               onPointerCancel={tileCancel}
+              onClick={() => tileClick(d)}
               onContextMenu={(e) => e.preventDefault()}
             >
               <b>{d.name}</b>
