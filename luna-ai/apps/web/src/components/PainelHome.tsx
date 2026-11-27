@@ -229,10 +229,14 @@ export function PainelHome(p: ModernHomeProps) {
     const err = await useDevices.getState().vacuum(vacuum.entityId, vacGoing ? 'return_to_base' : 'start');
     flash(err ?? (vacGoing ? 'Aspirador voltando para a base' : 'Aspirador começou'));
   };
+  // Interruptores só ocupam as fileiras que precisam; as câmeras preenchem o resto do meio
+  const tileRows = Math.max(1, Math.ceil(tiles.length / 3));
+  const camCols = shownCams.length <= 1 ? 1 : tileRows >= 4 ? Math.min(shownCams.length, 4) : shownCams.length <= 4 ? 2 : 3;
   const buy = (listItems ?? []).filter((i) => i.status === 'buy');
   // Próximas 5 horas (a partir da hora atual)
   const pad = (n: number) => String(n).padStart(2, '0');
   const hourKey = `${p.now.getFullYear()}-${pad(p.now.getMonth() + 1)}-${pad(p.now.getDate())}T${pad(p.now.getHours())}`;
+  const days = (p.weather?.daily ?? []).slice(0, 4);
   const nextHours = (p.weather?.hourly ?? []).filter((h) => h.time.slice(0, 13) > hourKey).slice(0, 5);
 
   const chatOpen = p.hasChat || p.state !== 'idle';
@@ -280,24 +284,6 @@ export function PainelHome(p: ModernHomeProps) {
             })}
           </div>
         )}
-        {nextHours.length > 0 && (
-          <button className="pn-card pn-hours" onClick={() => navigate('/clima')}>
-            <p className="pn-label">Próximas horas</p>
-            <div>
-              {nextHours.map((h) => {
-                const hr = Number(h.time.slice(11, 13));
-                return (
-                  <span key={h.time}>
-                    <small>{hr}h</small>
-                    <WeatherIcon code={h.weatherCode} isDay={hr >= 6 && hr < 18} className="h-5 w-5" />
-                    <b>{Math.round(h.temperature)}°</b>
-                    <small className={h.precipitationProbability >= 40 ? 'rain' : ''}>{h.precipitationProbability}%</small>
-                  </span>
-                );
-              })}
-            </div>
-          </button>
-        )}
         {vacuum?.vacuum && (
           <div className="pn-card pn-vac">
             <span>
@@ -306,6 +292,22 @@ export function PainelHome(p: ModernHomeProps) {
             </span>
             <button onClick={() => void tapVacuum()}>{vacGoing ? 'Voltar' : 'Limpar'}</button>
           </div>
+        )}
+        {box && box.cats.length > 0 && (
+          <button className="pn-card pn-cats" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
+            <p className="pn-label">Caixa de areia · hoje {box.todayCount}</p>
+            <div>
+              {box.cats.slice(0, 6).map((c) => (
+                <span key={c.id} className={c.alert ? 'warn' : ''}>
+                  <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
+                  <small>
+                    {c.name} {c.todayVisits}
+                  </small>
+                </span>
+              ))}
+            </div>
+            {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
+          </button>
         )}
         <div className="pn-spacer" />
         {w && (
@@ -336,7 +338,7 @@ export function PainelHome(p: ModernHomeProps) {
         <p className="pn-label">
           Luzes e aparelhos <span className="pn-hint">· segure uma luz para pôr no botão giratório</span>
         </p>
-        <div className="pn-grid" style={{ gridTemplateRows: `repeat(${Math.min(4, Math.max(3, Math.ceil(tiles.length / 3)))}, minmax(84px, 1fr))` }}>
+        <div className="pn-grid" style={{ gridTemplateRows: `repeat(${tileRows}, minmax(84px, ${shownCams.length ? 150 : 400}px))` }}>
           {tiles.map((d) => (
             <button
               key={d.entityId}
@@ -354,6 +356,19 @@ export function PainelHome(p: ModernHomeProps) {
           ))}
           {!tiles.length && <p className="pn-empty">Nenhum aparelho ainda. Eles aparecem aqui quando o Home Assistant responder.</p>}
         </div>
+        {shownCams.length > 0 && (
+          <div className="pn-cams" style={{ gridTemplateColumns: `repeat(${camCols}, 1fr)` }}>
+            {shownCams.map((c) => (
+              <button key={c.entityId} className="pn-cam" onClick={() => openCameras([c.entityId, ...cams.filter((x) => x !== c).map((x) => x.entityId)])}>
+                <CameraThumb camera={c} everyMs={20_000} className="pn-cam-img" />
+                <span>
+                  {c.name}
+                  {c === baby && crying ? ' · choro!' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Coluna 3: telinha */}
@@ -405,33 +420,39 @@ export function PainelHome(p: ModernHomeProps) {
         <div className="pn-recados">
           <RecadosChips />
         </div>
-        {shownCams.length > 0 && (
-          <div className={`pn-cams n${Math.min(shownCams.length, 6)}`}>
-            {shownCams.map((c) => (
-              <button key={c.entityId} className="pn-cam" onClick={() => openCameras([c.entityId, ...cams.filter((x) => x !== c).map((x) => x.entityId)])}>
-                <CameraThumb camera={c} everyMs={20_000} className="pn-cam-img" />
-                <span>
-                  {c.name}
-                  {c === baby && crying ? ' · choro!' : ''}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-        {box && box.cats.length > 0 && (
-          <button className="pn-card pn-cats" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
-            <p className="pn-label">Caixa de areia · hoje {box.todayCount}</p>
+        {nextHours.length > 0 && (
+          <button className="pn-card pn-hours" onClick={() => navigate('/clima')}>
+            <p className="pn-label">Próximas horas</p>
             <div>
-              {box.cats.slice(0, 6).map((c) => (
-                <span key={c.id} className={c.alert ? 'warn' : ''}>
-                  <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
-                  <small>
-                    {c.name} {c.todayVisits}
-                  </small>
+              {nextHours.map((h) => {
+                const hr = Number(h.time.slice(11, 13));
+                return (
+                  <span key={h.time}>
+                    <small>{hr}h</small>
+                    <WeatherIcon code={h.weatherCode} isDay={hr >= 6 && hr < 18} className="h-5 w-5" />
+                    <b>{Math.round(h.temperature)}°</b>
+                    <small className={h.precipitationProbability >= 40 ? 'rain' : ''}>{h.precipitationProbability}%</small>
+                  </span>
+                );
+              })}
+            </div>
+          </button>
+        )}
+        {days.length > 0 && (
+          <button className="pn-card pn-hours pn-days" onClick={() => navigate('/clima')}>
+            <p className="pn-label">Próximos dias</p>
+            <div>
+              {days.map((d, k) => (
+                <span key={d.date}>
+                  <small>{k === 0 ? 'hoje' : new Date(`${d.date}T12:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</small>
+                  <WeatherIcon code={d.weatherCode} isDay className="h-5 w-5" />
+                  <b>
+                    {Math.round(d.max)}° <em>{Math.round(d.min)}°</em>
+                  </b>
+                  <small className={d.precipitationProbability >= 40 ? 'rain' : ''}>{d.precipitationProbability}%</small>
                 </span>
               ))}
             </div>
-            {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
           </button>
         )}
         {buy.length > 0 && (
