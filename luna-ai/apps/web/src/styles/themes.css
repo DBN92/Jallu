@@ -656,7 +656,9 @@ html.painel .m-chip { background: #0d1424; }
 .pn-key.on { color: #e0f2fe; border-color: rgba(125, 211, 252, 0.4); text-shadow: 0 0 14px rgba(125, 211, 252, 0.55); box-shadow: inset 0 -30px 40px -30px rgba(56, 189, 248, 0.22); }
 .pn-key.on i { background: #a5f3fc; box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.8); }
 .pn-key:active { transform: scale(0.96); }
-.pn-key.dial::after { content: ''; position: absolute; left: 14px; bottom: 14px; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid rgba(165, 243, 252, 0.7); }
+/* marca da luz do botão giratório: no canto de cima (embaixo ela caía sobre o “56%” no celular) */
+.pn-key.dial::after { content: ''; position: absolute; right: 14px; top: 14px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgba(165, 243, 252, 0.75); }
+.pn-key b { padding-right: 12px; }
 .pn-key.off-line { opacity: 0.45; }
 .pn-empty { grid-column: 1 / -1; color: rgba(224, 242, 254, 0.5); font-size: 14px; }
 /* Telinha */
