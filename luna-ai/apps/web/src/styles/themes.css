@@ -581,14 +581,16 @@ html.painel[data-theme='sereno'] {
   --bg: #070b14; --card: #0d1424; --card-solid: #0d1424; --line: rgba(125, 211, 252, 0.12);
   --accent-1: #7dd3fc; --accent-2: #a5f3fc; --tx: #e0f2fe; --muted: rgba(203, 213, 225, 0.6);
 }
-html.painel .app-bg { background: linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
+html.painel .app-bg { background: linear-gradient(180deg, #070b14 0, rgba(7, 11, 20, 0) 140px), linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
 html.painel .m-chip { background: #0d1424; }
 .pn-home { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; --pn-line: rgba(125, 211, 252, 0.12); --pn-glow: #7dd3fc; position: relative; height: 100%; min-height: 0; overflow: hidden; color: #e0f2fe;
   display: grid; grid-template-columns: minmax(230px, 0.85fr) 2fr minmax(220px, 0.85fr); gap: 28px;
   padding: max(env(safe-area-inset-top), 26px) max(env(safe-area-inset-right), 30px) max(env(safe-area-inset-bottom), 22px) max(env(safe-area-inset-left), 30px);
-  background: linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
-/* reflexo do vidro (uma vez, parado) */
-.pn-home::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, transparent 31%); pointer-events: none; }
+  /* o topo começa na cor da barra de status do iPhone (#070b14) e clareia aos poucos: sem faixa na Dynamic Island */
+  background: linear-gradient(180deg, #070b14 0, rgba(7, 11, 20, 0) max(140px, calc(env(safe-area-inset-top) + 90px))), linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
+/* reflexo do vidro (uma vez, parado), sumindo perto do topo */
+.pn-home::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, transparent 31%); pointer-events: none;
+  -webkit-mask: linear-gradient(transparent 0, #000 160px); mask: linear-gradient(transparent 0, #000 160px); }
 .pn-col { position: relative; min-height: 0; display: flex; flex-direction: column; }
 .pn-label { font-size: 11px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(224, 242, 254, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pn-hint { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.7; }
@@ -665,6 +667,10 @@ html.painel .m-chip { background: #0d1424; }
 .pn-news-slide { position: relative; flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; border-radius: 12px; background: #0f1828; text-align: left; display: flex; align-items: flex-end; }
 .pn-news-slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .pn-news-txt { position: relative; display: block; width: 100%; padding: 12px; }
+/* notícia sem foto: cartão com degradê e título maior, centralizado (sem o bloco vazio) */
+.pn-news-slide:not(.img) { align-items: center; background: radial-gradient(120% 90% at 100% 0%, rgba(56, 189, 248, 0.22), transparent 60%), linear-gradient(160deg, #13223a, #0b1424); }
+.pn-news-slide:not(.img) .pn-news-txt { padding: 16px 18px; }
+.pn-news-slide:not(.img) .pn-news-txt b { font-size: 17px; -webkit-line-clamp: 5; }
 .pn-news-slide.img .pn-news-txt { padding-top: 40px; background: linear-gradient(transparent, rgba(3, 7, 15, 0.92) 45%); }
 .pn-news-txt small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: #7dd3fc; margin-bottom: 4px; }
 .pn-news-txt b { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font-size: 14.5px; font-weight: 600; line-height: 1.3; color: #f0f9ff; }
@@ -691,7 +697,7 @@ html.painel .m-chip { background: #0d1424; }
 .pn-recado-alert { margin-bottom: 14px; }
 /* Interruptores */
 .pn-grid { flex: none; min-height: 0; margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(84px, 1fr)); grid-auto-rows: minmax(84px, 1fr); gap: 14px; overflow-y: auto; }
-.pn-key { position: relative; text-align: left; padding: 13px 14px; border-radius: 16px; border: 1px solid rgba(125, 211, 252, 0.1); color: #64748b; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+.pn-key { position: relative; text-align: left; padding: 13px 14px; border-radius: 16px; border: 1px solid rgba(125, 211, 252, 0.12); color: #8a98ad; display: flex; flex-direction: column; gap: 3px; min-width: 0;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: color 0.35s, border-color 0.35s, box-shadow 0.35s, transform 0.12s; }
 .pn-key b { font-size: 14px; font-weight: 600; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pn-key span { font-size: 11.5px; opacity: 0.75; }
