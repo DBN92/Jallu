@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Link2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { HOUSE_AUTOMATIONS, type DeviceDto, type HouseAutomationId, type HouseLinksDto } from '@luna/shared';
+import { HOUSE_AUTOMATIONS, type DeviceDto, type HouseAutomationId, type HouseLinksDto } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useAuth } from '../stores/auth';
 import { useDevices } from '../stores/devices';

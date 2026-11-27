@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HOUSE_AUTOMATIONS, type HouseLinksDto } from '@luna/shared';
+import { HOUSE_AUTOMATIONS, type HouseLinksDto } from '@luna/shared/types';
 import { api } from '../services/api';
 import { useDevices } from '../stores/devices';
 import { resolveHouseLinks } from '../lib/houseLinks';

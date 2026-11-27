@@ -32,6 +32,27 @@ import { WasherDone, useWasherDone } from './components/WasherDone';
 import { eventEmoji, useWatches } from './stores/watches';
 import { applyOrientation } from './lib/orientation';
 
+/** Telas mais usadas: carregadas em segundo plano depois que a Luna abre (o primeiro toque já é rápido) */
+const PRELOAD = [
+  () => import('./pages/HousePage'),
+  () => import('./pages/CamerasPage'),
+  () => import('./pages/LitterPage'),
+  () => import('./pages/WasherPage'),
+  () => import('./pages/WeatherPage'),
+  () => import('./pages/ListsPage'),
+  () => import('./pages/VacuumPage'),
+];
+function preloadPages() {
+  const idle = (fn: () => void) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 200));
+  let i = 0;
+  // Uma tela por vez, só quando o aparelho está ocioso (não disputa com a tela inicial)
+  const next = () => {
+    const load = PRELOAD[i++];
+    if (load) idle(() => void load().catch(() => undefined).then(next));
+  };
+  window.setTimeout(next, 6000);
+}
+
 const ConversationsPage = lazy(() => import('./pages/ConversationsPage'));
 const HousePage = lazy(() => import('./pages/HousePage'));
 const WeatherPage = lazy(() => import('./pages/WeatherPage'));
@@ -120,6 +141,9 @@ export default function App() {
     return onUnauthorized(expire);
   }, [check, expire]);
 
+  useEffect(() => {
+    if (status === 'ready') preloadPages();
+  }, [status]);
   useEffect(() => {
     if (status === 'ready') {
       void loadSettings().catch(() => undefined);

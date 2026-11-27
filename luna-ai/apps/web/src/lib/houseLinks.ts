@@ -1,4 +1,4 @@
-import { HOUSE_AUTOMATIONS, type DeviceDto, type HouseAutomationId, type HouseLinksDto } from '@luna/shared';
+import { HOUSE_AUTOMATIONS, type DeviceDto, type HouseAutomationId, type HouseLinksDto } from '@luna/shared/types';
 
 export const normalizeName = (s: string) =>
   s
