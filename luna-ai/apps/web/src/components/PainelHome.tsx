@@ -8,6 +8,7 @@ import { useCameras } from '../stores/cameras';
 import { useLitter } from '../stores/litter';
 import { usePeople } from '../stores/people';
 import { useWasher } from '../stores/washer';
+import { useLists } from '../stores/lists';
 import { normalizeName } from '../lib/houseLinks';
 import { NAV } from './Layout';
 import { MessageList } from './Messages';
@@ -66,6 +67,7 @@ export function PainelHome(p: ModernHomeProps) {
   const boxes = useLitter((s) => s.boxes);
   const people = usePeople((s) => s.list);
   const washers = useWasher((s) => s.washers);
+  const listItems = useLists((s) => s.items);
   const [panel, setPanel] = useState<TvPanelDto | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -80,6 +82,7 @@ export function PainelHome(p: ModernHomeProps) {
     if (!useLitter.getState().boxes) void useLitter.getState().load();
     if (!usePeople.getState().list) void usePeople.getState().load();
     if (!useWasher.getState().washers) void useWasher.getState().load();
+    if (!useLists.getState().items) void useLists.getState().load();
     api<TvPanelDto>('/api/tv/panel').then(setPanel, () => setPanel({ scenes: [], scenesDefault: true, favorites: [], favoritesAuto: true }));
   }, []);
 
@@ -219,6 +222,18 @@ export function PainelHome(p: ModernHomeProps) {
   const crying = !!baby?.info?.some((i) => i.kind === 'cry' && i.active);
   const rain = p.weather?.hourly.slice(0, 12).find((h) => h.precipitationProbability >= 40);
   const lightsOn = Object.values(devicesMap).filter((d) => isLightish(d) && d.isOn && !d.hidden).length;
+  const vacuum = Object.values(devicesMap).find((d) => d.domain === 'vacuum' && d.vacuum && !d.hidden) ?? null;
+  const vacGoing = vacuum?.vacuum?.phase === 'cleaning' || vacuum?.vacuum?.phase === 'returning';
+  const tapVacuum = async () => {
+    if (!vacuum) return;
+    const err = await useDevices.getState().vacuum(vacuum.entityId, vacGoing ? 'return_to_base' : 'start');
+    flash(err ?? (vacGoing ? 'Aspirador voltando para a base' : 'Aspirador começou'));
+  };
+  const buy = (listItems ?? []).filter((i) => i.status === 'buy');
+  // Próximas 5 horas (a partir da hora atual)
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const hourKey = `${p.now.getFullYear()}-${pad(p.now.getMonth() + 1)}-${pad(p.now.getDate())}T${pad(p.now.getHours())}`;
+  const nextHours = (p.weather?.hourly ?? []).filter((h) => h.time.slice(0, 13) > hourKey).slice(0, 5);
 
   const chatOpen = p.hasChat || p.state !== 'idle';
   const listening = p.micActive || p.state === 'listening' || p.state === 'speaking';
@@ -265,6 +280,33 @@ export function PainelHome(p: ModernHomeProps) {
             })}
           </div>
         )}
+        {nextHours.length > 0 && (
+          <button className="pn-card pn-hours" onClick={() => navigate('/clima')}>
+            <p className="pn-label">Próximas horas</p>
+            <div>
+              {nextHours.map((h) => {
+                const hr = Number(h.time.slice(11, 13));
+                return (
+                  <span key={h.time}>
+                    <small>{hr}h</small>
+                    <WeatherIcon code={h.weatherCode} isDay={hr >= 6 && hr < 18} className="h-5 w-5" />
+                    <b>{Math.round(h.temperature)}°</b>
+                    <small className={h.precipitationProbability >= 40 ? 'rain' : ''}>{h.precipitationProbability}%</small>
+                  </span>
+                );
+              })}
+            </div>
+          </button>
+        )}
+        {vacuum?.vacuum && (
+          <div className="pn-card pn-vac">
+            <span>
+              🤖 {vacuum.vacuum.status}
+              {vacuum.vacuum.battery !== null ? ` · ${vacuum.vacuum.battery}%` : ''}
+            </span>
+            <button onClick={() => void tapVacuum()}>{vacGoing ? 'Voltar' : 'Limpar'}</button>
+          </div>
+        )}
         <div className="pn-spacer" />
         {w && (
           <button className="pn-card pn-washer" onClick={() => navigate(`/lava-e-seca/${w.id}`)}>
@@ -294,7 +336,7 @@ export function PainelHome(p: ModernHomeProps) {
         <p className="pn-label">
           Luzes e aparelhos <span className="pn-hint">· segure uma luz para pôr no botão giratório</span>
         </p>
-        <div className="pn-grid">
+        <div className="pn-grid" style={{ gridTemplateRows: `repeat(${Math.min(4, Math.max(3, Math.ceil(tiles.length / 3)))}, minmax(84px, 1fr))` }}>
           {tiles.map((d) => (
             <button
               key={d.entityId}
@@ -338,7 +380,7 @@ export function PainelHome(p: ModernHomeProps) {
               <b>{w.running && w.endsAt ? hourOf(w.endsAt) : w.status === 'end' ? 'pronta' : w.power ? w.statusLabel.toLowerCase() : 'desligada'}</b>
             </p>
           )}
-          {box && (
+          {box && !box.cats.length && (
             <button className="pn-row" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
               <span>🐱 Caixa de areia</span>
               <b className={catAlert ? 'warn' : ''}>
@@ -375,6 +417,34 @@ export function PainelHome(p: ModernHomeProps) {
               </button>
             ))}
           </div>
+        )}
+        {box && box.cats.length > 0 && (
+          <button className="pn-card pn-cats" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
+            <p className="pn-label">Caixa de areia · hoje {box.todayCount}</p>
+            <div>
+              {box.cats.slice(0, 6).map((c) => (
+                <span key={c.id} className={c.alert ? 'warn' : ''}>
+                  <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
+                  <small>
+                    {c.name} {c.todayVisits}
+                  </small>
+                </span>
+              ))}
+            </div>
+            {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
+          </button>
+        )}
+        {buy.length > 0 && (
+          <button className="pn-card pn-shop" onClick={() => navigate('/listas')}>
+            <p className="pn-label">Compras · {buy.length}</p>
+            <p>
+              {buy
+                .slice(0, 3)
+                .map((i) => i.name)
+                .join(' · ')}
+              {buy.length > 3 ? ` e mais ${buy.length - 3}` : ''}
+            </p>
+          </button>
         )}
       </section>
 
