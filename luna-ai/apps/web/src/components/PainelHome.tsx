@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bed, Film, LayoutGrid, Moon, PowerOff, SendHorizontal, Sparkles, Sun, X } from 'lucide-react';
+import { Bed, Film, LayoutGrid, Moon, PowerOff, SendHorizontal, Sparkles, Sun, Video, X } from 'lucide-react';
 import type { CameraDto, DeviceDto, TvPanelDto, TvSceneIcon } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useDevices } from '../stores/devices';
@@ -12,7 +12,8 @@ import { useLists } from '../stores/lists';
 import { normalizeName } from '../lib/houseLinks';
 import { NAV } from './Layout';
 import { MessageList } from './Messages';
-import { RecadosChips } from './Recados';
+import { RecadoAlert, RecadosChips } from './Recados';
+import { unseenRecados, useRecados } from '../stores/recados';
 import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
 import { hourOf } from './WasherCard';
@@ -71,6 +72,9 @@ export function PainelHome(p: ModernHomeProps) {
   const people = usePeople((s) => s.list);
   const washers = useWasher((s) => s.washers);
   const listItems = useLists((s) => s.items);
+  const recados = useRecados((s) => s.list);
+  const openRecados = useRecados((s) => s.open);
+  const freshRecados = unseenRecados(recados).length;
   const [panel, setPanel] = useState<TvPanelDto | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -318,7 +322,11 @@ export function PainelHome(p: ModernHomeProps) {
           <button className={`pn-mic ${listening ? 'live' : ''}`} onClick={p.onMic} aria-label={p.micActive ? 'Parar' : 'Falar com a Luna'}>
             {p.micIcon}
           </button>
-          <span>{p.state === 'idle' ? 'Fale com a Luna' : `Luna · ${p.stateLabel}`}</span>
+          <span>{p.state === 'idle' ? 'Falar' : `Luna · ${p.stateLabel}`}</span>
+          <button className={`pn-menu-btn pn-recado-btn ${freshRecados ? 'fresh' : ''}`} onClick={() => openRecados(freshRecados ? 'player' : 'recorder')} aria-label={freshRecados ? `Ver ${freshRecados} recado(s) novo(s)` : 'Deixar recado'} title="Deixar recado">
+            <Video className="h-5 w-5" />
+            {freshRecados > 0 && <i>{freshRecados}</i>}
+          </button>
           <button className="pn-menu-btn" onClick={() => setMenu(true)} aria-label="Menu">
             <LayoutGrid className="h-5 w-5" />
           </button>
@@ -327,6 +335,10 @@ export function PainelHome(p: ModernHomeProps) {
 
       {/* Coluna 2: interruptores */}
       <section className="pn-col pn-mid">
+        {/* Recado novo: aviso grande em cima de tudo, até alguém assistir */}
+        <div className="pn-recado-alert pn-wide-only">
+          <RecadoAlert big />
+        </div>
         <p className="pn-label">
           Luzes e aparelhos <span className="pn-hint">· segure uma luz para pôr no botão giratório</span>
         </p>
@@ -365,6 +377,9 @@ export function PainelHome(p: ModernHomeProps) {
 
       {/* Coluna 3: telinha */}
       <section className="pn-col pn-screen">
+        <div className="pn-recado-alert pn-phone-only">
+          <RecadoAlert />
+        </div>
         <p className="pn-clock">{p.now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
         <p className="pn-sub">
           {p.weather ? (
@@ -416,7 +431,8 @@ export function PainelHome(p: ModernHomeProps) {
           )}
         </div>
         <div className="pn-recados">
-          <RecadosChips />
+          {/* recado novo já tem o aviso grande; aqui fica o acesso aos antigos */}
+          {freshRecados === 0 && <RecadosChips />}
         </div>
         {(nextHours.length > 0 || days.length > 0) && (
           <div className="pn-card pn-hours">
