@@ -294,20 +294,22 @@ export function PainelHome(p: ModernHomeProps) {
           </div>
         )}
         {box && box.cats.length > 0 && (
-          <button className="pn-card pn-cats" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
-            <p className="pn-label">Caixa de areia · hoje {box.todayCount}</p>
+          <div className="pn-card pn-cats">
+            <button className="pn-label" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
+              Caixa de areia · hoje {box.todayCount} ›
+            </button>
             <div>
-              {box.cats.slice(0, 6).map((c) => (
+              {box.cats.map((c) => (
                 <span key={c.id} className={c.alert ? 'warn' : ''}>
                   <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
                   <small>
-                    {c.name} {c.todayVisits}
+                    {c.name} <b>{c.todayVisits}</b>
                   </small>
                 </span>
               ))}
             </div>
             {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
-          </button>
+          </div>
         )}
         <div className="pn-spacer" />
         {w && (

@@ -628,13 +628,17 @@ html.painel .m-chip { background: #0d1424; }
 .pn-vac span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pn-vac button { flex: none; padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(125, 211, 252, 0.3); color: #e0f2fe; font-size: 12.5px; font-weight: 600; }
 .pn-cats, .pn-shop { margin-top: 10px; padding: 10px 12px; flex: none; }
-.pn-cats > div { display: flex; gap: 8px; margin-top: 8px; overflow: hidden; }
-.pn-cats span { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; flex: 1; max-width: 56px; }
-.pn-cats i { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #1e293b; font-style: normal; font-size: 16px; }
+.pn-cats > div { display: flex; gap: 12px; margin-top: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(125, 211, 252, 0.3) transparent; touch-action: pan-x; }
+.pn-cats > div::-webkit-scrollbar { height: 3px; }
+.pn-cats > div::-webkit-scrollbar-thumb { background: rgba(125, 211, 252, 0.3); border-radius: 2px; }
+/* com 6 gatos, rola para o lado (nome inteiro, sem cortar) */
+.pn-cats span { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; min-width: 48px; scroll-snap-align: start; }
+.pn-cats i { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #1e293b; font-style: normal; font-size: 16px; }
 .pn-cats i img { width: 100%; height: 100%; object-fit: cover; }
 .pn-cats span.warn i { box-shadow: 0 0 0 2px #fcd34d; }
-.pn-cats small { font-size: 10.5px; color: #cbd5e1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pn-warn { margin-top: 6px; font-size: 11.5px; color: #fcd34d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-cats small { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+.pn-cats small b { font-weight: 700; color: #e0f2fe; }
+.pn-warn { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #fcd34d; }
 .pn-shop p:last-child { margin-top: 4px; font-size: 12.5px; color: #cbd5e1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* Falar com a Luna + menu */
 .pn-talk { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; color: rgba(224, 242, 254, 0.7); }
