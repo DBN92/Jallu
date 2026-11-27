@@ -20,7 +20,8 @@ describe('Notícias', () => {
     const latin1 = Buffer.from(rss(item('Ônibus param em São Paulo', 'https://www1.folha.uol.com.br/cotidiano/x.shtml', 'Fri, 27 Nov 2026 02:00:00 -0300')).replace('UTF-8', 'ISO-8859-1'), 'latin1');
     const feeds: Record<string, string | Buffer> = {
       'https://g1.globo.com/rss/g1/sp/sao-paulo/': rss(item('Trânsito na Marginal', 'https://g1.globo.com/sp/1.ghtml', 'Fri, 27 Nov 2026 03:00:00 +0000')),
-      'https://g1.globo.com/rss/g1/tecnologia/': rss(item('Novo celular', 'https://g1.globo.com/tec/1.ghtml', 'Fri, 27 Nov 2026 03:10:00 +0000')),
+      'https://g1.globo.com/rss/g1/tecnologia/': rss(item('Novo celular', 'https://g1.globo.com/tec/1.ghtml', 'Fri, 27 Nov 2026 03:10:00 +0000', '<media:content url="https://s2.glbimg.com/cel.jpg" medium="image"/>')),
+      'https://s2.glbimg.com/cel.jpg': 'JPEGDATA',
       'https://www.cnnbrasil.com.br/rss/': rss(
         item('Eleição na Argentina', 'https://www.cnnbrasil.com.br/internacional/a/', 'Fri, 27 Nov 2026 01:00:00 +0000') +
           item('Lançamento de IA', 'https://www.cnnbrasil.com.br/tecnologia/b/', 'Fri, 27 Nov 2026 01:05:00 +0000') +
@@ -29,7 +30,7 @@ describe('Notícias', () => {
       'https://feeds.folha.uol.com.br/cotidiano/rss091.xml': latin1,
     };
     const asked: string[] = [];
-    ctx = await makeApp({}, { login: true, newsFetch: (async (url: string) => (asked.push(String(url)), feeds[String(url)] ? new Response(feeds[String(url)] as unknown as ConstructorParameters<typeof Response>[0]) : new Response('x', { status: 500 }))) as unknown as typeof fetch });
+    ctx = await makeApp({}, { login: true, newsFetch: (async (url: string) => (asked.push(String(url)), feeds[String(url)] ? new Response(feeds[String(url)] as unknown as ConstructorParameters<typeof Response>[0], { headers: { 'content-type': String(url).endsWith('.jpg') ? 'image/jpeg' : 'application/rss+xml' } }) : new Response('x', { status: 500 }))) as unknown as typeof fetch });
     const r = (await ctx.inject('GET', '/api/news')).json;
     expect(r.config).toEqual({ sources: ['g1', 'cnn', 'folha'], topics: ['sp', 'mundo', 'tec'] });
     const titles = (t: string) => r.items.filter((i: { topic: string }) => i.topic === t).map((i: { title: string }) => i.title);
@@ -37,6 +38,14 @@ describe('Notícias', () => {
     expect(titles('mundo')).toEqual(['Eleição na Argentina']);
     expect(titles('tec')).toEqual(['Novo celular', 'Lançamento de IA']);
     expect(r.items.some((i: { title: string }) => i.title === 'Juros sobem')).toBe(false);
+    // Foto passa pelo servidor (a página só carrega imagens da própria Luna); id inventado não busca nada
+    const cel = r.items.find((i: { title: string }) => i.title === 'Novo celular');
+    expect(cel.image).toMatch(/^\/api\/news\/image\/[0-9a-f]{16}$/);
+    const img = await ctx.app.inject({ method: 'GET', url: cel.image, headers: { cookie: ctx.cookies } });
+    expect(img.statusCode).toBe(200);
+    expect(img.headers['content-type']).toBe('image/jpeg');
+    expect(img.body).toBe('JPEGDATA');
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/news/image/0123456789abcdef', headers: { cookie: ctx.cookies } })).statusCode).toBe(404);
     expect(r.failed).toContain('Folha'); // mundo e tec da Folha não responderam
     expect(asked.filter((u) => u.includes('cnnbrasil')).length).toBe(1); // o feed geral da CNN serve os 3 assuntos com uma busca só
 

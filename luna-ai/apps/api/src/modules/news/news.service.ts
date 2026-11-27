@@ -127,6 +127,9 @@ export class NewsService {
   private cache = new Map<string, { at: number; xml: string }>();
   private inflight = new Map<string, Promise<string>>();
   private failed = new Set<string>();
+  /** id da notícia → endereço original da foto (só essas podem ser buscadas pelo servidor) */
+  private photos = new Map<string, string>();
+  private photoCache = new Map<string, { type: string; body: Buffer }>();
 
   constructor(
     dataDir: string,
@@ -240,6 +243,35 @@ export class NewsService {
         seen.add(i.link);
         return true;
       });
+    // As fotos passam pelo servidor: a página da Luna só carrega imagens dela mesma (segurança)
+    for (const i of items) {
+      if (!i.image) continue;
+      // CNN (WordPress) manda miniatura de 200 px (?w=200): pede uma de 800 px, que fica nítida no carrossel
+      this.photos.set(i.id, i.image.replace(/([?&])w=\d{2,3}(?=&|$)/, '$1w=800'));
+      i.image = `/api/news/image/${i.id}`;
+    }
+    if (this.photos.size > 600) for (const k of [...this.photos.keys()].slice(0, this.photos.size - 600)) this.photos.delete(k);
     return { items, config, catalog: this.catalog(), failed: [...failedNames] };
+  }
+
+  /** Foto de uma notícia já listada (nunca um endereço qualquer). Guarda as últimas 80 na memória. */
+  async photo(id: string): Promise<{ type: string; body: Buffer } | null> {
+    const hit = this.photoCache.get(id);
+    if (hit) return hit;
+    const url = this.photos.get(id);
+    if (!url) return null;
+    try {
+      const res = await this.fetcher(url, { headers: { 'user-agent': 'Mozilla/5.0 (compatible; LunaCasa/1.0)', accept: 'image/*' }, signal: AbortSignal.timeout(10_000) });
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !type.startsWith('image/')) return null;
+      const body = Buffer.from(await res.arrayBuffer());
+      if (body.length > 3_000_000) return null;
+      const out = { type, body };
+      this.photoCache.set(id, out);
+      if (this.photoCache.size > 80) this.photoCache.delete(this.photoCache.keys().next().value!);
+      return out;
+    } catch {
+      return null;
+    }
   }
 }
