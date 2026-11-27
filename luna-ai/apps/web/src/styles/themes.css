@@ -618,7 +618,11 @@ html.painel .m-chip { background: #0d1424; }
 .pn-bar { display: block; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); margin-top: 9px; overflow: hidden; }
 .pn-bar i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #a5f3fc); transform-origin: left; transition: transform 1s; }
 .pn-hours { margin-top: 12px; flex: none; }
-.pn-hours > div { display: flex; justify-content: space-between; margin-top: 8px; }
+.pn-wx-tabs { display: flex; gap: 4px; }
+.pn-wx-tabs button { white-space: nowrap; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(224, 242, 254, 0.4); padding: 2px 6px 2px 0; }
+.pn-wx-tabs button.on { color: rgba(224, 242, 254, 0.8); }
+.pn-wx-tabs button + button { padding-left: 6px; border-left: 1px solid rgba(125, 211, 252, 0.15); }
+.pn-wx-row { display: flex; justify-content: space-between; width: 100%; margin-top: 8px; }
 .pn-hours span { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12.5px; color: #cbd5e1; }
 .pn-hours b { font-weight: 600; color: #e0f2fe; }
 .pn-hours small { font-size: 10.5px; opacity: 0.7; }
@@ -649,6 +653,25 @@ html.painel .m-chip { background: #0d1424; }
 .pn-cats small b { font-weight: 700; color: #e0f2fe; }
 .pn-warn { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #fcd34d; }
 .pn-shop p:last-child { margin-top: 4px; font-size: 12.5px; color: #cbd5e1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Notícias (preenchem o que sobra da telinha e rolam) */
+.pn-news { flex: 1 1 0; min-height: 150px; margin-top: 10px; padding: 10px 12px 4px; display: flex; flex-direction: column; }
+.pn-news-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pn-news-tabs { flex-wrap: nowrap; }
+.pn-news-tabs .pn-label { margin-right: auto; }
+.pn-news-tabs button { padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: rgba(224, 242, 254, 0.6); border: 1px solid transparent; }
+.pn-news-tabs button.on { color: #e0f2fe; border-color: rgba(125, 211, 252, 0.35); background: rgba(125, 211, 252, 0.1); }
+.pn-news-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-top: 6px; }
+.pn-news-list li + li { border-top: 1px solid rgba(125, 211, 252, 0.08); }
+.pn-news-list button { display: block; width: 100%; text-align: left; padding: 8px 0; }
+.pn-news-list b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: 500; line-height: 1.3; color: #e0f2fe; }
+.pn-news-list small { display: block; margin-top: 3px; font-size: 11px; color: rgba(224, 242, 254, 0.5); }
+.pn-news-modal { position: fixed; z-index: 30; inset: 0; background: rgba(3, 6, 12, 0.7); display: grid; place-items: center; padding: 20px; }
+.pn-news-read { position: relative; width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; background: #0b1220; border: 1px solid rgba(125, 211, 252, 0.25); border-radius: 22px; padding: 18px; color: #e0f2fe; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); -webkit-user-select: text; user-select: text; }
+.pn-news-read img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
+.pn-news-read h3 { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 6px 0 10px; }
+.pn-news-read > p:not(.pn-label) { font-size: 15px; line-height: 1.5; color: #cbd5e1; }
+.pn-news-x { position: absolute; right: 12px; top: 12px; z-index: 1; background: #0b1220; }
+.pn-news-open { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 16px; border-radius: 12px; background: #a5f3fc; color: #070b14; font-weight: 600; font-size: 14px; }
 /* Falar com a Luna + menu */
 .pn-talk { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; color: rgba(224, 242, 254, 0.7); }
 .pn-talk span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -702,6 +725,7 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-screen { order: -2; border-left: 0; padding-left: 0; }
   .pn-mid { order: -1; }
   .pn-cams { flex: none; grid-template-columns: 1fr 1fr !important; grid-auto-rows: 130px; }
+  .pn-news { flex: none; height: 360px; }
   .pn-grid { grid-template-rows: none !important; }
   .pn-dial { width: 190px; }
   .pn-grid { grid-template-rows: none; grid-auto-rows: 88px; overflow: visible; }
@@ -719,7 +743,8 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-sub { grid-column: 2; margin: 0 0 6px; }
   .pn-rows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .pn-rows .pn-row { width: auto; padding: 6px 11px; border: 1px solid rgba(125, 211, 252, 0.15); border-radius: 999px; font-size: 12.5px; gap: 6px; }
-  .pn-rows .pn-row-lava, .pn-screen .pn-hours, .pn-screen .pn-days, .pn-screen .pn-shop, .pn-hint, .pn-mid > .pn-label { display: none; }
+  .pn-rows .pn-row-lava, .pn-rows .pn-row-shop, .pn-screen .pn-hours, .pn-screen .pn-days, .pn-screen .pn-shop, .pn-hint, .pn-mid > .pn-label { display: none; }
+  .pn-screen .pn-news { flex: none; height: 320px; }
   .pn-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 64px !important; gap: 10px; margin-top: 0; }
   .pn-key { padding: 10px 12px; }
   .pn-key b { font-size: 13.5px; -webkit-line-clamp: 1; }

@@ -17,6 +17,7 @@ import { TvDuckSettings } from '../components/TvDuckSettings';
 import { TvPanelSettings } from '../components/TvPanelSettings';
 import { RecordingsSettings } from '../components/RecordingsSettings';
 import { WidgetSettings } from '../components/WidgetSettings';
+import { NewsSettings } from '../components/NewsSettings';
 import { ThemePicker } from '../components/ThemePicker';
 import { PhotoAlbumSettings } from '../components/PhotoAlbumSettings';
 import { PresenceSettings } from '../components/PresenceSettings';
@@ -487,6 +488,10 @@ export default function SettingsPage() {
 
       <Section title="Painel da TV (Fire TV)">
         <TvPanelSettings isAdmin={isAdmin} />
+      </Section>
+
+      <Section title="Notícias">
+        <NewsSettings isAdmin={isAdmin} />
       </Section>
 
       <Section title="Siri e Atalhos (iPhone)">

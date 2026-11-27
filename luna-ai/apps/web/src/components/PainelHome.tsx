@@ -17,6 +17,7 @@ import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
 import { hourOf } from './WasherCard';
 import { RobotImage } from './RobotImage';
+import { NewsCard } from './NewsCard';
 import { fanLabel } from './VacuumCard';
 import type { ModernHomeProps } from './ModernHome';
 
@@ -73,6 +74,7 @@ export function PainelHome(p: ModernHomeProps) {
   const [panel, setPanel] = useState<TvPanelDto | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
+  const [wxTab, setWxTab] = useState<'h' | 'd'>('h');
   const [dialId, setDialId] = useState<string | null>(readDial);
 
   // O menu de baixo sai da tela inicial (fica no botão de menu do painel)
@@ -406,57 +408,53 @@ export function PainelHome(p: ModernHomeProps) {
               <b>{home.length}</b>
             </p>
           )}
+          {buy.length > 0 && (
+            <button className="pn-row pn-row-shop" onClick={() => navigate('/listas')}>
+              <span>🛒 Compras</span>
+              <b title={buy.map((i) => i.name).join(', ')}>{buy.length}</b>
+            </button>
+          )}
         </div>
         <div className="pn-recados">
           <RecadosChips />
         </div>
-        {nextHours.length > 0 && (
-          <button className="pn-card pn-hours" onClick={() => navigate('/clima')}>
-            <p className="pn-label">Próximas horas</p>
-            <div>
-              {nextHours.map((h) => {
-                const hr = Number(h.time.slice(11, 13));
-                return (
-                  <span key={h.time}>
-                    <small>{hr}h</small>
-                    <WeatherIcon code={h.weatherCode} isDay={hr >= 6 && hr < 18} className="h-5 w-5" />
-                    <b>{Math.round(h.temperature)}°</b>
-                    <small className={h.precipitationProbability >= 40 ? 'rain' : ''}>{h.precipitationProbability}%</small>
-                  </span>
-                );
-              })}
+        {(nextHours.length > 0 || days.length > 0) && (
+          <div className="pn-card pn-hours">
+            <div className="pn-wx-tabs">
+              <button className={wxTab === 'h' ? 'on' : ''} onClick={() => setWxTab('h')}>
+                Tempo · horas
+              </button>
+              <button className={wxTab === 'd' ? 'on' : ''} onClick={() => setWxTab('d')}>
+                Dias
+              </button>
             </div>
-          </button>
+            <button className="pn-wx-row" onClick={() => navigate('/clima')}>
+              {wxTab === 'h'
+                ? nextHours.map((h) => {
+                    const hr = Number(h.time.slice(11, 13));
+                    return (
+                      <span key={h.time}>
+                        <small>{hr}h</small>
+                        <WeatherIcon code={h.weatherCode} isDay={hr >= 6 && hr < 18} className="h-5 w-5" />
+                        <b>{Math.round(h.temperature)}°</b>
+                        <small className={h.precipitationProbability >= 40 ? 'rain' : ''}>{h.precipitationProbability}%</small>
+                      </span>
+                    );
+                  })
+                : days.map((d, k) => (
+                    <span key={d.date}>
+                      <small>{k === 0 ? 'hoje' : new Date(`${d.date}T12:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</small>
+                      <WeatherIcon code={d.weatherCode} isDay className="h-5 w-5" />
+                      <b>
+                        {Math.round(d.max)}° <em>{Math.round(d.min)}°</em>
+                      </b>
+                      <small className={d.precipitationProbability >= 40 ? 'rain' : ''}>{d.precipitationProbability}%</small>
+                    </span>
+                  ))}
+            </button>
+          </div>
         )}
-        {days.length > 0 && (
-          <button className="pn-card pn-hours pn-days" onClick={() => navigate('/clima')}>
-            <p className="pn-label">Próximos dias</p>
-            <div>
-              {days.map((d, k) => (
-                <span key={d.date}>
-                  <small>{k === 0 ? 'hoje' : new Date(`${d.date}T12:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</small>
-                  <WeatherIcon code={d.weatherCode} isDay className="h-5 w-5" />
-                  <b>
-                    {Math.round(d.max)}° <em>{Math.round(d.min)}°</em>
-                  </b>
-                  <small className={d.precipitationProbability >= 40 ? 'rain' : ''}>{d.precipitationProbability}%</small>
-                </span>
-              ))}
-            </div>
-          </button>
-        )}
-        {buy.length > 0 && (
-          <button className="pn-card pn-shop" onClick={() => navigate('/listas')}>
-            <p className="pn-label">Compras · {buy.length}</p>
-            <p>
-              {buy
-                .slice(0, 3)
-                .map((i) => i.name)
-                .join(' · ')}
-              {buy.length > 3 ? ` e mais ${buy.length - 3}` : ''}
-            </p>
-          </button>
-        )}
+        <NewsCard />
       </section>
 
       {/* Conversa com a Luna (só enquanto conversa) */}

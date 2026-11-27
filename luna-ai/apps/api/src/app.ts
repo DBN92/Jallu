@@ -25,6 +25,8 @@ import { DevicesService } from './modules/devices/devices.service';
 import { deviceRoutes } from './modules/devices/devices.routes';
 import { WeatherService } from './modules/weather/weather.service';
 import { weatherRoutes } from './modules/weather/weather.routes';
+import { NewsService } from './modules/news/news.service';
+import { newsRoutes } from './modules/news/news.routes';
 import { MemoryService } from './modules/memory/memory.service';
 import { memoryRoutes } from './modules/memory/memory.routes';
 import { SettingsService } from './modules/settings/settings.service';
@@ -82,7 +84,7 @@ export interface AppDeps {
   env: Env;
   db?: Db;
   /** fetch usado pelas integrações externas (substituível em testes) */
-  fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike; tuya?: FetchLike };
+  fetch?: { ha?: FetchLike; ollama?: FetchLike; openai?: FetchLike; weather?: FetchLike; tuya?: FetchLike; news?: FetchLike };
   /** Desativa a conexão WebSocket com o HA (testes) */
   disableHaWs?: boolean;
   /** Entrada do ffmpeg das câmeras diretas (testes usam uma fonte sintética no lugar do RTSP) */
@@ -160,6 +162,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
   const frame = deps.watchFrame ??
     (async (cameraId: string) => (cameraId.startsWith('camera.luna_') ? directCameras.frameJpeg(cameraId) : Buffer.from(await (await cameras.snapshot(cameraId)).arrayBuffer())));
   const vacuumPhotos = new VacuumPhotos(dataDir, devices);
+  const news = new NewsService(dataDir, deps.fetch?.news);
   const webCameras = new WebCamerasService(dataDir);
   // Silencia a TV escolhida enquanto a Luna escuta (o microfone misturava a TV com o pedido)
   const tvDuck = new TvDuckService(ha, dataDir);
@@ -318,7 +321,7 @@ function buildServices(env: Env, db: Db, deps: AppDeps, log: FastifyInstance['lo
     if (piper.available) void piper.speak(text).catch(() => undefined);
   };
   if (!deps.disableWatchTimer) siri.startPrewarm((t) => piper.speak(t), () => piper.available, env.TZ);
-  return { db, litter, catPhotos, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, recordings, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
+  return { db, news, litter, catPhotos, washer, siri, ha, haWs, actionLogs, devices, vacuumPhotos, photos: new PhotoAlbum(dataDir), recados, lists, push, people, piper, cameras, directCameras, webCameras, tuya, go2rtc, tvDuck, tvPanel, recordings, gestures, watches, weather, memory, settings, automations, ollama, openai, voice, tools, hub, chat, auth };
 }
 
 export type Services = ReturnType<typeof buildServices>;
@@ -401,6 +404,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(authRoutes);
   await app.register(deviceRoutes);
   await app.register(weatherRoutes);
+  await app.register(newsRoutes);
   await app.register(memoryRoutes);
   await app.register(settingsRoutes);
   await app.register(locationRoutes);

@@ -592,3 +592,35 @@ export interface RecordingFileDto {
   seconds: number;
   bytes: number;
 }
+
+/* ---------- Notícias (RSS dos jornais, escolhidos nos Ajustes) ---------- */
+export type NewsTopic = 'sp' | 'mundo' | 'tec' | 'geral';
+export interface NewsItemDto {
+  id: string;
+  title: string;
+  /** Resumo em texto puro (pode vir vazio) */
+  summary: string;
+  link: string;
+  source: string;
+  sourceName: string;
+  topic: NewsTopic;
+  /** ISO */
+  at: string | null;
+  image: string | null;
+}
+export interface NewsSourceDto {
+  id: string;
+  name: string;
+  topics: NewsTopic[];
+}
+export interface NewsConfigDto {
+  sources: string[];
+  topics: NewsTopic[];
+}
+export interface NewsDto {
+  items: NewsItemDto[];
+  config: NewsConfigDto;
+  catalog: NewsSourceDto[];
+  /** Fontes que não responderam na última busca */
+  failed: string[];
+}
