@@ -16,6 +16,8 @@ import { RecadosChips } from './Recados';
 import { CameraThumb } from './CameraPlayer';
 import { WeatherIcon } from './WeatherIcon';
 import { hourOf } from './WasherCard';
+import { RobotImage } from './RobotImage';
+import { fanLabel } from './VacuumCard';
 import type { ModernHomeProps } from './ModernHome';
 
 const SCENE_ICON: Record<TvSceneIcon, typeof Film> = { film: Film, moon: Moon, sun: Sun, off: PowerOff, bed: Bed, spark: Sparkles };
@@ -223,12 +225,6 @@ export function PainelHome(p: ModernHomeProps) {
   const rain = p.weather?.hourly.slice(0, 12).find((h) => h.precipitationProbability >= 40);
   const lightsOn = Object.values(devicesMap).filter((d) => isLightish(d) && d.isOn && !d.hidden).length;
   const vacuum = Object.values(devicesMap).find((d) => d.domain === 'vacuum' && d.vacuum && !d.hidden) ?? null;
-  const vacGoing = vacuum?.vacuum?.phase === 'cleaning' || vacuum?.vacuum?.phase === 'returning';
-  const tapVacuum = async () => {
-    if (!vacuum) return;
-    const err = await useDevices.getState().vacuum(vacuum.entityId, vacGoing ? 'return_to_base' : 'start');
-    flash(err ?? (vacGoing ? 'Aspirador voltando para a base' : 'Aspirador começou'));
-  };
   // Interruptores só ocupam as fileiras que precisam; as câmeras preenchem o resto do meio
   const tileRows = Math.max(1, Math.ceil(tiles.length / 3));
   const camCols = shownCams.length <= 1 ? 1 : tileRows >= 4 ? Math.min(shownCams.length, 4) : shownCams.length <= 4 ? 2 : 3;
@@ -284,15 +280,7 @@ export function PainelHome(p: ModernHomeProps) {
             })}
           </div>
         )}
-        {vacuum?.vacuum && (
-          <div className="pn-card pn-vac">
-            <span>
-              🤖 {vacuum.vacuum.status}
-              {vacuum.vacuum.battery !== null ? ` · ${vacuum.vacuum.battery}%` : ''}
-            </span>
-            <button onClick={() => void tapVacuum()}>{vacGoing ? 'Voltar' : 'Limpar'}</button>
-          </div>
-        )}
+        {vacuum?.vacuum && <PainelVacuum device={vacuum} onMsg={flash} />}
         {box && box.cats.length > 0 && (
           <div className="pn-card pn-cats">
             <button className="pn-label" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
@@ -527,6 +515,61 @@ export function PainelHome(p: ModernHomeProps) {
       )}
 
       {toast && <div className="pn-toast">{toast}</div>}
+    </div>
+  );
+}
+
+/** Aspirador no Painel: foto/desenho do robô, nome, situação, bateria e um detalhe útil (última limpeza, erro, peça para trocar). */
+function PainelVacuum({ device, onMsg }: { device: DeviceDto; onMsg: (m: string) => void }) {
+  const navigate = useNavigate();
+  const v = device.vacuum!;
+  const busy = useDevices((s) => s.busy[device.entityId]);
+  const x = v.extras;
+  const charging = v.phase === 'docked' && v.battery !== null && v.battery < 100;
+  const worn = x?.consumables.filter((c) => c.percent <= 10).sort((a, b) => a.percent - b.percent)[0];
+  const detail = v.error
+    ? { text: v.error, cls: 'err' }
+    : v.phase === 'cleaning'
+      ? { text: `limpando agora${v.fanSpeed ? ` · ${fanLabel(v.fanSpeed).toLowerCase()}` : ''}`, cls: 'on' }
+      : v.phase === 'returning'
+        ? { text: 'voltando para a base', cls: 'on' }
+        : x?.dryingMinutes
+          ? { text: `pano secando · ${x.dryingMinutes} min`, cls: '' }
+          : worn
+            ? { text: `trocar ${worn.label.toLowerCase()} (${worn.percent}%)`, cls: 'warn' }
+            : x?.stats.lastArea
+              ? { text: `última: ${Math.round(x.stats.lastArea)} m²${x.stats.lastMinutes ? ` · ${Math.round(x.stats.lastMinutes)} min` : ''}`, cls: '' }
+              : charging
+                ? { text: 'carregando', cls: '' }
+                : null;
+  const run = async (cmd: 'start' | 'pause' | 'return_to_base') => {
+    const err = await useDevices.getState().vacuum(device.entityId, cmd);
+    onMsg(err ?? (cmd === 'start' ? `${device.name} começou` : cmd === 'pause' ? `${device.name} pausado` : `${device.name} voltando para a base`));
+  };
+  const going = v.phase === 'cleaning' || v.phase === 'returning';
+  return (
+    <div className="pn-card pn-vac">
+      <button className="pn-vac-main" onClick={() => navigate(`/aspirador/${device.entityId}`)}>
+        <RobotImage device={device} size={40} />
+        <span className="pn-vac-txt">
+          <b>{device.name}</b>
+          <small>
+            {v.status}
+            {v.battery !== null ? ` · ${charging ? '⚡' : ''}${v.battery}%` : ''}
+          </small>
+          {detail && <em className={detail.cls}>{detail.text}</em>}
+        </span>
+      </button>
+      <span className="pn-vac-btns">
+        {v.phase === 'cleaning' && v.can.pause && (
+          <button disabled={busy} onClick={() => void run('pause')}>
+            Pausar
+          </button>
+        )}
+        <button disabled={busy} onClick={() => void run(going ? 'return_to_base' : 'start')}>
+          {going ? 'Voltar' : v.phase === 'paused' ? 'Continuar' : 'Limpar'}
+        </button>
+      </span>
     </div>
   );
 }
