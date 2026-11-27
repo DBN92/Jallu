@@ -628,14 +628,14 @@ html.painel .m-chip { background: #0d1424; }
 .pn-vac span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pn-vac button { flex: none; padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(125, 211, 252, 0.3); color: #e0f2fe; font-size: 12.5px; font-weight: 600; }
 .pn-cats, .pn-shop { margin-top: 10px; padding: 10px 12px; flex: none; }
-.pn-cats > div { display: flex; gap: 12px; margin-top: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(125, 211, 252, 0.3) transparent; touch-action: pan-x; }
+.pn-cats > div { display: flex; gap: 12px; margin: 4px -4px 0; padding: 4px 4px 6px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: rgba(125, 211, 252, 0.3) transparent; touch-action: pan-x; }
 .pn-cats > div::-webkit-scrollbar { height: 3px; }
 .pn-cats > div::-webkit-scrollbar-thumb { background: rgba(125, 211, 252, 0.3); border-radius: 2px; }
 /* com 6 gatos, rola para o lado (nome inteiro, sem cortar) */
-.pn-cats span { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; min-width: 48px; scroll-snap-align: start; }
-.pn-cats i { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #1e293b; font-style: normal; font-size: 16px; }
+.pn-cats span { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; min-width: 48px; scroll-snap-align: start; scroll-margin-left: 4px; }
+.pn-cats i { flex: none; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #1e293b; font-style: normal; font-size: 16px; }
 .pn-cats i img { width: 100%; height: 100%; object-fit: cover; }
-.pn-cats span.warn i { box-shadow: 0 0 0 2px #fcd34d; }
+.pn-cats span.warn i { outline: 2px solid #fcd34d; outline-offset: 1px; }
 .pn-cats small { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
 .pn-cats small b { font-weight: 700; color: #e0f2fe; }
 .pn-warn { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #fcd34d; }
@@ -698,4 +698,29 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-menu { position: fixed; }
   .pn-links { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width: 520px) { .pn-grid { grid-template-columns: repeat(2, 1fr); } .pn-hint { display: none; } }
+/* Celular: versão enxuta — hora e resumo em uma linha de etiquetas, interruptores e câmeras,
+   giratório ao lado das cenas, e o botão de falar fixo embaixo. Sem previsão/compras (estão nas outras telas). */
+@media (max-width: 520px) {
+  .pn-home { gap: 16px; padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
+  .pn-screen { display: grid; grid-template-columns: auto 1fr; align-items: end; column-gap: 12px; }
+  .pn-screen > * { grid-column: 1 / -1; }
+  .pn-clock { grid-column: 1; font-size: 46px; }
+  .pn-sub { grid-column: 2; margin: 0 0 6px; }
+  .pn-rows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .pn-rows .pn-row { width: auto; padding: 6px 11px; border: 1px solid rgba(125, 211, 252, 0.15); border-radius: 999px; font-size: 12.5px; gap: 6px; }
+  .pn-rows .pn-row-lava, .pn-screen .pn-hours, .pn-screen .pn-days, .pn-screen .pn-shop, .pn-hint, .pn-mid > .pn-label { display: none; }
+  .pn-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 64px !important; gap: 10px; margin-top: 0; }
+  .pn-key { padding: 10px 12px; }
+  .pn-key b { font-size: 13.5px; -webkit-line-clamp: 1; }
+  .pn-key i { bottom: 10px; }
+  .pn-cams { grid-auto-rows: 110px; gap: 8px; }
+  .pn-left { display: grid; grid-template-columns: 140px 1fr; column-gap: 14px; align-items: center; }
+  .pn-left > * { grid-column: 1 / -1; }
+  .pn-left .pn-dial { grid-column: 1; width: 140px; margin: 6px 0 0; }
+  .pn-left .pn-scenes { grid-column: 2; grid-template-columns: 1fr; gap: 6px; margin: 6px 0 0; }
+  .pn-scene { padding: 8px 6px; font-size: 12.5px; }
+  .pn-knob b { font-size: 32px; }
+  .pn-knob span { display: none; }
+  .pn-left .pn-spacer { display: none; }
+  .pn-talk { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; margin: 0; padding: 10px max(env(safe-area-inset-right), 18px) calc(env(safe-area-inset-bottom) + 10px) max(env(safe-area-inset-left), 18px); background: rgba(7, 11, 20, 0.96); border-top: 1px solid rgba(125, 211, 252, 0.12); }
+}

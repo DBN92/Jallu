@@ -387,12 +387,12 @@ export function PainelHome(p: ModernHomeProps) {
           )}
         </p>
         <div className="pn-rows">
-          <p className="pn-row">
+          <p className="pn-row pn-row-luzes">
             <span>💡 Luzes acesas</span>
             <b>{lightsOn}</b>
           </p>
           {w && (
-            <p className="pn-row">
+            <p className="pn-row pn-row-lava">
               <span>🧺 Lava e seca</span>
               <b>{w.running && w.endsAt ? hourOf(w.endsAt) : w.status === 'end' ? 'pronta' : w.power ? w.statusLabel.toLowerCase() : 'desligada'}</b>
             </p>
