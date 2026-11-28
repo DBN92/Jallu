@@ -1,0 +1,352 @@
+@import '@fontsource/orbitron/latin-500.css';
+@import '@fontsource/orbitron/latin-700.css';
+@import '@fontsource/rajdhani/latin-500.css';
+@import '@fontsource/rajdhani/latin-600.css';
+@import '@fontsource/rajdhani/latin-700.css';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  --font-hud: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Orbitron', 'Rajdhani', ui-sans-serif, sans-serif;
+  --color-ink-950: #02060b;
+  --color-ink-900: #050c14;
+  --color-ink-800: #0a1622;
+  --color-ink-700: #102231;
+  --color-hud-cyan: #00e5ff;
+  --color-hud-cyan-dim: #0b9fb8;
+  --color-hud-amber: #ffb547;
+  --color-hud-red: #ff4d6a;
+  --color-hud-violet: #9a8cff;
+  --color-hud-green: #3dffa8;
+  --color-luna-violet: #9a8cff;
+  --color-luna-blue: #3aa8ff;
+  --color-luna-cyan: #00e5ff;
+}
+
+:root {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+  --hud-line: rgba(0, 229, 255, 0.22);
+  --hud-line-strong: rgba(0, 229, 255, 0.55);
+  --hud-panel: rgba(6, 18, 30, 0.72);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* O app ocupa exatamente a tela visível, preso às 4 bordas. No PWA do iPhone,
+   alturas como 100%/100vh podem ficar menores que a tela e deixar um vão embaixo. */
+#root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: var(--app-h, 100dvh);
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: #d8f6ff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* ---------- Fundo: grade holográfica + vinheta + linhas de varredura ---------- */
+.app-bg {
+  position: relative;
+  background:
+    radial-gradient(1100px 700px at 50% 30%, rgba(0, 170, 220, 0.14), transparent 65%),
+    radial-gradient(900px 500px at 50% 120%, rgba(0, 90, 160, 0.18), transparent 60%),
+    linear-gradient(rgba(0, 229, 255, 0.035) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(0, 229, 255, 0.035) 1px, transparent 1px) 0 0 / 44px 44px,
+    var(--color-ink-950);
+}
+.app-bg::after {
+  content: '';
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
+}
+
+/* ---------- Painéis HUD (cantos chanfrados + colchetes) ---------- */
+.glass,
+.hud-panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(8, 26, 42, 0.9), rgba(4, 14, 24, 0.86));
+  border: 1px solid var(--hud-line);
+  box-shadow: inset 0 0 24px rgba(0, 229, 255, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.hud-panel {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+.hud-panel::before,
+.hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  border-color: var(--color-hud-cyan);
+  opacity: 0.85;
+}
+.hud-panel::before {
+  top: 4px;
+  right: 4px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+.hud-panel::after {
+  bottom: 4px;
+  left: 4px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.hud-label {
+  font-family: var(--font-hud);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.75);
+}
+.hud-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+.hud-glow {
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.55), 0 0 2px rgba(0, 229, 255, 0.9);
+}
+.hud-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hud-line-strong), transparent);
+}
+
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0.75rem); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+
+.text-gradient {
+  background: linear-gradient(90deg, #7ff3ff, #00e5ff, #3aa8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Núcleo HUD ---------- */
+.hud-core {
+  --core: #00e5ff;
+  --spin: 1;
+  color: var(--core);
+  transition: color 400ms ease, filter 400ms ease;
+}
+.hud-core[data-state='listening'] { --core: #5ff6ff; --spin: 1.6; }
+.hud-core[data-state='processing'] { --core: #9a8cff; --spin: 4; }
+.hud-core[data-state='acting'] { --core: #ffb547; --spin: 5; }
+.hud-core[data-state='speaking'] { --core: #3aa8ff; --spin: 1.4; }
+.hud-core[data-state='error'] { --core: #ff4d6a; --spin: 0.3; }
+/* Camadas do núcleo: só transform/opacity (composição na GPU, sem repintura) */
+.hud-core .orb-layer { position: absolute; inset: 0; will-change: transform; pointer-events: none; }
+.hud-core .orb-spin-slow { animation: spin 80s linear infinite; }
+.hud-core .orb-spin-rev { animation: spin 36s linear infinite reverse; }
+.hud-core .orb-spin-fast { animation: spin 12s linear infinite; }
+.hud-core[data-state='processing'] .orb-spin-fast, .hud-core[data-state='acting'] .orb-spin-fast { animation-duration: 3s; }
+.hud-core[data-state='processing'] .orb-spin-rev, .hud-core[data-state='acting'] .orb-spin-rev { animation-duration: 10s; }
+.hud-core .orb-glow { filter: drop-shadow(0 0 3px currentColor); }
+.hud-core .orb-pulse { opacity: 0; }
+.hud-core[data-state='listening'] .orb-pulse { animation: ripple 1.8s ease-out infinite; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 0%, 100% { opacity: 0.7; transform: scale(0.97); } 50% { opacity: 1; transform: scale(1.03); } }
+@keyframes ripple { 0% { transform: scale(0.95); opacity: 0.9; } 100% { transform: scale(1.12); opacity: 0; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes blink { 50% { opacity: 0.25; } }
+.animate-fade-up { animation: fade-up 260ms ease-out both; }
+.animate-blink { animation: blink 1.4s steps(2) infinite; }
+
+/* Orbe antigo (login) mantido compatível */
+.orb { width: var(--size, 220px); height: var(--size, 220px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-core .orb-layer { animation: none !important; }
+}
+
+input[type='range'] { accent-color: #00e5ff; }
+select option { background: #050c14; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.2); border-radius: 9999px; }
+
+/* ---------- Layout da tela inicial ----------
+   Celular em pé: coluna única · Celular deitado: conversa | painéis
+   Tablet: painéis | conversa · Computador: painéis | conversa | casa */
+.home-grid { display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; }
+.home-left, .home-right { display: none; }
+.home-left-extra { display: contents; }
+
+@media (min-width: 768px) and (min-height: 561px) {
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: hidden; }
+  .home-left { display: flex; }
+  .home-mobile-only { display: none; }
+}
+@media (min-width: 1024px) and (min-height: 561px) {
+  .home-grid { grid-template-columns: 280px minmax(0, 1fr) 300px; }
+  .home-right { display: flex; }
+  .home-left-extra { display: none; }
+}
+/* Celular deitado (pouca altura) */
+@media (min-width: 600px) and (max-height: 560px) {
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); overflow: hidden; padding-bottom: 0.75rem; }
+  .home-center { order: -1; }
+  .home-left { display: flex; }
+  .home-mobile-only, .home-tall-only { display: none; }
+}
+
+/* ---------- Fundo animado ---------- */
+.hud-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  top: -120px;
+  background: linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.025) 60%, rgba(0, 229, 255, 0.08) 98%, transparent);
+  animation: beam 11s linear infinite;
+  will-change: transform;
+}
+@keyframes beam { from { transform: translateY(0); } to { transform: translateY(calc(100vh + 240px)); } }
+@media (prefers-reduced-motion: reduce) { .hud-beam { display: none; } }
+
+/* ---------- Modo ambiente ---------- */
+@keyframes ambient-in { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes ambient-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ambient-slide { animation: ambient-in 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.ambient-root { animation: ambient-fade 700ms ease both; }
+.ambient-progress { transform-origin: left; animation: progress linear both; }
+
+/* ---------- Conversa por voz em tela cheia ---------- */
+@keyframes focus-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes focus-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes orb-grow { from { transform: translate3d(0, -20%, 0) scale(0.35); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes orb-shrink { from { transform: none; opacity: 1; } to { transform: translate3d(0, -20%, 0) scale(0.35); opacity: 0; } }
+.focus-in { animation: focus-in 350ms ease both; }
+.focus-out { animation: focus-out 450ms ease both; }
+.focus-orb { will-change: transform, opacity; }
+.focus-in .focus-orb { animation: orb-grow 600ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.focus-out .focus-orb { animation: orb-shrink 450ms ease both; }
+
+/* Camadas de tela cheia (renderizadas fora do layout, acima de tudo) */
+.overlay-full {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: var(--app-h, 100dvh);
+}
+
+/* Onda do assistente de voz (só transform: leve) */
+.voice-wave i { flex: 1; border-radius: 2px; background: linear-gradient(180deg, #00e5ff, #3aa8ff); box-shadow: 0 0 6px rgba(0, 229, 255, 0.6); transform-origin: center; transform: scaleY(0.35); opacity: 0.55; }
+.voice-wave.is-active i { animation: wave 0.9s ease-in-out infinite alternate; opacity: 1; }
+@keyframes wave { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
+.city-pin { animation: pin-bob 2.4s ease-in-out infinite; filter: drop-shadow(0 0 6px #00e5ff); }
+@keyframes pin-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .voice-wave.is-active i, .city-pin { animation: none; } }
+
+/* ---------- Cenário 3D ---------- */
+.scene-glow { position: absolute; inset: 0; background: radial-gradient(900px 500px at 50% 42%, rgba(0, 160, 220, 0.2), transparent 65%), radial-gradient(1200px 400px at 50% 110%, rgba(0, 90, 170, 0.3), transparent 60%); }
+.scene-skyline { position: absolute; left: 0; right: 0; bottom: 30%; height: 38%; width: 100%; opacity: 0.32; }
+.scene-floor {
+  position: absolute; left: -50%; right: -50%; bottom: -8%; height: 55%;
+  transform: perspective(600px) rotateX(72deg); transform-origin: 50% 0;
+  background: linear-gradient(rgba(0, 229, 255, 0.2) 1px, transparent 1px) 0 0 / 60px 60px, linear-gradient(90deg, rgba(0, 229, 255, 0.2) 1px, transparent 1px) 0 0 / 60px 60px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 40%); mask-image: linear-gradient(180deg, transparent, #000 40%);
+}
+.bezel-corner { position: fixed; top: max(env(safe-area-inset-top), 0.5rem); width: 22px; height: 22px; border-color: #00e5ff; opacity: 0.75; z-index: 5; pointer-events: none; }
+
+/* ---------- Dock de navegação ---------- */
+.dock-bg { position: absolute; left: 50%; transform: translateX(-50%); top: 0; bottom: 0; width: min(100%, 760px);
+  border: 1px solid rgba(0, 229, 255, 0.28); border-bottom: none;
+  background: linear-gradient(180deg, rgba(4, 18, 30, 0.92), rgba(2, 8, 14, 0.85));
+  clip-path: polygon(28px 0, calc(100% - 28px) 0, 100% 100%, 0 100%); }
+.dock-btn i { display: grid; place-items: center; border-radius: 9999px; border: 1.5px solid rgba(0, 229, 255, 0.28);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.12), rgba(2, 10, 18, 0.9) 70%); box-shadow: 0 0 14px rgba(0, 229, 255, 0.12); transition: box-shadow 200ms, border-color 200ms, transform 200ms; }
+.dock-btn.active i { border-color: #00e5ff; box-shadow: 0 0 18px rgba(0, 229, 255, 0.55), inset 0 0 14px rgba(0, 229, 255, 0.35); }
+.dock-btn:active i { transform: scale(0.92); }
+
+/* ---------- Tela inicial 3D ---------- */
+.hud3d-mid { perspective: 1300px; }
+.hud3d-col { transform-style: preserve-3d; }
+@media (min-width: 900px) and (min-height: 561px) {
+  .hud3d-col.l { transform: rotateY(14deg); transform-origin: 100% 50%; }
+  .hud3d-col.r { transform: rotateY(-14deg); transform-origin: 0 50%; }
+}
+.hud-tag { position: absolute; font-family: var(--font-hud); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #00e5ff;
+  border: 1px solid rgba(0, 229, 255, 0.28); background: rgba(3, 14, 24, 0.85); padding: 5px 9px; white-space: nowrap; pointer-events: none; }
+.hud-tag::after { content: ''; position: absolute; top: 50%; height: 1px; width: 44px; background: rgba(0, 229, 255, 0.28); }
+.hud-tag.tl::after, .hud-tag.bl::after { left: 100%; }
+.hud-tag.tr::after, .hud-tag.br::after { right: 100%; }
+.radar-floor { position: absolute; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  background: repeating-radial-gradient(circle, rgba(0, 229, 255, 0.12) 0 1px, transparent 1px 40px);
+  -webkit-mask: radial-gradient(circle, #000 60%, transparent 70%); mask: radial-gradient(circle, #000 60%, transparent 70%);
+  transform: rotateX(62deg); opacity: 0.8; }
+
+/* Layout da tela inicial 3D */
+.home3d { display: flex; flex-direction: column; overflow-y: auto; }
+.home3d .side { display: none; }
+.home3d .strip { display: grid; }
+.strip-tilt { transform: perspective(700px) rotateX(14deg); transform-origin: 50% 100%; }
+@media (min-width: 900px) and (min-height: 561px) {
+  .home3d { display: grid; grid-template-columns: 280px minmax(0, 1fr) 280px; overflow: hidden; }
+  .home3d .strip { display: none; }
+  .home3d .side { display: contents; }
+  .home3d .col-l { order: 0; overflow-y: auto; }
+  .home3d .center { order: 1; }
+  .home3d .col-r { order: 2; overflow-y: auto; }
+}
+@media (min-width: 600px) and (max-height: 560px) {
+  .home3d { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); overflow: hidden; }
+  .home3d .strip { display: none; }
+  .home3d .side { display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; order: 2; padding-right: 2px; }
+  .home3d .center { order: 1; }
+}
+
+/* ---------- Toques mais rápidos ----------
+   Sem espera de “toque duplo” do navegador e sem seleção/menu ao segurar botões. */
+button, a, [role='button'], [role='switch'], label, summary, .m-chip, .m-tile { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button { cursor: pointer; }
+
+/* Lava e seca: água girando na porta e etapa atual pulsando */
+.washer-icon { position: relative; display: inline-block; flex: none; vertical-align: middle; }
+.washer-icon > svg { display: block; }
+.washer-door { position: absolute; left: 28%; top: 36%; width: 44%; height: 44%; border-radius: 50%; overflow: hidden; }
+.washer-door svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.washer-spin { animation: spin 2.4s linear infinite; will-change: transform; }
+.washer-pulse { animation: blink 1.8s ease-in-out infinite; }
+@keyframes washer-pop { 0% { opacity: 0; transform: translateY(24px) scale(.96); } 100% { opacity: 1; transform: none; } }
+@keyframes washer-shirt { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
+.washer-pop { animation: washer-pop .45s cubic-bezier(.2,.9,.3,1.2) both; }
+.washer-shirt { display: inline-block; animation: washer-shirt 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .washer-spin, .washer-pulse, .washer-shirt { animation: none; } .washer-pop { animation-duration: .01s; } }
+
+/* Recado novo: o aviso pulsa (borda e ícone) para chamar a atenção de quem passa */
+/* Brilho fixo numa camada à parte; só a opacidade pulsa (leve para a placa de vídeo do tablet).
+   Antes a sombra grande era redesenhada a cada quadro, e no app Android a tela podia ficar preta. */
+@keyframes recado-fade { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes recado-ring { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.recado-alert { position: relative; }
+.recado-alert::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; box-shadow: 0 0 22px 4px rgba(251, 191, 36, 0.45); pointer-events: none; animation: recado-fade 1.8s ease-in-out infinite; }
+.recado-alert-icon { animation: recado-ring 1.8s ease-in-out infinite; }
+/* No app Android: aviso parado (sem animação) */
+html.in-app .recado-alert::after, html.in-app .recado-alert-icon { animation: none; opacity: 0.8; }
+@media (prefers-reduced-motion: reduce) { .recado-alert::after, .recado-alert-icon { animation: none; } }
+
+/* Controle remoto da TV (login e telas fora do modo TV): destaque bem visível no item selecionado */
+html.dpad :is(input, button, a, select, textarea, [tabindex]):focus { outline: 3px solid #22d3ee !important; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.25) !important; }

@@ -1,0 +1,810 @@
+/*
+ * Temas modernos (Aurora, Neon, Grafite): cantos arredondados, vidro escuro e fontes novas.
+ * Funcionam sobrescrevendo variáveis (cores da paleta, fontes, raios) e as peças base do visual HUD,
+ * então todas as telas mudam juntas. O tema “hud” (original) não é afetado por nada aqui.
+ */
+@import '@fontsource/unbounded/latin-300.css';
+@import '@fontsource/unbounded/latin-500.css';
+@import '@fontsource/sora/latin-300.css';
+@import '@fontsource/sora/latin-400.css';
+@import '@fontsource/sora/latin-600.css';
+@import '@fontsource/michroma/latin-400.css';
+@import '@fontsource/space-grotesk/latin-400.css';
+@import '@fontsource/space-grotesk/latin-600.css';
+@import '@fontsource/exo-2/latin-300.css';
+@import '@fontsource/exo-2/latin-600.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+
+:root { --accent-1: #00e5ff; --accent-2: #3aa8ff; }
+
+/* A Michroma desenha o “°” como um “o” grande: só esse símbolo vem da Space Grotesk */
+@font-face {
+  font-family: 'Luna Degree';
+  src: url('../../../../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+00B0;
+}
+
+/* ---------------- Paletas ---------------- */
+html[data-theme='aurora'] {
+  --bg: #06070d; --tx: #eef2ff; --muted: rgba(226, 232, 255, 0.58); --card: rgba(22, 25, 38, 0.82); --card-solid: #11131d;
+  --line: rgba(255, 255, 255, 0.09); --accent-1: #22d3ee; --accent-2: #8b5cf6; --warm: #fbbf24; --glow-3: #ec4899;
+  --font-sans: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-display: 'Unbounded', 'Sora', sans-serif;
+  --card-r: 26px; --blob-o: 0.5;
+}
+html[data-theme='neon'] {
+  --bg: #05060a; --tx: #f4f7fb; --muted: rgba(220, 228, 240, 0.55); --card: #0c0f16; --card-solid: #0c0f16;
+  --line: #1b2130; --accent-1: #00f0ff; --accent-2: #b6ff3b; --warm: #b6ff3b; --glow-3: #00f0ff;
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; --font-display: 'Luna Degree', 'Michroma', 'Space Grotesk', sans-serif;
+  --card-r: 20px; --blob-o: 0.16;
+  /* lima no lugar do âmbar (aparelho ligado) */
+  --color-amber-200: #e4ffad; --color-amber-300: #c8ff6a; --color-amber-400: #b6ff3b;
+}
+html[data-theme='grafite'] {
+  --bg: #0d1016; --tx: #f3f1ec; --muted: rgba(240, 236, 228, 0.55); --card: linear-gradient(160deg, #1a1f28, #12161d); --card-solid: #151a22;
+  --line: rgba(255, 255, 255, 0.07); --accent-1: #2dd4bf; --accent-2: #f59e0b; --warm: #f59e0b; --glow-3: #f59e0b;
+  --font-sans: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Sora', ui-sans-serif, system-ui, sans-serif; --font-display: 'Exo 2', 'Sora', sans-serif;
+  --card-r: 30px; --blob-o: 0.14;
+  /* ciano da interface vira verde-água */
+  --color-cyan-50: #effdfa; --color-cyan-100: #ccfbf1; --color-cyan-200: #99f6e4; --color-cyan-300: #5eead4; --color-cyan-400: #2dd4bf; --color-cyan-500: #14b8a6; --color-cyan-600: #0d9488; --color-cyan-950: #042f2e;
+}
+
+html[data-theme='vidro'] {
+  --bg: #120e2b; --tx: #ffffff; --muted: rgba(255, 255, 255, 0.62); --card: rgba(255, 255, 255, 0.1); --card-solid: rgba(38, 32, 78, 0.9);
+  --line: rgba(255, 255, 255, 0.2); --accent-1: #64d2ff; --accent-2: #bf5af2; --warm: #ffd60a; --glow-3: #ff7a59;
+  --font-sans: 'Inter', -apple-system, ui-sans-serif, system-ui, sans-serif; --font-hud: 'Inter', -apple-system, ui-sans-serif, system-ui, sans-serif; --font-display: 'Inter', -apple-system, ui-sans-serif, sans-serif;
+  --card-r: 28px; --blob-o: 0.9;
+}
+
+/* ---------------- Base comum dos temas modernos ---------------- */
+html:not([data-theme='hud']) {
+  --radius-xs: 8px; --radius-sm: 14px; --radius-md: 16px; --radius-lg: 20px;
+  --color-ink-950: var(--bg); --color-ink-900: var(--card-solid); --color-ink-800: var(--card-solid);
+  --hud-line: var(--line); --hud-line-strong: color-mix(in srgb, var(--accent-1) 45%, transparent);
+}
+html:not([data-theme='hud']) body { background: var(--bg); color: var(--tx); font-family: var(--font-sans); }
+
+/* Fundo: brilhos suaves em vez da grade/linhas de varredura */
+html:not([data-theme='hud']) .app-bg {
+  background:
+    radial-gradient(520px 520px at -6% -14%, color-mix(in srgb, var(--accent-1) calc(var(--blob-o) * 100%), transparent), transparent 70%),
+    radial-gradient(600px 600px at 108% 30%, color-mix(in srgb, var(--accent-2) calc(var(--blob-o) * 100%), transparent), transparent 70%),
+    radial-gradient(520px 420px at 40% 118%, color-mix(in srgb, var(--glow-3) calc(var(--blob-o) * 55%), transparent), transparent 70%),
+    var(--bg);
+}
+html[data-theme='neon'] .app-bg { background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), radial-gradient(600px 500px at 108% 20%, rgba(182, 255, 59, 0.08), transparent 70%), radial-gradient(520px 520px at -6% -14%, rgba(0, 240, 255, 0.1), transparent 70%); background-size: 22px 22px, auto, auto; background-color: var(--bg); }
+html:not([data-theme='hud']) .app-bg::after { display: none; }
+html:not([data-theme='hud']) :is(.scene-glow, .scene-skyline, .scene-floor, .bezel, .bezel-corner, .hud-tag, .radar-floor, .hud-beam) { display: none !important; }
+
+/* Painéis: cartões de vidro arredondados (sem chanfro e sem colchetes) */
+html:not([data-theme='hud']) :is(.hud-panel, .glass) {
+  clip-path: none;
+  border-radius: var(--card-r);
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+html[data-theme='grafite'] :is(.hud-panel, .glass) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 22px rgba(0, 0, 0, 0.4); }
+html:not([data-theme='hud']) .hud-panel::before,
+html:not([data-theme='hud']) .hud-panel::after { display: none; }
+html:not([data-theme='hud']) [class*='clip-path'] { clip-path: none !important; border-radius: var(--radius-sm); }
+
+/* Tipografia */
+html:not([data-theme='hud']) .hud-label { font-weight: 500; letter-spacing: 0.12em; color: var(--muted); font-size: 11.5px; }
+html:not([data-theme='hud']) .hud-title { letter-spacing: -0.01em; text-transform: none; }
+html[data-theme='neon'] .hud-title { letter-spacing: 0.02em; }
+html:not([data-theme='hud']) .hud-glow { text-shadow: none; }
+html:not([data-theme='hud']) .font-hud { letter-spacing: normal; }
+html:not([data-theme='hud']) .uppercase.font-hud,
+html:not([data-theme='hud']) h1.hud-title { text-transform: none; }
+html:not([data-theme='hud']) .hud-divider { background: var(--line); }
+html:not([data-theme='hud']) .text-gradient { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; background-clip: text; }
+
+/* Interruptor (Toggle) estilo pílula */
+html:not([data-theme='hud']) [role='switch'] { border-radius: 999px; height: 28px; width: 48px; border-color: transparent; box-shadow: none; background: rgba(255, 255, 255, 0.12); }
+html:not([data-theme='hud']) [role='switch'][aria-checked='true'] { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+html[data-theme='grafite'] [role='switch'][aria-checked='true'] { background: var(--warm); }
+html:not([data-theme='hud']) [role='switch'] > span { border-radius: 999px; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+html:not([data-theme='hud']) [role='switch'][aria-checked='false'] > span { opacity: 0.75; }
+
+/* Dock: pílula flutuante */
+html:not([data-theme='hud']) .dock-bg { clip-path: none; border: 1px solid var(--line); border-radius: 999px; background: var(--card-solid);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); width: auto; left: 12px; right: 12px; transform: none; top: 6px; bottom: max(env(safe-area-inset-bottom), 8px); }
+@media (min-width: 768px) { html:not([data-theme='hud']) .dock-bg { left: 50%; right: auto; width: min(100% - 24px, 720px); transform: translateX(-50%); } }
+html:not([data-theme='hud']) .dock-btn i { border: none; background: transparent; box-shadow: none; border-radius: 14px; }
+html:not([data-theme='hud']) .dock-btn.active i { background: rgba(255, 255, 255, 0.1); box-shadow: none; }
+html:not([data-theme='hud']) .dock-btn.active i svg { color: var(--tx); }
+html:not([data-theme='hud']) .dock-btn > span { letter-spacing: 0.02em; text-transform: none; font-weight: 500; }
+html:not([data-theme='hud']) .dock-btn i svg { color: var(--muted); }
+html:not([data-theme='hud']) nav.dock-nav { padding-top: 12px; padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 6px); }
+
+/* Ondas da voz e realces */
+html:not([data-theme='hud']) .voice-wave i { background: linear-gradient(180deg, var(--accent-1), var(--accent-2)); box-shadow: none; border-radius: 4px; }
+
+/* ---------------- Peças da tela inicial moderna ---------------- */
+.m-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--card-r); padding: 18px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26); }
+html[data-theme='grafite'] .m-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 22px rgba(0, 0, 0, 0.4); }
+.m-muted { color: var(--muted); }
+.m-label { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.m-disp { font-family: var(--font-display); letter-spacing: -0.01em; }
+html[data-theme='neon'] .m-disp { letter-spacing: 0.02em; }
+.m-num { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.m-chip { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); font-size: 14px; white-space: nowrap; color: var(--tx); transition: transform 150ms, background 150ms; }
+.m-chip:active { transform: scale(0.96); }
+.m-chip.act { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); color: #06070d; border-color: transparent; font-weight: 600; }
+html[data-theme='grafite'] .m-chip.act { background: var(--tx); color: #111; }
+.m-iconbox { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); color: var(--tx); flex: none; }
+.m-iconbox.on { background: linear-gradient(135deg, var(--warm), color-mix(in srgb, var(--warm) 55%, #fff)); color: #111; box-shadow: 0 8px 22px color-mix(in srgb, var(--warm) 45%, transparent); }
+html[data-theme='aurora'] .m-iconbox.on { background: linear-gradient(135deg, #fbbf24, #fb923c); }
+.m-switch { width: 44px; height: 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.13); position: relative; flex: none; transition: background 200ms; }
+.m-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; opacity: 0.8; transition: transform 200ms; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+.m-switch.on { background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+html[data-theme='grafite'] .m-switch.on { background: var(--warm); }
+.m-switch.on::after { transform: translateX(18px); opacity: 1; }
+.m-bar { height: 6px; border-radius: 9px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.m-bar > i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, var(--warm), color-mix(in srgb, var(--warm) 50%, #fff)); }
+.m-mic { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #06070d;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent-1) 16%, transparent), 0 4px 12px color-mix(in srgb, var(--accent-1) 38%, transparent); transition: transform 150ms; }
+html[data-theme='grafite'] .m-mic { background: linear-gradient(135deg, var(--accent-1), #5eead4); }
+.m-mic:active { transform: scale(0.94); }
+.m-mic.live { background: linear-gradient(135deg, #fb7185, #e11d48); box-shadow: 0 0 0 7px rgba(244, 63, 94, 0.2), 0 4px 12px rgba(244, 63, 94, 0.45); color: #fff; }
+.m-input { display: flex; align-items: center; gap: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); padding: 6px 6px 6px 18px; }
+.m-input input { flex: 1; min-width: 0; background: transparent; outline: none; color: var(--tx); font-size: 15px; padding: 8px 0; }
+.m-input input::placeholder { color: var(--muted); }
+.m-input button { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); color: #06070d; flex: none; }
+.m-tile { text-align: left; display: flex; flex-direction: column; gap: 12px; padding: 15px; transition: transform 150ms; }
+.m-tile:active { transform: scale(0.97); }
+.m-scroll { scrollbar-width: none; }
+.m-scroll::-webkit-scrollbar { display: none; }
+.m-live { position: absolute; top: 10px; left: 10px; background: rgba(225, 29, 72, 0.92); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.06em; }
+/* Celular: dock só com ícones (mais limpo) */
+@media (max-width: 767px) { html:not([data-theme='hud']) .dock-btn > span { display: none; } }
+html:not([data-theme='hud']) .page-kicker { display: none; }
+
+/* Desempenho: o fundo com brilhos fica fixo (não repinta ao rolar) e nada usa desfoque ao vivo */
+html:not([data-theme='hud']) :is(.hud-panel, .glass, .m-card, .dock-bg) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html:not([data-theme='hud']) .m-tile { contain: layout paint; }
+/* Resposta visual imediata ao toque nos temas modernos */
+html:not([data-theme='hud']) :is(.m-card, .hud-panel) button:active, html:not([data-theme='hud']) .m-iconbox:active { transform: scale(0.95); }
+html:not([data-theme='hud']) .m-tile:active { transform: scale(0.97); filter: brightness(1.15); }
+html:not([data-theme='hud']) :is(.m-chip, .m-tile, .m-mic, .m-iconbox, .m-switch) { transition: transform 90ms ease-out, filter 90ms ease-out, background 150ms; }
+
+/* Carrossel do cartão da Luna (deslizar nativo com encaixe) */
+.m-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.m-carousel::-webkit-scrollbar { display: none; }
+.m-slide { flex: 0 0 100%; min-width: 0; padding: 0 4px; scroll-snap-align: start; scroll-snap-stop: always; }
+.m-dots { display: flex; justify-content: center; gap: 2px; margin-top: 10px; }
+.m-dots button { padding: 8px 4px; }
+.m-dots i { display: block; width: 7px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25); transition: width 200ms, background 200ms; }
+.m-dots button.on i { width: 22px; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); }
+
+/* ---------- Celular deitado (pouca altura): menu vira coluna à esquerda ---------- */
+@media (orientation: landscape) and (max-height: 520px) {
+  html:not([data-theme='hud']) .layout-root { flex-direction: row; }
+  html:not([data-theme='hud']) nav.dock-nav { order: -1; padding: 8px 0 8px max(env(safe-area-inset-left), 8px); display: flex; align-items: center; }
+  html:not([data-theme='hud']) .dock-bg { left: max(env(safe-area-inset-left), 8px); right: 0; top: 8px; bottom: 8px; width: auto; transform: none; border-radius: 26px; }
+  html:not([data-theme='hud']) .dock-row { flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 8px 6px; max-width: none; margin: 0; height: 100%; overflow-y: auto; scrollbar-width: none; }
+  html:not([data-theme='hud']) .dock-row::-webkit-scrollbar { display: none; }
+  html:not([data-theme='hud']) .dock-btn > span { display: none; }
+  html:not([data-theme='hud']) .dock-btn i { width: 40px !important; height: 34px !important; }
+  html:not([data-theme='hud']) main { min-width: 0; }
+  /* Páginas secundárias: cabeçalho mais baixo */
+  html:not([data-theme='hud']) main h1.hud-title { font-size: 1.15rem; }
+  html:not([data-theme='hud']) main header.mb-5 { margin-bottom: 0.6rem; }
+  html:not([data-theme='hud']) .m-card .my-3 { margin-top: 0.35rem; margin-bottom: 0.35rem; }
+}
+.m-input { min-width: 0; }
+
+/* ---------------- Vidro: cartões translúcidos sobre fundo colorido ----------------
+ * O fundo é fixo e o desfoque é moderado, para não pesar no tablet. */
+html[data-theme='vidro'] .app-bg {
+  background:
+    radial-gradient(70vmax 70vmax at -10% -10%, rgba(124, 92, 255, 0.95), transparent 60%),
+    radial-gradient(60vmax 60vmax at 110% 30%, rgba(255, 122, 89, 0.85), transparent 58%),
+    radial-gradient(70vmax 60vmax at 20% 110%, rgba(24, 180, 255, 0.9), transparent 60%),
+    radial-gradient(50vmax 50vmax at 80% 95%, rgba(191, 90, 242, 0.7), transparent 60%),
+    var(--bg);
+}
+html[data-theme='vidro'] :is(.m-card, .hud-panel, .glass) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(255, 255, 255, 0.06), 0 10px 30px rgba(10, 6, 40, 0.35);
+  -webkit-backdrop-filter: blur(22px) saturate(160%) !important; backdrop-filter: blur(22px) saturate(160%) !important;
+}
+html[data-theme='vidro'] .m-label { letter-spacing: 0.04em; font-weight: 600; text-transform: none; font-size: 13px; }
+html[data-theme='vidro'] .m-disp, html[data-theme='vidro'] .m-num { letter-spacing: -0.025em; font-weight: 700; }
+html[data-theme='vidro'] .hud-title { letter-spacing: -0.02em; font-weight: 700; }
+html[data-theme='vidro'] :is(.m-chip, .m-input, .m-iconbox) { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.24); }
+html[data-theme='vidro'] .m-chip.act, html[data-theme='vidro'] .m-input button { background: #fff; color: #1a1440; }
+html[data-theme='vidro'] .m-mic { background: #fff; color: #1a1440; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18), 0 6px 16px rgba(10, 6, 40, 0.3); }
+html[data-theme='vidro'] .m-iconbox.on { background: linear-gradient(135deg, #ffd60a, #ff9f0a); color: #1a1100; }
+html[data-theme='vidro'] :is([role='switch'][aria-checked='true'], .m-switch.on) { background: #34c759; }
+html[data-theme='vidro'] .dock-bg {
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 12px 30px rgba(10, 6, 40, 0.4);
+  -webkit-backdrop-filter: blur(26px) saturate(170%) !important; backdrop-filter: blur(26px) saturate(170%) !important;
+}
+html[data-theme='vidro'] .dock-btn.active i { background: rgba(255, 255, 255, 0.22); }
+html[data-theme='vidro'] .dock-btn i svg { color: rgba(255, 255, 255, 0.7); }
+html[data-theme='vidro'] .m-dots button.on i { background: #fff; }
+
+/* Vidro: o menu flutua por cima do conteúdo (que rola por trás do vidro, sem corte reto).
+ * --dock-h vem do Layout; as áreas roláveis (.dock-pad) ganham espaço no fim para nada ficar escondido.
+ * Celular deitado mantém o menu em coluna, como nos outros temas. */
+@media not all and (orientation: landscape) and (max-height: 520px) {
+  html[data-theme='vidro'] nav.dock-nav { margin-top: calc(-1 * var(--dock-h, 0px)); }
+  html[data-theme='vidro'] .dock-pad { padding-bottom: calc(var(--dock-h, 0px) + 12px) !important; }
+}
+html[data-theme='vidro'] .dock-row { padding-left: 14px; padding-right: 14px; }
+html[data-theme='vidro'] .dock-btn i { border-radius: 999px; }
+
+/* ======================================================================
+ * Sereno: calmo, cartões sólidos, aparelhos animados e fotos em tela cheia.
+ * Desempenho (tablet): só transform/opacity se mexem; nada de desfoque ao vivo;
+ * animações contínuas pausam quando o descanso de tela cobre a tela ou com “Reduzir animações”.
+ * ====================================================================== */
+html[data-theme='sereno'] {
+  --bg: #0b0d12; --tx: #eef1f6; --muted: rgba(226, 232, 245, 0.56); --card: #151922; --card-solid: #151922;
+  --line: rgba(255, 255, 255, 0.07); --accent-1: #7dd3fc; --accent-2: #a78bfa; --warm: #fbbf24; --glow-3: #a78bfa;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif; --font-hud: 'Inter', ui-sans-serif, system-ui, sans-serif; --font-display: 'Sora', 'Inter', sans-serif;
+  --card-r: 22px; --blob-o: 0.12;
+  --sv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --color-cyan-50: #f0f9ff; --color-cyan-100: #e0f2fe; --color-cyan-200: #bae6fd; --color-cyan-300: #7dd3fc; --color-cyan-400: #38bdf8;
+}
+html[data-theme='sereno'] .app-bg { background: radial-gradient(120% 80% at 0% 0%, #131826 0%, var(--bg) 55%), var(--bg); }
+html[data-theme='sereno'] :is(.hud-panel, .glass, .m-card) { box-shadow: none; }
+html[data-theme='sereno'] .m-num { font-weight: 300; letter-spacing: -0.02em; }
+html[data-theme='sereno'] .m-label { font-weight: 600; letter-spacing: 0.14em; font-size: 11.5px; }
+html[data-theme='sereno'] .m-chip { background: #10131a; }
+html[data-theme='sereno'] .m-chip.act { background: var(--tx); color: #0b0d12; }
+html[data-theme='sereno'] .m-input { background: #10131a; }
+html[data-theme='sereno'] .m-mic { box-shadow: 0 0 0 6px rgba(125, 211, 252, 0.13), 0 4px 12px rgba(125, 211, 252, 0.3); }
+html[data-theme='sereno'] .m-switch { width: 46px; height: 28px; transition: background 450ms var(--sv-ease); }
+html[data-theme='sereno'] .m-switch::after { width: 22px; height: 22px; transition: transform 450ms var(--sv-ease); }
+html[data-theme='sereno'] .m-card { transition: border-color 600ms var(--sv-ease), transform 120ms ease-out; }
+
+/* Cartões entram um depois do outro */
+html[data-theme='sereno'] .sv-tile { animation: sv-rise 700ms var(--sv-ease) both; animation-delay: calc(var(--i, 0) * 45ms); }
+@keyframes sv-rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* Tom do cartão ligado (quente: luz · frio: ventilador · colorido: fita de LED) */
+.sv-tile { overflow: hidden; }
+.sv-tile > * { position: relative; }
+.sv-tile::before { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 900ms var(--sv-ease); pointer-events: none; }
+.sv-tile.sv-warm::before { background: linear-gradient(160deg, rgba(251, 191, 36, 0.17), transparent 62%); }
+.sv-tile.sv-cool::before { background: linear-gradient(160deg, rgba(103, 232, 249, 0.15), transparent 62%); }
+.sv-tile.sv-led::before { background: linear-gradient(160deg, rgba(167, 139, 250, 0.2), rgba(244, 114, 182, 0.08) 45%, transparent 70%); }
+.sv-tile.is-on::before { opacity: 1; }
+.sv-tile.is-on.sv-warm { border-color: rgba(251, 191, 36, 0.32); }
+.sv-tile.is-on.sv-cool { border-color: rgba(103, 232, 249, 0.3); }
+.sv-tile.is-on.sv-led { border-color: rgba(167, 139, 250, 0.35); }
+html[data-theme='sereno'] .sv-tile.sv-cool .m-switch.on { background: #67e8f9; }
+html[data-theme='sereno'] .sv-tile.sv-warm .m-switch.on { background: var(--warm); }
+html[data-theme='sereno'] .sv-tile.sv-led .m-switch.on { background: linear-gradient(90deg, #f472b6, #a78bfa, #67e8f9); }
+
+/* Desenhos dos aparelhos */
+.sv-art { position: relative; display: grid; place-items: center; width: 46px; height: 46px; flex: none; color: var(--muted); }
+.sv-art svg { width: 46px; height: 46px; }
+.sv-halo { position: absolute; inset: -12px; border-radius: 50%; opacity: 0; transform: scale(0.8); transition: opacity 800ms var(--sv-ease), transform 800ms var(--sv-ease);
+  background: radial-gradient(closest-side, rgba(251, 191, 36, 0.55), rgba(251, 191, 36, 0)); }
+.sv-art.on .sv-halo { opacity: 1; transform: scale(1); animation: sv-glow 3.6s ease-in-out infinite; }
+@keyframes sv-glow { 50% { transform: scale(1.12); opacity: 0.8; } }
+/* Lâmpada */
+.sv-bulb .sv-glass { fill: #2a303d; transition: fill 600ms var(--sv-ease); }
+.sv-bulb.on .sv-glass { fill: #fde68a; }
+.sv-bulb.led .sv-halo { background: conic-gradient(from 0deg, rgba(244, 114, 182, 0.55), rgba(167, 139, 250, 0.55), rgba(103, 232, 249, 0.55), rgba(244, 114, 182, 0.55)); -webkit-mask: radial-gradient(closest-side, #000 30%, transparent); mask: radial-gradient(closest-side, #000 30%, transparent); }
+.sv-bulb.led.on .sv-halo { animation: sv-spin 6s linear infinite; }
+.sv-bulb.led.on .sv-glass { fill: #e9d5ff; }
+/* Tomada / outros */
+.sv-plain.on { color: #fde68a; }
+/* Ventilador: a hélice gira de verdade quando está ligado */
+.sv-fan-ring { position: absolute; inset: 1px; border-radius: 50%; border: 2px solid #2a303d; transition: border-color 600ms; }
+.sv-blades { position: absolute; inset: 3px; width: 40px !important; height: 40px !important; fill: #3a4252; transition: fill 600ms; will-change: transform; }
+.sv-hub { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #6b7385; }
+.sv-fan.on .sv-fan-ring { border-color: rgba(103, 232, 249, 0.35); }
+.sv-fan.on .sv-blades { fill: #a5f3fc; animation: sv-spin 0.55s linear infinite; }
+@keyframes sv-spin { to { transform: rotate(360deg); } }
+.sv-wind { position: absolute; inset: 0; pointer-events: none; }
+.sv-wind i { position: absolute; right: 100%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(165, 243, 252, 0.7)); opacity: 0; }
+.sv-wind i:nth-child(1) { top: 12px; width: 14px; }
+.sv-wind i:nth-child(2) { top: 22px; width: 20px; animation-delay: -0.5s !important; }
+.sv-wind i:nth-child(3) { top: 32px; width: 12px; animation-delay: -1s !important; }
+.sv-fan.on .sv-wind i { animation: sv-wind 1.6s linear infinite; }
+@keyframes sv-wind { 0% { transform: translateX(14px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(-16px); opacity: 0; } }
+
+/* ---------- Descanso de tela com fotos ---------- */
+.sv-amb { background: #000; color: #fff; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; --sv-ease: cubic-bezier(0.22, 1, 0.36, 1); }
+.sv-ph { position: absolute; inset: 0; overflow: hidden; animation: sv-fade 1.8s ease-in-out both; }
+.sv-ph img { position: absolute; left: -6%; top: -6%; width: 112%; height: 112%; max-width: none; object-fit: cover; will-change: transform; animation: 11.5s linear both; }
+.sv-ph.kb0 img { animation-name: sv-kb0; } .sv-ph.kb1 img { animation-name: sv-kb1; } .sv-ph.kb2 img { animation-name: sv-kb2; }
+@keyframes sv-fade { from { opacity: 0; } }
+@keyframes sv-kb0 { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.08) translate(-2.5%, -1.5%); } }
+@keyframes sv-kb1 { from { transform: scale(1.09) translate(2.5%, 0); } to { transform: scale(1.01) translate(-1%, 1%); } }
+@keyframes sv-kb2 { from { transform: scale(1.01) translate(-2%, 1.5%); } to { transform: scale(1.09) translate(2%, -1%); } }
+.sv-shade { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px 200px at 100% 0%, rgba(0, 0, 0, 0.5), transparent 70%), linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.15) 55%, transparent 100%), linear-gradient(0deg, rgba(0, 0, 0, 0.6), transparent 45%); }
+.sv-dim { position: absolute; inset: 0; background: rgba(5, 6, 10, 0.72); opacity: 0; transition: opacity 900ms var(--sv-ease); pointer-events: none; }
+.sv-dots { position: absolute; top: max(env(safe-area-inset-top), 28px); right: 34px; display: flex; gap: 6px; }
+.sv-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.35); transition: width 600ms var(--sv-ease), background 600ms; }
+.sv-dots i.on { width: 20px; background: #fff; }
+.sv-info { position: absolute; left: clamp(20px, 5vw, 64px); right: clamp(20px, 5vw, 64px); bottom: calc(max(env(safe-area-inset-bottom), 0px) + clamp(40px, 7vh, 64px)); display: flex; gap: 24px; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; transition: opacity 900ms var(--sv-ease), transform 900ms var(--sv-ease); }
+.sv-date { font-size: clamp(16px, 2.2vw, 20px); color: rgba(255, 255, 255, 0.85); }
+.sv-clock { display: flex; font-size: clamp(84px, 13vw, 150px); font-weight: 300; letter-spacing: -0.03em; line-height: 1; margin-top: 4px; }
+.sv-roll { display: inline-block; overflow: hidden; height: 1em; line-height: 1; }
+.sv-roll-in { display: inline-block; animation: sv-roll 900ms var(--sv-ease) both; }
+@keyframes sv-roll { from { transform: translateY(100%); } }
+.sv-colon { animation: sv-blink 2s steps(1) infinite; }
+@keyframes sv-blink { 50% { opacity: 0.3; } }
+.sv-row { display: flex; gap: 10px; align-items: center; font-size: clamp(14px, 1.8vw, 17px); color: rgba(255, 255, 255, 0.9); margin-top: 16px; min-width: 0; }
+.sv-cards { display: flex; flex-direction: column; gap: 10px; width: min(330px, 100%); }
+.sv-glass { background: rgba(20, 22, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 18px; padding: 14px 16px; }
+.sv-rec { border-color: rgba(251, 191, 36, 0.55); background: rgba(80, 58, 10, 0.5); animation: sv-soft 3s ease-in-out infinite; }
+@keyframes sv-soft { 50% { border-color: rgba(251, 191, 36, 0.95); } }
+.sv-hint { position: absolute; left: 0; right: 0; bottom: calc(max(env(safe-area-inset-bottom), 0px) + 12px); text-align: center; font-size: 12px; color: rgba(255, 255, 255, 0.45); transition: opacity 600ms; }
+.sv-hello { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 24px; opacity: 0; transform: scale(0.96); transition: opacity 900ms var(--sv-ease), transform 900ms var(--sv-ease); pointer-events: none; }
+.sv-hello-orb { width: 96px; height: 96px; border-radius: 50%; margin-bottom: 14px; background: conic-gradient(from 200deg, #7dd3fc, #a78bfa, #f0abfc, #7dd3fc); box-shadow: 0 0 60px rgba(125, 211, 252, 0.4); animation: sv-spin 6s linear infinite; }
+.sv-hello h1 { font-family: 'Sora', 'Inter', sans-serif; font-weight: 600; font-size: clamp(30px, 4.5vw, 46px); letter-spacing: -0.01em; }
+.sv-hello p { font-size: 18px; color: rgba(255, 255, 255, 0.75); }
+.sv-amb.greet .sv-dim { opacity: 1; }
+.sv-amb.greet :is(.sv-info, .sv-hint, .sv-dots) { opacity: 0; transform: translateY(14px); }
+.sv-amb.greet .sv-hello { opacity: 1; transform: none; }
+
+/* ---------- Desempenho ---------- */
+/* Descanso de tela aberto: o que está por baixo para de se mexer */
+html.ambient-on :is(.sv-anim, .sv-wind i, .sv-tile) { animation-play-state: paused !important; }
+html.ambient-on .sv-amb .sv-anim { animation-play-state: running !important; }
+/* “Reduzir animações” (Ajustes › Tema) ou o sistema pedindo menos movimento */
+html.calm-motion :is(.sv-anim, .sv-wind i, .sv-ph img, .sv-colon, .sv-rec, .sv-tile) { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.sv-anim, .sv-wind i, .sv-ph img, .sv-colon, .sv-rec, .sv-tile) { animation: none !important; }
+}
+
+/* ---------- Brilho arrastando o dedo no cartão do aparelho ---------- */
+.m-dim { padding: 10px 0 2px; margin: -6px 0 -2px; cursor: ew-resize; touch-action: pan-y; outline: none; }
+.m-dim-track { position: relative; height: 8px; border-radius: 9px; background: rgba(255, 255, 255, 0.12); }
+.m-dim-track > i { position: absolute; inset: 0 auto 0 0; border-radius: 9px; background: linear-gradient(90deg, color-mix(in srgb, var(--warm) 70%, #fff 0%), color-mix(in srgb, var(--warm) 55%, #fff)); transition: width 160ms ease-out; }
+.m-dim-track > b { position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); transform: scale(0.7); opacity: 0.85; transition: left 160ms ease-out, transform 160ms ease-out; }
+.m-dim:hover .m-dim-track > b, .m-dim:focus-visible .m-dim-track > b, .m-dim.dragging .m-dim-track > b { transform: scale(1); opacity: 1; }
+.m-dim.dragging .m-dim-track > i, .m-dim.dragging .m-dim-track > b { transition: none; }
+.m-dim:focus-visible .m-dim-track { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-1) 60%, transparent); }
+/* enquanto arrasta, o cartão não “afunda” como num toque */
+html:not([data-theme='hud']) .m-tile:has(.m-dim.dragging), html:not([data-theme='hud']) .m-tile:has(.m-dim:active) { transform: none !important; filter: none !important; }
+
+/* ---------------- Céu (Sereno com o céu de fundo) ---------------- */
+.sky-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #0b0d12; }
+.sky-scene { position: absolute; inset: 0; opacity: 0; transition: opacity 2.5s ease-in-out; }
+.sky-scene.in { opacity: 1; }
+.sky-scene img { position: absolute; max-width: none; }
+/* Nuvens: faixa duas vezes mais larga que a imagem, vai e volta bem devagar */
+.sky-clouds { will-change: transform; animation: sky-drift 420s ease-in-out infinite alternate; }
+@keyframes sky-drift { from { transform: translateX(0); } to { transform: translateX(var(--travel, -800px)); } }
+/* Raios de sol: dois leques girando em sentidos opostos, sumindo nas bordas */
+.sky-rays { position: absolute; width: 1500px; height: 1500px; margin: -750px 0 0 -750px; pointer-events: none; opacity: 0.9;
+  -webkit-mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 100%); mask: radial-gradient(closest-side, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 100%); }
+.sky-rays::before, .sky-rays::after { content: ''; position: absolute; inset: 0; border-radius: 50%; will-change: transform; }
+.sky-rays::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 221, 90, 0.2) 2.5deg, transparent 5deg, transparent 12deg); animation: sky-spin 160s linear infinite; }
+.sky-rays::after { background: repeating-conic-gradient(from 5deg, transparent 0deg, rgba(255, 210, 80, 0.13) 4deg, transparent 8deg, transparent 19deg); animation: sky-spin 230s linear infinite reverse, sky-pulse 9s ease-in-out infinite alternate; }
+.sky-rays.tarde::before { background: repeating-conic-gradient(from 0deg, transparent 0deg, rgba(255, 178, 70, 0.22) 2.5deg, transparent 5deg, transparent 12deg); }
+.sky-rays.faint { opacity: 0.35; }
+@keyframes sky-spin { to { transform: rotate(360deg); } }
+@keyframes sky-pulse { from { opacity: 0.4; } to { opacity: 1; } }
+/* Chuva: dois quadros de gotas que se repetem, inclinados, caindo em velocidades diferentes */
+.sky-rain { position: absolute; inset: -25%; transform: rotate(12deg); pointer-events: none; }
+.sky-rain i { position: absolute; left: 0; right: 0; top: -512px; bottom: 0; will-change: transform; }
+.sky-rain .far { background: url('/sky/chuva-longe.png') repeat; background-size: 256px 512px; animation: sky-fall 1.1s linear infinite; opacity: 0.8; }
+.sky-rain .near { background: url('/sky/chuva-perto.png') repeat; background-size: 384px 768px; top: -768px; animation: sky-fall-near 0.55s linear infinite; }
+.sky-rain.dim { opacity: 0.55; }
+@keyframes sky-fall { to { transform: translateY(512px); } }
+@keyframes sky-fall-near { to { transform: translateY(768px); } }
+html.calm-motion .sky-bg :is(.sky-clouds, .sky-rain i) { animation: none !important; }
+html.calm-motion .sky-rays::before, html.calm-motion .sky-rays::after { animation: none !important; }
+/* Sombra suave em cima (relógio) e embaixo (cartões e menu) para o texto branco ler bem até no céu claro */
+.sky-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5, 10, 20, var(--sky-top, 0.3)) 0%, rgba(5, 10, 20, var(--sky-mid, 0.08)) 38%, rgba(5, 10, 20, var(--sky-bot, 0.4)) 100%); }
+html[data-sky='manha'], html[data-sky='dia'] { --sky-top: 0.38; --sky-mid: 0.16; --sky-bot: 0.45; }
+html[data-sky='tarde'] { --sky-top: 0.25; --sky-mid: 0.05; --sky-bot: 0.4; }
+html[data-sky='noite'] { --sky-top: 0.15; --sky-mid: 0; --sky-bot: 0.3; }
+html.sky .app-bg { background: transparent; }
+html.sky[data-theme='sereno'] {
+  --card: rgba(13, 18, 30, 0.6); --card-solid: rgba(13, 18, 30, 0.82); --line: rgba(255, 255, 255, 0.12);
+}
+html.sky[data-sky='tarde'] { --card: rgba(34, 18, 40, 0.55); --card-solid: rgba(34, 18, 40, 0.82); --accent-1: #ffb35c; }
+html.sky[data-sky='noite'] { --card: rgba(12, 17, 34, 0.66); --card-solid: rgba(12, 17, 34, 0.86); --accent-1: #a5b4fc; }
+html.sky[data-sky='manha'] { --accent-1: #fcd34d; }
+html.sky .m-chip { background: rgba(13, 18, 30, 0.55); }
+html.sky .m-num, html.sky .m-label { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25); }
+.sky-tip { border-color: color-mix(in srgb, var(--accent-1) 55%, transparent) !important; }
+.sky-tip i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-1); flex: none; }
+/* Garoa: só as gotas finas, mais devagar e mais claras */
+.sky-rain.garoa .far { animation-duration: 1.8s; opacity: 1; }
+.sky-rain.garoa { transform: rotate(6deg); }
+/* Tempestade: chuva mais forte e um pouco mais inclinada */
+.sky-rain.tempestade { transform: rotate(18deg); }
+.sky-rain.tempestade .far { animation-duration: 0.8s; }
+.sky-rain.tempestade .near { animation-duration: 0.4s; }
+/* Clarão e raio a cada 11 s (dois piscados curtos e suaves) */
+.sky-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(120% 90% at 50% 10%, rgba(214, 226, 255, 0.55), rgba(214, 226, 255, 0.12)); }
+html[data-sky-fx='tempestade'] .sky-flash { animation: sky-flash 11s linear infinite; }
+html[data-sky-fx='tempestade'] .sky-scrim { background: linear-gradient(180deg, rgba(8, 12, 24, 0.55), rgba(8, 12, 24, 0.3) 45%, rgba(8, 12, 24, 0.5)); }
+.sky-bolt { position: absolute; top: 2%; width: 120px; height: 52%; opacity: 0; fill: none; stroke: #f4f7ff; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(190, 210, 255, 0.95)) drop-shadow(0 0 18px rgba(150, 180, 255, 0.7)); animation: sky-flash-bolt 11s linear infinite; }
+@keyframes sky-flash { 0%, 61%, 63.5%, 65%, 68%, 100% { opacity: 0; } 62% { opacity: 0.45; } 66% { opacity: 0.6; } }
+@keyframes sky-flash-bolt { 0%, 61.5%, 63%, 65.5%, 67.5%, 100% { opacity: 0; } 62%, 66% { opacity: 0.95; } }
+/* Neve: flocos caindo devagar e balançando de lado */
+.sky-snow { position: absolute; inset: -10% -10% 0; pointer-events: none; }
+.sky-snow i { position: absolute; left: 0; right: 0; top: -512px; bottom: 0; will-change: transform; }
+.sky-snow .far { background: url('/sky/neve-longe.png') repeat; background-size: 256px 512px; animation: sky-snow-far 14s linear infinite; }
+.sky-snow .near { background: url('/sky/neve-perto.png') repeat; background-size: 320px 640px; top: -640px; animation: sky-snow-near 8s linear infinite; }
+.sky-snow.dim { opacity: 0.7; }
+@keyframes sky-snow-far { 0% { transform: translate(0, 0); } 25% { transform: translate(14px, 128px); } 50% { transform: translate(0, 256px); } 75% { transform: translate(-14px, 384px); } 100% { transform: translate(0, 512px); } }
+@keyframes sky-snow-near { 0% { transform: translate(0, 0); } 25% { transform: translate(-22px, 160px); } 50% { transform: translate(0, 320px); } 75% { transform: translate(22px, 480px); } 100% { transform: translate(0, 640px); } }
+/* Neblina: duas faixas de névoa deslizando em velocidades diferentes, na altura da serra */
+.sky-fog { position: absolute; left: 0; right: 0; bottom: 0; height: 70%; pointer-events: none; overflow: hidden; }
+.sky-fog i { position: absolute; left: 0; width: 3200px; height: 100%; background: url('/sky/neblina.webp') repeat-x; background-size: 1600px 100%; will-change: transform; }
+.sky-fog .a { bottom: 0; animation: sky-fog 90s linear infinite; opacity: 1; }
+.sky-fog .b { bottom: 12%; height: 80%; animation: sky-fog 140s linear infinite reverse; opacity: 0.8; }
+html[data-sky-fx='neblina'] .sky-scrim { background: linear-gradient(180deg, rgba(150, 160, 172, 0.3), rgba(190, 198, 206, 0.28) 55%, rgba(5, 10, 20, 0.3)); }
+@keyframes sky-fog { to { transform: translateX(-1600px); } }
+/* Vento: riscos passando rápido e folhas atravessando a tela girando */
+.sky-wind { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.sky-wind .streak { position: absolute; top: 8%; left: 0; width: 1600px; height: 60%; background: url('/sky/vento.png') repeat; background-size: 800px 400px; animation: sky-wind 2.6s linear infinite; opacity: 0.8; will-change: transform; }
+@keyframes sky-wind { from { transform: translateX(0); } to { transform: translateX(-800px); } }
+.sky-wind .leaf { position: absolute; left: 0; width: 22px; height: 22px; fill: #7fa05a; stroke: #4d6b33; stroke-width: 1; opacity: 0; will-change: transform; animation: sky-leaf 9s linear infinite; }
+html[data-sky='tarde'] .sky-wind .leaf { fill: #c7814a; stroke: #7a4a25; }
+html[data-sky='noite'] .sky-wind .leaf { fill: #33405a; stroke: #1c2435; }
+.sky-wind .l0 { top: 30%; animation-delay: 0s; }
+.sky-wind .l1 { top: 48%; animation-delay: 1.6s; animation-duration: 7.5s; }
+.sky-wind .l2 { top: 18%; animation-delay: 3.1s; animation-duration: 10s; }
+.sky-wind .l3 { top: 62%; animation-delay: 4.4s; animation-duration: 8s; }
+.sky-wind .l4 { top: 38%; animation-delay: 6s; animation-duration: 11s; width: 16px; height: 16px; }
+.sky-wind .l5 { top: 55%; animation-delay: 7.3s; animation-duration: 9.5s; width: 28px; height: 28px; }
+@keyframes sky-leaf {
+  0% { transform: translate(105vw, 0) rotate(0); opacity: 0; }
+  6% { opacity: 1; }
+  30% { transform: translate(70vw, -40px) rotate(240deg); }
+  60% { transform: translate(35vw, 30px) rotate(520deg); }
+  94% { opacity: 1; }
+  100% { transform: translate(-10vw, -20px) rotate(800deg); opacity: 0; }
+}
+html.calm-motion .sky-bg :is(.sky-snow i, .sky-fog i, .sky-wind .streak, .sky-wind .leaf, .sky-bolt, .sky-flash) { animation: none !important; }
+/* Gaveta em movimento ou aberta: o céu congela no quadro atual (sem pulo) e libera o tablet para a gaveta */
+.sky-bg.busy *, .sky-bg.busy *::before, .sky-bg.busy *::after { animation-play-state: paused !important; }
+html.calm-motion .sky-wind .leaf { display: none; }
+
+/* Vidro: cartões desfocam o céu atrás (só no tema Céu) */
+html.sky:not([data-theme='hud']) :is(.m-card, .dock-bg) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)), rgba(12, 18, 32, var(--glass-tint, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+html.sky:not([data-theme='hud']) .m-chip:not(.act) { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.2); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+html.sky[data-sky='manha'], html.sky[data-sky='dia'] { --glass-tint: 0.3; }
+html.sky[data-sky='noite'] { --glass-tint: 0.32; }
+/* Com “menos animação” o vidro fica fosco sem desfoque (mais leve) */
+html.sky.calm-motion:not([data-theme='hud']) :is(.m-card, .dock-bg, .m-chip) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(14, 20, 34, 0.62); }
+/* Tema Céu: bolha da Luna na conversa por voz (no lugar do globo de partículas; só transform/opacity) */
+.sky-orb { border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.35); background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(186, 230, 253, 0.55) 30%, rgba(125, 160, 252, 0.35) 62%, rgba(125, 160, 252, 0.1)); box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.25); will-change: transform; animation: sky-orb-idle 5s ease-in-out infinite; }
+.sky-orb.listening { animation: sky-orb-beat 1.1s ease-in-out infinite; }
+.sky-orb.speaking { animation: sky-orb-beat 0.7s ease-in-out infinite; }
+.sky-orb.processing { animation: sky-orb-idle 1.6s ease-in-out infinite; opacity: 0.85; }
+@keyframes sky-orb-idle { 50% { transform: scale(1.04); } }
+@keyframes sky-orb-beat { 50% { transform: scale(1.12); } }
+html.calm-motion .sky-orb { animation: none !important; }
+
+/* ---------------- Tela inicial minimalista do tema Céu ---------------- */
+html.sky-home-on .dock-nav { display: none; }
+.sky-home { position: relative; height: 100%; min-height: 0; overflow: hidden; color: #fff; padding: max(env(safe-area-inset-top), 28px) max(env(safe-area-inset-right), 40px) 0 max(env(safe-area-inset-left), 44px); }
+.sh-hero { position: relative; z-index: 2; max-width: 62%; text-shadow: 0 2px 22px rgba(0, 0, 0, 0.25); }
+.sh-hi { font-size: clamp(17px, 2.2vw, 24px); font-weight: 500; opacity: 0.95; }
+.sh-clock { font-family: 'Sora', var(--font-sans); font-weight: 300; font-size: clamp(84px, 15vw, 190px); line-height: 0.95; letter-spacing: -0.035em; margin: 4px 0 10px -0.04em; font-variant-numeric: tabular-nums; }
+.sh-wx { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: clamp(16px, 2vw, 22px); }
+.sh-wx b { font-family: 'Sora', var(--font-sans); font-weight: 300; font-size: clamp(28px, 3.2vw, 40px); }
+.sh-date { margin-top: 6px; font-size: clamp(14px, 1.5vw, 18px); opacity: 0.82; }
+.sh-date::first-letter { text-transform: uppercase; }
+.sh-tip { margin-top: 18px; text-shadow: none; }
+.sh-tip:empty { display: none; }
+.sh-tip .m-chip { white-space: normal; max-width: 100%; text-align: left; }
+.sh-l { white-space: nowrap; }
+.sh-corner { position: absolute; z-index: 2; top: max(env(safe-area-inset-top), 28px); right: max(env(safe-area-inset-right), 40px); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 40%; }
+html .sky-home .m-chip.act { background: rgba(251, 191, 36, 0.32); color: #fff; border-color: rgba(253, 230, 138, 0.7); }
+html .sh-sheet .m-input { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.2); }
+.sh-people { gap: 8px !important; }
+.sh-av { display: flex; }
+.sh-av span { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #fbcfe8, #a5b4fc); color: #1e1b4b; margin-left: -6px; border: 2px solid rgba(255, 255, 255, 0.7); }
+.sh-av span:first-child { margin-left: 0; }
+.sh-chat { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 230px); width: min(640px, calc(100% - 32px)); }
+.sh-chat-card { padding: 14px 16px !important; }
+.sh-acts { position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 92px); display: flex; align-items: flex-end; gap: clamp(12px, 3vw, 34px); }
+.sh-act { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 64px; color: #fff; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35); }
+.sh-act .sh-b { width: clamp(58px, 7vw, 74px); height: clamp(58px, 7vw, 74px); border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06)), rgba(12, 18, 32, 0.2); border: 1px solid rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 8px 24px rgba(0, 0, 0, 0.15); transition: transform 0.15s; }
+.sh-act:active .sh-b { transform: scale(0.93); }
+.sh-act.on .sh-b { background: linear-gradient(160deg, rgba(253, 230, 138, 0.8), rgba(251, 191, 36, 0.45)); border-color: rgba(253, 230, 138, 0.85); color: #3b2f0b; }
+.sh-l { font-size: 14px; font-weight: 500; }
+.sh-act small { font-size: 12px; opacity: 0.82; margin-top: -4px; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-mic .sh-b { width: clamp(76px, 9vw, 96px); height: clamp(76px, 9vw, 96px); color: #1e1b4b; background: linear-gradient(135deg, rgba(253, 230, 138, 0.97), rgba(249, 168, 212, 0.92) 55%, rgba(165, 180, 252, 0.97)); box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.12), 0 12px 34px rgba(0, 0, 0, 0.2); }
+.sh-mic.live .sh-b { animation: sh-live 1.2s ease-in-out infinite; }
+@keyframes sh-live { 50% { transform: scale(1.08); box-shadow: 0 0 0 18px rgba(255, 255, 255, 0.1), 0 12px 34px rgba(0, 0, 0, 0.2); } }
+html.calm-motion .sh-mic.live .sh-b { animation: none; outline: 3px solid #fff; }
+.sh-toast { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 210px); padding: 10px 20px; border-radius: 999px; background: rgba(12, 18, 32, 0.75); border: 1px solid rgba(255, 255, 255, 0.25); font-size: 14px; white-space: nowrap; }
+/* Escurecido sempre na sua própria camada (só muda a opacidade): criá-lo na hora de soltar custava quadros */
+.sh-dim { position: absolute; inset: 0; z-index: 4; background: rgba(5, 10, 20, 0.3); opacity: 0; pointer-events: none; will-change: opacity; transition: opacity 0.45s ease; }
+.sh-dim.on { opacity: 1; pointer-events: auto; }
+/* Gaveta: fechada mostra só a alça (72 px); aberta sobe até ~80% da altura */
+.sh-sheet { position: absolute; z-index: 5; left: 50%; bottom: 0; width: min(800px, calc(100% - 24px)); height: min(82vh, 680px); margin-left: calc(min(800px, calc(100% - 24px)) / -2);
+  padding: 0 !important; border-radius: 30px 30px 0 0 !important; border-bottom: 0 !important; transform: translate3d(0, calc(100% - 72px - env(safe-area-inset-bottom)), 0); transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1); display: flex; flex-direction: column; will-change: transform; contain: layout paint; }
+/* A gaveta se mexe: sem desfoque ao vivo (refazer o desfoque a cada quadro é o que engasgava); vidro fosco */
+html.sky:not([data-theme='hud']) .sky-home .sh-sheet { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 120px), rgba(16, 23, 38, 0.8); }
+html.sky[data-sky='manha'] .sky-home .sh-sheet, html.sky[data-sky='dia'] .sky-home .sh-sheet { background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 120px), rgba(30, 48, 74, 0.78); }
+html.sky[data-sky='tarde'] .sky-home .sh-sheet { background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 120px), rgba(44, 26, 50, 0.8); }
+/* Posição direto no transform (antes era uma variável CSS: trocar variável refaz o estilo de tudo dentro da gaveta) */
+.sh-sheet.open { transform: translate3d(0, 0, 0); }
+/* Gaveta fechada (fora da tela): as animações dos aparelhos lá dentro ficam paradas — ninguém vê e elas
+   gastavam o tablet a cada quadro. Seletores só nos elementos animados, para abrir não refazer a gaveta toda. */
+.sh-sheet:not(.open) :is(.sv-anim, .sv-wind i, .washer-spin, .animate-blink) { animation-play-state: paused !important; }
+.sh-handle { flex: none; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: grab; touch-action: none; font-size: 14px; }
+.sh-handle i { width: 46px; height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.7); }
+.sh-handle span { opacity: 0.88; }
+.sh-handle span { transition: opacity 0.3s; will-change: opacity; } /* camada própria: sumir o texto não redesenha a gaveta */
+.sh-sheet.open .sh-handle span { opacity: 0; }
+.sh-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 22px calc(env(safe-area-inset-bottom) + 20px); }
+.sh-sec { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+.sh-sec button { letter-spacing: 0.06em; }
+.sh-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.sh-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; margin-bottom: 18px; }
+/* Dentro da gaveta (que já é vidro), os cartões ficam translúcidos sem um segundo desfoque */
+.sh-sheet .sh-body .m-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(255, 255, 255, 0.09) !important; box-shadow: none !important; border-color: rgba(255, 255, 255, 0.16) !important; }
+.sh-sheet .sh-body .m-card.is-on { background: linear-gradient(160deg, rgba(253, 230, 138, 0.38), rgba(251, 191, 36, 0.14)) !important; border-color: rgba(253, 230, 138, 0.55) !important; }
+.sh-nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.sh-nav a { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border-radius: 14px; font-size: 12px; opacity: 0.88; }
+.sh-nav a:active { background: rgba(255, 255, 255, 0.12); }
+/* Celular em pé: tudo empilhado */
+@media (max-width: 640px) {
+  .sky-home { padding-left: 20px; padding-right: 20px; }
+  .sh-hero { max-width: 100%; padding-top: 44px; }
+  .sh-corner { left: 20px; right: 20px; max-width: none; justify-content: flex-start; }
+  .sh-acts { gap: 10px; }
+  .sh-act { min-width: 56px; }
+  .sh-act small { display: none; }
+  .sh-l { font-size: 12px; }
+  .sh-clock { font-size: 26vw; }
+}
+
+/* ======================================================================
+ * Painel: vidro azul-noite em tela cheia (tela inicial em PainelHome.tsx). As outras telas usam o
+ * Sereno com estas cores. Tudo sólido, sem desfoque; o brilho dos ligados é sombra/cor (placa de vídeo).
+ * ====================================================================== */
+html.painel[data-theme='sereno'] {
+  --bg: #070b14; --card: #0d1424; --card-solid: #0d1424; --line: rgba(125, 211, 252, 0.12);
+  --accent-1: #7dd3fc; --accent-2: #a5f3fc; --tx: #e0f2fe; --muted: rgba(203, 213, 225, 0.6);
+}
+html.painel .app-bg { background: linear-gradient(180deg, #070b14 0, rgba(7, 11, 20, 0) 140px), linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
+html.painel .m-chip { background: #0d1424; }
+.pn-home { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; --pn-line: rgba(125, 211, 252, 0.12); --pn-glow: #7dd3fc; position: relative; height: 100%; min-height: 0; overflow: hidden; color: #e0f2fe;
+  display: grid; grid-template-columns: minmax(230px, 0.85fr) 2fr minmax(220px, 0.85fr); gap: 28px;
+  padding: max(env(safe-area-inset-top), 26px) max(env(safe-area-inset-right), 30px) max(env(safe-area-inset-bottom), 22px) max(env(safe-area-inset-left), 30px);
+  /* o topo começa na cor da barra de status do iPhone (#070b14) e clareia aos poucos: sem faixa na Dynamic Island */
+  background: linear-gradient(180deg, #070b14 0, rgba(7, 11, 20, 0) max(140px, calc(env(safe-area-inset-top) + 90px))), linear-gradient(160deg, #0f1828 0%, #070b14 50%, #0c1322 100%); }
+/* reflexo do vidro (uma vez, parado), sumindo perto do topo */
+.pn-home::before { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 30%, transparent 31%); pointer-events: none;
+  -webkit-mask: linear-gradient(transparent 0, #000 160px); mask: linear-gradient(transparent 0, #000 160px); }
+.pn-col { position: relative; min-height: 0; display: flex; flex-direction: column; }
+.pn-label { font-size: 11px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(224, 242, 254, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-hint { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: 0.7; }
+.pn-spacer { flex: 1; min-height: 12px; }
+/* Botão giratório */
+.pn-dial { position: relative; width: min(100%, 220px); aspect-ratio: 1; margin: 12px auto 0; border-radius: 50%; padding: 5px; touch-action: none; cursor: grab;
+  background: conic-gradient(from 210deg, #38bdf8, #a5f3fc var(--a), rgba(255, 255, 255, 0.08) var(--a) 300deg, transparent 300deg); }
+.pn-dial:not(.on) { background: conic-gradient(from 210deg, rgba(255, 255, 255, 0.08) 0 300deg, transparent 300deg); }
+.pn-dial:not(.drag) { transition: --a 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.pn-knob { position: absolute; inset: 9px; border-radius: 50%; background: #070b14; display: grid; place-content: center; text-align: center; box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.6); }
+.pn-knob b { font-weight: 300; font-size: clamp(36px, 4.4vw, 52px); letter-spacing: -0.03em; line-height: 1; }
+.pn-knob span { font-size: 12px; color: rgba(224, 242, 254, 0.5); margin-top: 4px; }
+.pn-dot { position: absolute; inset: 0; pointer-events: none; }
+.pn-dot::after { content: ''; position: absolute; left: calc(50% - 7px); top: -2px; width: 14px; height: 14px; border-radius: 50%; background: #e0f2fe; box-shadow: 0 0 12px #7dd3fc; }
+.pn-dial:not(.on) .pn-dot { display: none; }
+@property --a { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+/* Cenas */
+.pn-scenes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }
+.pn-scene { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px 6px; border-radius: 14px; border: 1px solid rgba(125, 211, 252, 0.22); color: #e0f2fe; font-size: 13px; font-weight: 600; transition: transform 0.12s, background 0.2s; }
+.pn-scene:active { transform: scale(0.96); background: rgba(125, 211, 252, 0.12); }
+/* Cartões e linhas */
+.pn-card { text-align: left; border: 1px solid var(--pn-line); border-radius: 16px; padding: 13px 15px; }
+.pn-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; width: 100%; font-size: 13.5px; padding: 8px 0; border-bottom: 1px solid rgba(125, 211, 252, 0.08); text-align: left; color: #cbd5e1; }
+.pn-row b { font-weight: 600; color: #e0f2fe; white-space: nowrap; }
+.pn-row b.warn { color: #fcd34d; }
+.pn-washer .pn-row { border: 0; padding: 6px 0 0; }
+.pn-bar { display: block; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); margin-top: 9px; overflow: hidden; }
+.pn-bar i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #a5f3fc); transform-origin: left; transition: transform 1s; }
+.pn-hours { margin-top: 12px; flex: none; }
+.pn-wx-tabs { display: flex; gap: 4px; }
+.pn-wx-tabs button { white-space: nowrap; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(224, 242, 254, 0.4); padding: 2px 6px 2px 0; }
+.pn-wx-tabs button.on { color: rgba(224, 242, 254, 0.8); }
+.pn-wx-tabs button + button { padding-left: 6px; border-left: 1px solid rgba(125, 211, 252, 0.15); }
+.pn-wx-row { display: flex; justify-content: space-between; width: 100%; margin-top: 8px; }
+.pn-hours span { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12.5px; color: #cbd5e1; }
+.pn-hours b { font-weight: 600; color: #e0f2fe; }
+.pn-hours small { font-size: 10.5px; opacity: 0.7; }
+.pn-days em { font-style: normal; font-weight: 400; opacity: 0.55; }
+.pn-hours small.rain { color: #7dd3fc; opacity: 1; font-weight: 600; }
+.pn-vac { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding: 10px 10px 10px 12px; }
+.pn-vac-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; text-align: left; }
+.pn-vac-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.pn-vac-txt b { font-size: 13.5px; font-weight: 600; color: #e0f2fe; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-vac-txt small { font-size: 12px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-vac-txt em { font-style: normal; font-size: 11.5px; color: rgba(224, 242, 254, 0.55); }
+.pn-vac-txt em.on { color: #7dd3fc; }
+.pn-vac-txt em.warn { color: #fcd34d; }
+.pn-vac-txt em.err { color: #fda4af; }
+.pn-vac-btns { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.pn-vac-btns button { padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(125, 211, 252, 0.3); color: #e0f2fe; font-size: 12.5px; font-weight: 600; }
+.pn-vac-btns button:disabled { opacity: 0.5; }
+.pn-cats, .pn-shop { margin-top: 10px; padding: 10px 12px; flex: none; }
+.pn-cats > div { display: flex; gap: 12px; margin: 4px -4px 0; padding: 4px 4px 6px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: rgba(125, 211, 252, 0.3) transparent; touch-action: pan-x; }
+.pn-cats > div::-webkit-scrollbar { height: 3px; }
+.pn-cats > div::-webkit-scrollbar-thumb { background: rgba(125, 211, 252, 0.3); border-radius: 2px; }
+/* com 6 gatos, rola para o lado (nome inteiro, sem cortar) */
+.pn-cats span { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; min-width: 48px; scroll-snap-align: start; scroll-margin-left: 4px; }
+.pn-cats i { flex: none; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #1e293b; font-style: normal; font-size: 16px; }
+.pn-cats i img { width: 100%; height: 100%; object-fit: cover; }
+.pn-cats span.warn i { outline: 2px solid #fcd34d; outline-offset: 1px; }
+.pn-cats small { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+/* Esteira dos gatos: anda sozinha (transform na placa de vídeo), emenda sem pulo, tocar pausa */
+.pn-cats > .pn-belt-vp { overflow: hidden; scroll-snap-type: none; touch-action: pan-y; display: flex; align-items: center; margin: 2px -12px 0; padding: 6px 0 8px; }
+.pn-belt-vp.moving { -webkit-mask: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+.pn-belt { display: flex; width: max-content; }
+.pn-belt-half { display: flex; gap: 16px; padding: 0 8px 0 12px; }
+.pn-belt.run { animation: pn-belt var(--dur, 20s) linear infinite; will-change: transform; }
+.pn-belt.paused { animation-play-state: paused; }
+@keyframes pn-belt { to { transform: translate3d(-50%, 0, 0); } }
+/* Parado (escolha do aparelho) ou menos animação: rola com o dedo */
+.pn-cats > .pn-belt-vp.manual { overflow-x: auto; touch-action: pan-x; scrollbar-width: none; }
+.pn-cats > .pn-belt-vp.manual::-webkit-scrollbar { display: none; }
+.pn-cats-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pn-cats-mode { flex: none; width: 28px; height: 24px; border-radius: 8px; display: grid; place-items: center; border: 1px solid rgba(125, 211, 252, 0.22); color: rgba(224, 242, 254, 0.75); }
+/* Menos animação: sem esteira, rola com o dedo */
+html.calm-motion .pn-belt.run { animation: none; }
+html.calm-motion .pn-cats > .pn-belt-vp { overflow-x: auto; touch-action: pan-x; }
+/* Tablet deitado: o cartão dos gatos desce até a barra de baixo (sem o vão) e os círculos crescem */
+.pn-left .pn-cats { flex: 1 1 auto; min-height: 130px; display: flex; flex-direction: column; }
+.pn-cats > .pn-label { align-self: flex-start; text-align: left; }
+.pn-left .pn-cats ~ .pn-spacer { display: none; }
+.pn-left .pn-cats > .pn-belt-vp { flex: 1; }
+.pn-left .pn-cats span { min-width: clamp(64px, 11vh, 96px); gap: 7px; scroll-margin-left: 6px; }
+.pn-left .pn-cats i { width: clamp(58px, 10vh, 88px); height: clamp(58px, 10vh, 88px); font-size: 30px; }
+.pn-left .pn-cats span.warn i { outline-width: 3px; outline-offset: 2px; }
+.pn-left .pn-cats small { font-size: 12.5px; }
+.pn-left .pn-cats .pn-warn { font-size: 12.5px; }
+.pn-cats small b { font-weight: 700; color: #e0f2fe; }
+.pn-warn { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #fcd34d; }
+.pn-shop p:last-child { margin-top: 4px; font-size: 12.5px; color: #cbd5e1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Notícias (preenchem o que sobra da telinha e rolam) */
+.pn-news { flex: 1 1 0; min-height: 190px; margin-top: 10px; padding: 10px 12px 4px; display: flex; flex-direction: column; }
+.pn-news-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pn-news-tabs { flex-wrap: nowrap; }
+.pn-news-tabs { justify-content: space-between; }
+.pn-news-tabs button { padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; color: rgba(224, 242, 254, 0.6); border: 1px solid transparent; }
+.pn-news-tabs button.on { color: #e0f2fe; border-color: rgba(125, 211, 252, 0.35); background: rgba(125, 211, 252, 0.1); }
+.pn-news-track { flex: 1; min-height: 110px; margin-top: 8px; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 12px; }
+.pn-news-track::-webkit-scrollbar { display: none; }
+.pn-news-slide { position: relative; flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; border-radius: 12px; background: #0f1828; text-align: left; display: flex; align-items: flex-end; }
+.pn-news-slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pn-news-txt { position: relative; display: block; width: 100%; padding: 12px; }
+/* notícia sem foto: cartão com degradê e título maior, centralizado (sem o bloco vazio) */
+.pn-news-slide:not(.img) { align-items: center; background: radial-gradient(120% 90% at 100% 0%, rgba(56, 189, 248, 0.22), transparent 60%), linear-gradient(160deg, #13223a, #0b1424); }
+.pn-news-slide:not(.img) .pn-news-txt { padding: 16px 18px; }
+.pn-news-slide:not(.img) .pn-news-txt b { font-size: 17px; -webkit-line-clamp: 5; }
+.pn-news-slide.img .pn-news-txt { padding-top: 40px; background: linear-gradient(transparent, rgba(3, 7, 15, 0.92) 45%); }
+.pn-news-txt small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: #7dd3fc; margin-bottom: 4px; }
+.pn-news-txt b { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font-size: 14.5px; font-weight: 600; line-height: 1.3; color: #f0f9ff; }
+.pn-news-nav { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 4px 0 2px; font-size: 11.5px; color: rgba(224, 242, 254, 0.55); font-variant-numeric: tabular-nums; }
+.pn-news-nav button { width: 30px; height: 26px; border-radius: 8px; font-size: 18px; line-height: 1; color: #e0f2fe; }
+.pn-news-nav button:disabled { opacity: 0.25; }
+.pn-news-modal { position: fixed; z-index: 30; inset: 0; background: rgba(3, 6, 12, 0.7); display: grid; place-items: center; padding: 20px; }
+.pn-news-read { position: relative; width: min(560px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; background: #0b1220; border: 1px solid rgba(125, 211, 252, 0.25); border-radius: 22px; padding: 18px; color: #e0f2fe; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); -webkit-user-select: text; user-select: text; }
+.pn-news-read img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 14px; margin-bottom: 12px; }
+.pn-news-read h3 { font-size: 20px; font-weight: 600; line-height: 1.3; margin: 6px 0 10px; }
+.pn-news-read > p:not(.pn-label) { font-size: 15px; line-height: 1.5; color: #cbd5e1; }
+.pn-news-x { position: absolute; right: 12px; top: 12px; z-index: 1; background: #0b1220; }
+.pn-news-open { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 16px; border-radius: 12px; background: #a5f3fc; color: #070b14; font-weight: 600; font-size: 14px; }
+/* Falar com a Luna + menu */
+.pn-talk { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; color: rgba(224, 242, 254, 0.7); }
+.pn-talk span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-mic { width: 52px; height: 52px; flex: none; border-radius: 50%; display: grid; place-items: center; color: #070b14; background: #a5f3fc; box-shadow: 0 0 0 5px rgba(125, 211, 252, 0.14), 0 0 22px rgba(56, 189, 248, 0.45); }
+.pn-mic.live { background: #fff; box-shadow: 0 0 0 7px rgba(165, 243, 252, 0.3), 0 0 30px rgba(165, 243, 252, 0.7); }
+.pn-menu-btn { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; border: 1px solid rgba(125, 211, 252, 0.22); color: #e0f2fe; }
+.pn-recado-btn { position: relative; }
+.pn-recado-btn.fresh { border-color: rgba(252, 211, 77, 0.7); color: #fde68a; box-shadow: 0 0 14px rgba(251, 191, 36, 0.35); }
+.pn-recado-btn i { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: #fbbf24; color: #000; font: 700 10.5px/18px Inter, sans-serif; font-style: normal; }
+.pn-recado-alert:empty, .pn-phone-only { display: none; }
+.pn-recado-alert { margin-bottom: 14px; }
+/* Interruptores */
+.pn-grid { flex: none; min-height: 0; margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(84px, 1fr)); grid-auto-rows: minmax(84px, 1fr); gap: 14px; overflow-y: auto; }
+.pn-key { position: relative; text-align: left; padding: 13px 14px; border-radius: 16px; border: 1px solid rgba(125, 211, 252, 0.12); color: #8a98ad; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: color 0.35s, border-color 0.35s, box-shadow 0.35s, transform 0.12s; }
+.pn-key b { font-size: 14px; font-weight: 600; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pn-key span { font-size: 11.5px; opacity: 0.75; }
+.pn-key i { position: absolute; right: 14px; bottom: 13px; width: 24px; height: 3px; border-radius: 2px; background: #1e293b; transition: background 0.35s, box-shadow 0.35s; }
+.pn-key.on { color: #e0f2fe; border-color: rgba(125, 211, 252, 0.4); text-shadow: 0 0 14px rgba(125, 211, 252, 0.55); box-shadow: inset 0 -30px 40px -30px rgba(56, 189, 248, 0.22); }
+.pn-key.on i { background: #a5f3fc; box-shadow: 0 0 12px 3px rgba(56, 189, 248, 0.8); }
+.pn-key:active { transform: scale(0.96); }
+/* marca da luz do botão giratório: no canto de cima (embaixo ela caía sobre o “56%” no celular) */
+.pn-key.dial::after { content: ''; position: absolute; right: 14px; top: 14px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgba(165, 243, 252, 0.75); }
+.pn-key b { padding-right: 12px; }
+.pn-key.off-line { opacity: 0.45; }
+.pn-empty { grid-column: 1 / -1; color: rgba(224, 242, 254, 0.5); font-size: 14px; }
+/* Telinha */
+.pn-screen { border-left: 1px solid rgba(125, 211, 252, 0.1); padding-left: 24px; }
+.pn-clock { font-weight: 200; font-size: clamp(48px, 6vw, 76px); letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pn-sub { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(224, 242, 254, 0.6); margin: 6px 0 12px; }
+.pn-rows .pn-row:last-child { border-bottom: 0; }
+.pn-recados:empty { display: none; }
+.pn-recados { margin-top: 8px; }
+.pn-cams { flex: 1; min-height: 0; margin-top: 14px; display: grid; grid-auto-rows: minmax(0, 1fr); gap: 10px; }
+.pn-cam { position: relative; min-height: 0; border-radius: 12px; overflow: hidden; background: #0d1424; }
+.pn-cam .pn-cam-img, .pn-cam img, .pn-cam video { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 0 !important; }
+.pn-cam .pn-cam-img p { display: none; } /* câmera só no site do fabricante: só o ícone */
+.pn-cam > span { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 10px 7px; text-align: left; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; background: linear-gradient(transparent, rgba(0, 0, 0, 0.7)); }
+/* Conversa, menu e aviso */
+.pn-chat { position: absolute; z-index: 5; left: 50%; bottom: max(env(safe-area-inset-bottom), 22px); transform: translateX(-50%); width: min(620px, calc(100% - 32px)); }
+.pn-chat-card, .pn-menu nav { background: #0b1220; border: 1px solid rgba(125, 211, 252, 0.25); border-radius: 22px; padding: 14px 16px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.pn-x { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; border: 1px solid rgba(125, 211, 252, 0.22); }
+.pn-input { display: flex; gap: 8px; align-items: center; margin-top: 10px; border: 1px solid rgba(125, 211, 252, 0.22); border-radius: 14px; padding: 4px 6px 4px 14px; }
+.pn-input input { -webkit-user-select: text; user-select: text; flex: 1; min-width: 0; background: transparent; outline: none; padding: 9px 0; font-size: 15px; color: #e0f2fe; }
+.pn-menu { position: absolute; z-index: 6; inset: 0; background: rgba(3, 6, 12, 0.6); display: grid; place-items: center; padding: 20px; }
+.pn-menu nav { width: min(560px, 100%); }
+.pn-menu .pn-input { margin: 0 0 14px; }
+.pn-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pn-links a { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 4px; border-radius: 14px; border: 1px solid rgba(125, 211, 252, 0.1); font-size: 12.5px; color: #e0f2fe; }
+.pn-links a:active { background: rgba(125, 211, 252, 0.12); }
+.pn-toast { position: absolute; z-index: 7; left: 50%; bottom: max(calc(env(safe-area-inset-bottom) + 22px), 22px); transform: translateX(-50%); padding: 10px 20px; border-radius: 999px; background: #0b1220; border: 1px solid rgba(125, 211, 252, 0.35); font-size: 14px; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i { transition: none !important; }
+/* Tablet em pé: telinha em cima, giratório e interruptores embaixo */
+@media (max-width: 900px) and (orientation: portrait), (max-width: 760px) {
+  .pn-home { grid-template-columns: 1fr; grid-auto-rows: min-content; overflow-y: auto; gap: 18px; padding-left: max(env(safe-area-inset-left), 18px); padding-right: max(env(safe-area-inset-right), 18px); padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
+  .pn-screen { order: -2; border-left: 0; padding-left: 0; }
+  .pn-mid { order: -1; }
+  .pn-cams { flex: none; grid-template-columns: 1fr 1fr !important; grid-auto-rows: 130px; }
+  .pn-news { flex: none; height: 300px; }
+  .pn-grid { grid-template-rows: none !important; }
+  .pn-dial { width: 190px; touch-action: pan-y; } /* aqui a tela rola: arrastar na vertical rola, não gira */
+  .pn-grid { grid-template-rows: none; grid-auto-rows: 88px; overflow: visible; }
+  .pn-chat, .pn-toast { position: fixed; }
+  .pn-menu { position: fixed; }
+  .pn-links { grid-template-columns: repeat(3, 1fr); }
+}
+/* Celular: versão enxuta — hora e resumo em uma linha de etiquetas, interruptores e câmeras,
+   giratório ao lado das cenas, e o botão de falar fixo embaixo. Sem previsão/compras (estão nas outras telas). */
+@media (max-width: 520px) {
+  .pn-home { gap: 16px; padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
+  .pn-screen { display: grid; grid-template-columns: auto 1fr; align-items: end; column-gap: 12px; }
+  .pn-screen > * { grid-column: 1 / -1; }
+  .pn-clock { grid-column: 1; font-size: 46px; }
+  .pn-sub { grid-column: 2; margin: 0 0 6px; }
+  .pn-rows { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .pn-rows .pn-row { width: auto; padding: 6px 11px; border: 1px solid rgba(125, 211, 252, 0.15); border-radius: 999px; font-size: 12.5px; gap: 6px; }
+  .pn-rows .pn-row-lava, .pn-rows .pn-row-shop, .pn-screen .pn-hours, .pn-screen .pn-days, .pn-screen .pn-shop, .pn-hint, .pn-mid > .pn-label { display: none; }
+  .pn-screen .pn-news { flex: none; height: 260px; }
+  .pn-wide-only { display: none; }
+  .pn-phone-only:not(:empty) { display: block; order: -1; margin: 0 0 4px; }
+  .pn-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 64px !important; gap: 10px; margin-top: 0; }
+  .pn-key { padding: 10px 12px; }
+  .pn-key b { font-size: 13.5px; -webkit-line-clamp: 1; }
+  .pn-key i { bottom: 10px; }
+  .pn-cams { grid-auto-rows: 110px; gap: 8px; }
+  .pn-left { display: grid; grid-template-columns: 140px 1fr; column-gap: 14px; align-items: center; }
+  .pn-left > * { grid-column: 1 / -1; }
+  .pn-left .pn-dial { grid-column: 1; width: 140px; margin: 6px 0 0; }
+  .pn-left .pn-scenes { grid-column: 2; grid-template-columns: 1fr; gap: 6px; margin: 6px 0 0; }
+  .pn-scene { padding: 8px 6px; font-size: 12.5px; }
+  .pn-knob b { font-size: 32px; }
+  .pn-knob span { display: none; }
+  .pn-left .pn-spacer { display: none; }
+  .pn-left .pn-cats { flex: none; min-height: 0; }
+  .pn-left .pn-cats i { width: 46px; height: 46px; font-size: 18px; }
+  .pn-left .pn-cats span { min-width: 54px; }
+  .pn-talk { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; margin: 0; padding: 10px max(env(safe-area-inset-right), 18px) calc(env(safe-area-inset-bottom) + 10px) max(env(safe-area-inset-left), 18px); background: rgba(7, 11, 20, 0.96); border-top: 1px solid rgba(125, 211, 252, 0.12); }
+}

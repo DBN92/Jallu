@@ -1,0 +1,345 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" = motor da máquina onde o build roda (o build é feito no próprio servidor)
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  username      String         @unique
+  displayName   String
+  passwordHash  String
+  role          String         @default("member") // admin | member
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  sessions      Session[]
+  conversations Conversation[]
+  memories      Memory[]
+  preferences   Preference[]
+  apiTokens     ApiToken[]
+}
+
+/// Token para atalhos (Siri / app Atalhos). Só permite mandar comandos para a DIA.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  /// Primeiros caracteres, só para o usuário reconhecer o token na lista
+  prefix     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  csrfToken  String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Nova conversa")
+  summary   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // user | assistant
+  content        String
+  provider       String?
+  model          String?
+  channel        String       @default("text")
+  meta           String? // JSON (ações executadas etc.)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // preference | fact | home | context | summary
+  content   String
+  source    String   @default("user") // user | conversation | manual
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type])
+}
+
+model Device {
+  entityId   String   @id
+  domain     String
+  /// Nome vindo do Home Assistant (friendly_name)
+  name       String
+  /// Nome dado pelo usuário na Luna (tem prioridade na tela e nos comandos)
+  customName String?
+  category  String
+  aiAllowed Boolean  @default(false)
+  hidden    Boolean  @default(false)
+  aliases   String   @default("[]") // JSON array
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Integration {
+  id        String   @id // home_assistant | ollama | openai | open_meteo
+  enabled   Boolean  @default(true)
+  status    String   @default("unknown")
+  detail    String?
+  config    String   @default("{}") // JSON NÃO sensível (segredos ficam no .env)
+  updatedAt DateTime @updatedAt
+}
+
+model ActionLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  source    String // ui | ai:ollama | ai:openai | ai:luna-nlu | voice | automation
+  tool      String
+  target    String?
+  args      String?
+  success   Boolean
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Preference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  value     String // JSON
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+}
+
+model AutomationRule {
+  id             String   @id @default(cuid())
+  userId         String?
+  name           String
+  description    String
+  definition     String // JSON (rascunho validado)
+  haConfig       String // JSON enviado ao Home Assistant
+  status         String   @default("draft") // draft | active | disabled | error
+  haAutomationId String?  @unique
+  haEntityId     String?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+/// Câmera lida diretamente pela Luna (RTSP + ffmpeg), sem passar pelo Home Assistant.
+/// A senha fica só no servidor e nunca é devolvida ao navegador.
+model DirectCamera {
+  id        String   @id @default(cuid())
+  name      String
+  url       String // rtsp://ip:porta/caminho (sem usuário/senha)
+  username  String?
+  password  String?
+  transport String   @default("udp") // udp | tcp
+  onvifPort Int? // porta ONVIF detectada (movimento); vazio = sem movimento
+  gestureZone String? // JSON {x,y,w,h} (0–1): área da imagem analisada para gestos
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Comando por gesto de mão: “mão aberta na câmera Sala → ligar Luz da Sala”.
+model GestureRule {
+  id        String   @id @default(cuid())
+  gesture   String // open_palm | closed_fist | thumb_up | thumb_down | victory | pointing_up | i_love_you
+  source    String // "device" (câmera do aparelho) ou entity_id da câmera
+  action    String // turn_on | turn_off | toggle
+  target    String // entity_id ou "all_lights"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// “Vigia” visual numa câmera: compara a área escolhida com fotos de referência de dois estados
+/// (ex.: carro na garagem / fora; portão fechado / aberto) ou, no tipo “motion”, avisa mudanças à noite.
+model VisualWatch {
+  id            String      @id @default(cuid())
+  name          String
+  kind          String // car | gate | motion | custom
+  cameraId      String // entity_id da câmera (camera.luna_… ou camera.…)
+  zone          String? // JSON {x,y,w,h} (0–1); vazio = imagem inteira
+  labelA        String // estado A (ex.: “na garagem”, “fechado”)
+  labelB        String // estado B (ex.: “fora”, “aberto”)
+  enabled       Boolean     @default(true)
+  state         String? // a | b | null (desconhecido)
+  stateSince    DateTime?
+  confidence    Float?
+  lightEntity   String? // luz a acender (carro chegou / portão abriu à noite)
+  lightMinutes  Int         @default(5)
+  alertMinutes  Int? // portão: avisar se ficar no estado B por X min
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  refs          VisualRef[]
+}
+
+/// Foto de referência de um estado (guardada como assinatura 32×24 em tons de cinza + miniatura).
+model VisualRef {
+  id        String      @id @default(cuid())
+  watchId   String
+  watch     VisualWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  state     String // a | b
+  vector    String // base64 de 768 bytes (32×24 cinza)
+  thumb     String // JPEG pequeno em base64 (para mostrar em Ajustes)
+  createdAt DateTime    @default(now())
+
+  @@index([watchId])
+}
+
+/// Acontecimento numa câmera (mudança de estado, aviso, movimento à noite), com foto.
+model CameraEvent {
+  id        String   @id @default(cuid())
+  cameraId  String
+  watchId   String?
+  kind      String // state | alert | motion
+  title     String
+  photo     String? // arquivo em data/events/
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Gato da casa (para reconhecer quem usou a caixa de areia pelo peso).
+model LitterCat {
+  id        String        @id @default(cuid())
+  slot      Int           @unique // 1..6 (ordem de exibição)
+  name      String
+  /// Peso de referência (kg). Aprendido sozinho pelas visitas, ou informado pelo usuário.
+  weightKg  Float?
+  /// true quando o usuário digitou o peso (aí a DIA não ajusta sozinha)
+  weightSet Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  visits    LitterVisit[]
+}
+
+/// Uma visita à caixa de areia (registrada pela DIA quando o contador do dia sobe).
+model LitterVisit {
+  id        String     @id @default(cuid())
+  boxId     String // prefixo das entidades da caixa no Home Assistant
+  at        DateTime   @default(now())
+  weightKg  Float?
+  durationS Int?
+  catId     String?
+  cat       LitterCat? @relation(fields: [catId], references: [id], onDelete: SetNull)
+
+  @@index([boxId, at])
+}
+
+/// Preferências de cada caixa de areia.
+model LitterBoxPref {
+  id           String  @id // prefixo das entidades da caixa no Home Assistant
+  /// Comandos de voz (“limpa a caixa”) só com autorização, como os outros aparelhos
+  voiceAllowed Boolean @default(false)
+}
+
+/// Preferências da lava e seca (id = prefixo das entidades no Home Assistant).
+model WasherPref {
+  id           String  @id
+  /// Comandos de voz (“pausa a máquina”) só com autorização, como os outros aparelhos
+  voiceAllowed Boolean @default(false)
+  /// Avisar quando terminar (celular, tablet e TV)
+  notifyDone   Boolean @default(true)
+  /// Falar no tablet: “A roupa está pronta”
+  speak        Boolean @default(true)
+}
+
+/// Um ciclo da lava e seca acompanhado pela Luna.
+model WasherCycle {
+  id        String    @id @default(cuid())
+  washerId  String
+  /// null quando o ciclo já estava rodando antes da Luna acompanhar
+  startedAt DateTime?
+  endedAt   DateTime?
+  program   String?
+  /// true quando terminou normalmente (false = desligada/cancelada no meio)
+  done      Boolean   @default(false)
+
+  @@index([washerId, endedAt])
+}
+
+/// Maquete 3D: qual entidade do Home Assistant corresponde a cada luz/aparelho desenhado.
+model HouseLink {
+  id       String  @id // id da maquete (cabeceira, luminaria…)
+  /// null = o administrador escolheu “nenhuma”
+  entityId String?
+}
+
+/// Lista da casa: o que tem em casa (have) e o que falta comprar (buy)
+model PantryItem {
+  id        String   @id @default(cuid())
+  name      String
+  /// nome sem acento e em minúsculas (evita “Leite” e “leite” repetidos)
+  key       String   @unique
+  status    String // have | buy
+  quantity  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Notas da casa (texto livre)
+model Note {
+  id        String   @id @default(cuid())
+  text      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Celular/navegador que aceitou receber avisos (notificação push do app instalado)
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  /// “iPhone”, “Android”… (só para mostrar nos ajustes)
+  label     String?
+  createdAt DateTime @default(now())
+}
+
+/// Quem está em casa: o que a Luna faz quando alguém chega ou quando sai o último (linha única “main”)
+model PeopleConfig {
+  id            String  @id @default("main")
+  /// Luz que acende quando alguém chega à noite (null = nenhuma)
+  arriveLight   String?
+  /// Quando sai o último: apagar as luzes
+  leaveLightsOff Boolean @default(true)
+  /// Quando sai o último: avisar no celular o que ficou ligado
+  leaveNotify   Boolean @default(true)
+}

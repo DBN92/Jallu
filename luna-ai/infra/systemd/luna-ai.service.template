@@ -1,0 +1,37 @@
+# Serviço systemd da Luna AI (gerado pelo scripts/install.sh — não edite /etc diretamente;
+# altere este template e rode o install novamente).
+[Unit]
+Description=Luna AI — assistente pessoal
+Documentation=file://@ROOT@/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@ROOT@
+Environment=NODE_ENV=production
+Environment=LUNA_ENV_FILE=@ROOT@/.env
+Environment=PRISMA_HIDE_UPDATE_MESSAGE=1
+ExecStart=@NODE@ @ROOT@/apps/api/dist/server.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+
+# Endurecimento: sem privilégios extras, sistema somente leitura exceto a pasta de dados
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=@DATA@
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=@WANTEDBY@

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_desc">Usada só para apagar a tela quando não há ninguém por perto. A Luna acende de novo quando alguém chega.</string>
+</resources>

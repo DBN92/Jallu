@@ -1,0 +1,626 @@
+export type AiMode = 'local' | 'cloud' | 'hybrid';
+export type AiProviderName = 'ollama' | 'openai' | 'luna-nlu';
+export type UserRole = 'admin' | 'member';
+
+export type AssistantState = 'idle' | 'listening' | 'processing' | 'acting' | 'speaking' | 'error';
+
+export type DeviceCategory = 'lighting' | 'switches' | 'outlets' | 'sensors' | 'climate' | 'vacuum' | 'other';
+
+export const DEVICE_CATEGORY_LABELS: Record<DeviceCategory, string> = {
+  lighting: 'Iluminação',
+  switches: 'Interruptores',
+  outlets: 'Tomadas',
+  sensors: 'Sensores',
+  climate: 'Climatização',
+  vacuum: 'Aspiradores',
+  other: 'Outros',
+};
+
+export interface PublicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+}
+
+export interface DeviceDto {
+  entityId: string;
+  domain: string;
+  /** Nome exibido: o personalizado na Luna, ou o do Home Assistant */
+  name: string;
+  /** Nome original no Home Assistant */
+  originalName: string;
+  /** true quando o usuário renomeou na Luna */
+  renamed: boolean;
+  category: DeviceCategory;
+  state: string;
+  available: boolean;
+  isOn: boolean | null;
+  /** 0–100 quando suportado */
+  brightness: number | null;
+  supportsBrightness: boolean;
+  /** Lâmpada colorida: aceita escolher a cor */
+  supportsColor: boolean;
+  /** Cor atual [r, g, b] (0–255), quando a lâmpada informa */
+  rgb: [number, number, number] | null;
+  controllable: boolean;
+  unit: string | null;
+  deviceClass: string | null;
+  aiAllowed: boolean;
+  aliases: string[];
+  hidden: boolean;
+  lastChanged: string | null;
+  /** Só para aspiradores robôs (domínio vacuum) */
+  vacuum?: VacuumInfo | null;
+}
+
+/** Comandos aceitos pelos aspiradores (lista fechada). */
+export type VacuumCommand = 'start' | 'pause' | 'stop' | 'return_to_base' | 'locate' | 'set_fan_speed';
+
+export interface VacuumInfo {
+  /** Situação em português (ex.: “Aspirando”, “Na base”) */
+  status: string;
+  /** cleaning | docked | returning | paused | idle | error (estado do Home Assistant) */
+  phase: 'cleaning' | 'docked' | 'returning' | 'paused' | 'idle' | 'error' | 'unknown';
+  /** Bateria 0–100, quando o robô informa */
+  battery: number | null;
+  /** Potência de sucção atual e opções */
+  fanSpeed: string | null;
+  fanSpeeds: string[];
+  /** O que este robô sabe fazer (depende da marca/integração) */
+  can: { pause: boolean; stop: boolean; locate: boolean; fanSpeed: boolean; returnHome: boolean };
+  /** Mensagem de erro do robô, se houver */
+  error: string | null;
+  /** Foto enviada pelo usuário (versão para evitar cache), ou null para usar o desenho */
+  photo: number | null;
+  /** Opções extras que a integração do robô oferece (ex.: Xiaomi Home) */
+  extras: VacuumExtras | null;
+}
+
+export interface VacuumOption {
+  value: string;
+  label: string;
+}
+
+/** Controle extra do robô. id = entity_id da entidade acessória (validado no servidor). */
+export interface VacuumControl {
+  id: string;
+  /** suction | water | carpet | resume | child_lock | dnd | mop_wash | dry_start | dry_stop | dust | locate | reset_main_brush | reset_side_brush | reset_filter | reset_mop */
+  key: string;
+  label: string;
+  kind: 'choice' | 'toggle' | 'action';
+  value?: string | boolean | null;
+  options?: VacuumOption[];
+  hint?: string;
+}
+
+export interface VacuumConsumable {
+  key: 'main_brush' | 'side_brush' | 'filter' | 'mop';
+  label: string;
+  percent: number;
+  hoursLeft: number | null;
+  /** id do controle de zerar a contagem, se houver */
+  resetId: string | null;
+}
+
+export interface VacuumExtras {
+  controls: VacuumControl[];
+  consumables: VacuumConsumable[];
+  stats: { lastArea: number | null; lastMinutes: number | null; totalArea: number | null; totalCount: number | null; totalMinutes: number | null };
+  /** Pano secando: minutos restantes */
+  dryingMinutes: number | null;
+  charging: string | null;
+  /** Agendamentos feitos no app do fabricante, em texto (ex.: “07:00 todos os dias”) */
+  schedules: string[];
+}
+
+export interface ActionResult {
+  tool: string;
+  ok: boolean;
+  summary: string;
+  entityIds?: string[];
+}
+
+export interface ChatResponse {
+  conversationId: string;
+  messageId: string;
+  reply: string;
+  provider: AiProviderName;
+  model: string | null;
+  actions: ActionResult[];
+  /** Avisos não fatais (ex.: "OpenAI indisponível, usei o modelo local"). */
+  notices: string[];
+}
+
+export interface ConversationSummaryDto {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
+export interface MessageDto {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  provider: string | null;
+  channel: string;
+  createdAt: string;
+}
+
+export interface MemoryDto {
+  id: string;
+  type: 'preference' | 'fact' | 'home' | 'context' | 'summary';
+  content: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface CurrentWeather {
+  time: string;
+  temperature: number;
+  apparentTemperature: number;
+  humidity: number;
+  precipitation: number;
+  weatherCode: number;
+  condition: string;
+  windSpeed: number;
+  isDay: boolean;
+}
+
+export interface HourlyWeather {
+  time: string;
+  temperature: number;
+  precipitationProbability: number;
+  weatherCode: number;
+  condition: string;
+}
+
+export interface DailyWeather {
+  date: string;
+  min: number;
+  max: number;
+  precipitationProbability: number;
+  precipitationSum: number;
+  weatherCode: number;
+  condition: string;
+  sunrise: string;
+  sunset: string;
+}
+
+export interface WeatherDto {
+  location: { latitude: number; longitude: number; name: string | null; timezone: string };
+  current: CurrentWeather;
+  hourly: HourlyWeather[];
+  daily: DailyWeather[];
+  fetchedAt: string;
+  cached: boolean;
+}
+
+export interface SettingsDto {
+  aiMode: AiMode;
+  voiceName: string | null;
+  voiceRate: number;
+  autoSpeak: boolean;
+  realtimeVoice: string;
+  allowCloudMemory: boolean;
+  allowCloudTranscription: boolean;
+  wakeWordEnabled: boolean;
+  homeLocation: { name: string; latitude: number; longitude: number } | null;
+}
+
+export interface ServiceHealth {
+  ok: boolean;
+  detail: string;
+}
+
+export interface HealthDto {
+  status: 'ok' | 'degraded';
+  version: string;
+  uptimeSeconds: number;
+  /** Uso do servidor (porcentagens 0–100) */
+  system?: { cpuPercent: number; memoryPercent: number; memoryUsedGb: number; memoryTotalGb: number; serverUptimeHours: number; temperatureC?: number | null };
+  /** Acesso de fora de casa (endereço público, ex.: Cloudflare Tunnel) */
+  publicAccess?: { configured: boolean; ok: boolean };
+  /** Último pedido feito à Luna por este usuário */
+  lastCommand?: { text: string; at: string; channel: string } | null;
+  services: {
+    database: ServiceHealth;
+    homeAssistant: ServiceHealth & { websocket: boolean };
+    ollama: ServiceHealth & { model: string };
+    /** IA na nuvem (OpenAI ou Groq: veja label) */
+    openai: ServiceHealth & { configured: boolean; model: string; label?: string };
+  };
+}
+
+export type AutomationStatus = 'draft' | 'active' | 'disabled' | 'error';
+
+export interface AutomationRuleDto {
+  id: string;
+  name: string;
+  description: string;
+  status: AutomationStatus;
+  haAutomationId: string | null;
+  haEntityId: string | null;
+  /** Estado real lido do Home Assistant (on/off), quando existir */
+  haState: string | null;
+  definition: unknown;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface ActionLogDto {
+  id: string;
+  source: string;
+  tool: string;
+  target: string | null;
+  success: boolean;
+  detail: string | null;
+  createdAt: string;
+}
+
+/** Eventos enviados pelo servidor via WebSocket. */
+export type ServerEvent =
+  | { type: 'hello'; user: PublicUser }
+  | { type: 'device_state'; device: DeviceDto }
+  | { type: 'devices_reload' }
+  | { type: 'ha_status'; connected: boolean }
+  | { type: 'assistant_state'; state: AssistantState; conversationId?: string }
+  /** Resposta da Luna (enviada a todas as telas do usuário — a TV mostra o que foi pedido pelo celular) */
+  /** open: a tela deve abrir o gravador de recado ou os recados (pedido por voz) */
+  | { type: 'assistant_reply'; userText: string; reply: string; cameraIds: string[]; open?: 'recorder' | 'recados' }
+  /** Algum recado em vídeo foi gravado, visto ou apagado */
+  | { type: 'recados_update' }
+  /** Lista de compras, itens de casa ou notas mudaram */
+  | { type: 'lists_update' }
+  /** Alguém chegou ou saiu de casa */
+  | { type: 'people_update' }
+  /** Acontecimento numa câmera vigiada (garagem): mudança de estado, aviso ou movimento à noite */
+  | { type: 'camera_event'; event: CameraEventDto }
+  | { type: 'litter_update' }
+  | { type: 'litter_alert'; text: string }
+  | { type: 'washer_update' }
+  /** A lava e seca terminou (ou outro aviso dela). speak = falar no tablet. */
+  | { type: 'washer_done'; text: string; speech: string; speak: boolean };
+
+/** Pessoa do Home Assistant (person.*): está em casa ou não */
+export interface PersonDto {
+  id: string;
+  name: string;
+  home: boolean;
+  /** “Em casa”, “Fora” ou o nome do lugar (zona do Home Assistant, ex.: “Trabalho”) */
+  place: string;
+  /** Desde quando está assim */
+  since: string | null;
+  /** Tem foto no Home Assistant */
+  picture: boolean;
+}
+
+export interface PeopleConfigDto {
+  arriveLight: string | null;
+  leaveLightsOff: boolean;
+  leaveNotify: boolean;
+}
+
+/** Item da casa: tem em casa (have) ou falta comprar (buy) */
+export interface PantryItemDto {
+  id: string;
+  name: string;
+  status: 'have' | 'buy';
+  quantity: string | null;
+  updatedAt: string;
+}
+
+export interface NoteDto {
+  id: string;
+  text: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Recado em vídeo deixado na tela */
+export interface RecadoDto {
+  id: string;
+  fromName: string;
+  createdAt: string;
+  seen: boolean;
+  /** Salvo depois de ouvir (não some sozinho depois de 7 dias) */
+  saved: boolean;
+}
+
+export interface CameraDto {
+  entityId: string;
+  name: string;
+  state: string;
+  available: boolean;
+  /** Vídeo ao vivo disponível (HLS via Home Assistant) */
+  stream: boolean;
+  /** Controle de movimento (ONVIF): girar, inclinar, zoom */
+  ptz: boolean;
+  /** Integração de origem no HA (ex.: onvif, generic) */
+  platform: string | null;
+  /** O que o próprio aparelho informa pelo HA (babá eletrônica: temperatura, umidade, som, movimento…) */
+  info?: CameraInfoItem[];
+  /** Atalho: a câmera abre no site do fabricante (platform = 'web') */
+  webUrl?: string;
+}
+
+/** Atalho para câmera que só abre no site do fabricante (ex.: Smart Life) */
+export interface WebCameraDto {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export interface CameraInfoItem {
+  entityId: string;
+  kind: 'temperature' | 'humidity' | 'battery' | 'cry' | 'sound' | 'motion' | 'privacy' | 'night' | 'other';
+  label: string;
+  value: string;
+  /** Detecção acontecendo agora (choro, som, movimento) */
+  active?: boolean;
+}
+
+export type PtzAction = 'up' | 'down' | 'left' | 'right' | 'zoom_in' | 'zoom_out' | 'stop';
+
+/** Gestos reconhecidos (nomes do reconhecedor de mãos, em minúsculas). */
+export const GESTURES = ['open_palm', 'closed_fist', 'thumb_up', 'thumb_down', 'victory', 'pointing_up', 'i_love_you'] as const;
+export type GestureName = (typeof GESTURES)[number];
+export const GESTURE_LABELS: Record<GestureName, { emoji: string; label: string }> = {
+  open_palm: { emoji: '✋', label: 'Mão aberta' },
+  closed_fist: { emoji: '✊', label: 'Punho fechado' },
+  thumb_up: { emoji: '👍', label: 'Polegar para cima' },
+  thumb_down: { emoji: '👎', label: 'Polegar para baixo' },
+  victory: { emoji: '✌️', label: 'Dois dedos (paz)' },
+  pointing_up: { emoji: '☝️', label: 'Indicador para cima' },
+  i_love_you: { emoji: '🤟', label: 'Te amo (🤟)' },
+};
+
+export interface GestureRuleDto {
+  id: string;
+  gesture: GestureName;
+  /** "device" = câmera do próprio aparelho; senão, entity_id da câmera */
+  source: string;
+  action: 'turn_on' | 'turn_off' | 'toggle';
+  /** entity_id ou "all_lights" */
+  target: string;
+  enabled: boolean;
+}
+
+/** Vigia visual (ex.: garagem: carro dentro/fora, portão aberto/fechado, movimento à noite). */
+export interface WatchDto {
+  id: string;
+  name: string;
+  kind: 'car' | 'gate' | 'motion' | 'custom';
+  cameraId: string;
+  zone: { x: number; y: number; w: number; h: number } | null;
+  labelA: string;
+  labelB: string;
+  enabled: boolean;
+  state: 'a' | 'b' | null;
+  stateLabel: string | null;
+  stateSince: string | null;
+  confidence: number | null;
+  lightEntity: string | null;
+  lightMinutes: number;
+  alertMinutes: number | null;
+  refs: { id: string; state: 'a' | 'b'; thumb: string; createdAt: string }[];
+}
+
+export interface CameraEventDto {
+  id: string;
+  cameraId: string;
+  watchId: string | null;
+  kind: 'state' | 'alert' | 'motion';
+  title: string;
+  photoUrl: string | null;
+  createdAt: string;
+}
+
+/** Gato da casa (reconhecido pelo peso na caixa de areia). */
+export interface LitterCatDto {
+  id: string;
+  slot: number;
+  name: string;
+  /** Foto do rosto (versão, para não usar a antiga em cache), ou null sem foto */
+  photo: number | null;
+  /** Peso de referência em kg (aprendido ou informado), ou null enquanto não há visitas */
+  weightKg: number | null;
+  weightSet: boolean;
+  todayVisits: number;
+  lastVisitAt: string | null;
+  /** Aviso, ex.: “não usa a caixa há mais de 24 h” */
+  alert: string | null;
+}
+
+export interface LitterVisitDto {
+  id: string;
+  at: string;
+  weightKg: number | null;
+  durationS: number | null;
+  catId: string | null;
+  catName: string | null;
+}
+
+/** Caixa de areia automática (ex.: Smart Life/Tuya “cat litter box”). */
+export interface LitterBoxDto {
+  /** Prefixo das entidades no Home Assistant (identifica a caixa) */
+  id: string;
+  name: string;
+  available: boolean;
+  /** standby | clean | empty | level | sleep | uv | unknown */
+  status: string;
+  statusLabel: string;
+  /** Limpeza automática (null se a caixa não oferece) */
+  autoClean: boolean | null;
+  /** Espera antes de limpar, em segundos (null se não oferece) */
+  delaySeconds: number | null;
+  delayMax: number | null;
+  canClean: boolean;
+  /** Visitas de hoje segundo a própria caixa */
+  todayCount: number | null;
+  lastVisit: LitterVisitDto | null;
+  /** Visitas por dia (7 dias, o último é hoje) registradas pela Luna */
+  week: { date: string; count: number }[];
+  /** Desde quando a Luna registra as visitas (antes disso não há histórico) */
+  historySince: string | null;
+  recent: LitterVisitDto[];
+  cats: LitterCatDto[];
+  /** Comandos por voz autorizados */
+  voiceAllowed: boolean;
+}
+
+/** Uma etapa da barra de progresso da lava e seca. */
+export interface WasherStepDto {
+  key: 'wash' | 'rinse' | 'spin' | 'dry';
+  label: string;
+  state: 'done' | 'current' | 'todo';
+}
+
+/** Lava e seca (ex.: Midea pela integração Midea AC LAN). */
+export interface WasherDto {
+  /** Prefixo das entidades no Home Assistant (número do aparelho) */
+  id: string;
+  name: string;
+  available: boolean;
+  /** Máquina ligada (painel aceso) */
+  power: boolean;
+  /** idle | standby | start | pause | end | fault | delay | unknown */
+  status: string;
+  /** Lavando, Enxaguando, Pausada, Terminou… */
+  statusLabel: string;
+  /** Lavando agora (ou com início agendado) */
+  running: boolean;
+  paused: boolean;
+  /** Etapa que a máquina informa: wash, rinse, spin, dry… */
+  stage: string;
+  steps: WasherStepDto[];
+  /** Minutos restantes (ou duração do programa escolhido, se ainda não começou) */
+  remainingMin: number | null;
+  /** Previsão de término (só enquanto lava) */
+  endsAt: string | null;
+  /** Quando a Luna viu o ciclo começar (null se começou antes da Luna acompanhar) */
+  startedAt: string | null;
+  program: string;
+  /** Linhas de “Ciclo atual”: só o que a máquina informa */
+  details: { label: string; value: string }[];
+  canPower: boolean;
+  canStart: boolean;
+  /** Ciclos terminados nos últimos 7 dias (contados pela Luna) */
+  weekCycles: number;
+  /** Duração média dos ciclos terminados (min), se a Luna já viu algum do começo ao fim */
+  avgMinutes: number | null;
+  lastDoneAt: string | null;
+  notifyDone: boolean;
+  speak: boolean;
+  voiceAllowed: boolean;
+}
+
+/** Luzes e aparelhos desenhados na maquete 3D da casa (lista fechada). */
+export const HOUSE_AUTOMATIONS = [
+  { id: 'cabeceira', name: 'Cabeceira', room: 'Suíte', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'ventilador', name: 'Ventilador', room: 'Suíte', domains: ['fan', 'switch', 'input_boolean'] },
+  { id: 'led-luiza', name: 'Led Luiza', room: 'Quarto do bebê', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'luminaria', name: 'Luminária', room: 'Sala', domains: ['light', 'switch', 'input_boolean'] },
+  { id: 'luz-garagem', name: 'Luz da Garagem', room: 'Garagem', domains: ['light', 'switch', 'input_boolean'] },
+] as const;
+export type HouseAutomationId = (typeof HOUSE_AUTOMATIONS)[number]['id'];
+/** Vínculos salvos: id da maquete → entidade do Home Assistant (null = “nenhuma”, escolhido pelo administrador). */
+export type HouseLinksDto = Partial<Record<HouseAutomationId, string | null>>;
+
+/* ---------- Painel da TV (Fire TV: controle manual) ---------- */
+
+/** Um passo de cena: “lights” = todas as luzes; “room:sala” = luzes com “sala” no nome; ou um entity_id real. */
+export interface TvSceneStep {
+  target: string;
+  on: boolean;
+  /** Brilho (1–100) ao ligar uma luz que aceita brilho */
+  brightness?: number;
+}
+export type TvSceneIcon = 'film' | 'moon' | 'sun' | 'off' | 'bed' | 'spark';
+export interface TvSceneDto {
+  id: string;
+  name: string;
+  icon: TvSceneIcon;
+  /** Explicação curta mostrada no cartão */
+  hint: string;
+  steps: TvSceneStep[];
+}
+export interface TvPanelDto {
+  scenes: TvSceneDto[];
+  /** Cenas são as padrão (ninguém editou) */
+  scenesDefault: boolean;
+  /** Luzes/aparelhos do Início, na ordem */
+  favorites: string[];
+  /** true = escolhidas pelo histórico de uso; false = escolhidas à mão nos Ajustes */
+  favoritesAuto: boolean;
+}
+
+/* ---------- Gravação das câmeras ---------- */
+export interface RecordingCameraDto {
+  entityId: string;
+  name: string;
+  /** Pasta da câmera dentro da pasta das gravações */
+  folder: string;
+  enabled: boolean;
+  /** Tem vídeo contínuo para gravar (câmeras de site ou só de imagens não têm) */
+  supported: boolean;
+  status: 'desligada' | 'iniciando' | 'gravando' | 'erro' | 'sem-video';
+  error: string | null;
+  since: string | null;
+}
+export interface RecordingsDto {
+  dir: string;
+  keepDays: number;
+  ffmpeg: boolean;
+  freeBytes: number | null;
+  totalBytes: number | null;
+  cameras: RecordingCameraDto[];
+}
+export interface RecordingDayDto {
+  /** AAAA-MM-DD */
+  date: string;
+  files: number;
+}
+export interface RecordingFileDto {
+  /** HH-MM-SS.mp4 */
+  file: string;
+  /** Início em segundos desde a meia-noite */
+  start: number;
+  /** Duração aproximada em segundos */
+  seconds: number;
+  bytes: number;
+}
+
+/* ---------- Notícias (RSS dos jornais, escolhidos nos Ajustes) ---------- */
+export type NewsTopic = 'sp' | 'mundo' | 'tec' | 'geral';
+export interface NewsItemDto {
+  id: string;
+  title: string;
+  /** Resumo em texto puro (pode vir vazio) */
+  summary: string;
+  link: string;
+  source: string;
+  sourceName: string;
+  topic: NewsTopic;
+  /** ISO */
+  at: string | null;
+  image: string | null;
+}
+export interface NewsSourceDto {
+  id: string;
+  name: string;
+  topics: NewsTopic[];
+}
+export interface NewsConfigDto {
+  sources: string[];
+  topics: NewsTopic[];
+}
+export interface NewsDto {
+  items: NewsItemDto[];
+  config: NewsConfigDto;
+  catalog: NewsSourceDto[];
+  /** Fontes que não responderam na última busca */
+  failed: string[];
+}
