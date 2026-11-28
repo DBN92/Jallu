@@ -301,16 +301,7 @@ export function PainelHome(p: ModernHomeProps) {
             <button className="pn-label" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
               Caixa de areia · hoje {box.todayCount} ›
             </button>
-            <div>
-              {box.cats.map((c) => (
-                <span key={c.id} className={c.alert ? 'warn' : ''}>
-                  <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
-                  <small>
-                    {c.name} <b>{c.todayVisits}</b>
-                  </small>
-                </span>
-              ))}
-            </div>
+            <CatBelt cats={box.cats} />
             {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
           </div>
         )}
@@ -595,6 +586,60 @@ function PainelVacuum({ device, onMsg }: { device: DeviceDto; onMsg: (m: string)
           {going ? 'Voltar' : v.phase === 'paused' ? 'Continuar' : 'Limpar'}
         </button>
       </span>
+    </div>
+  );
+}
+
+/**
+ * Gatos numa esteira que anda sozinha, devagar e sem fim (a lista vai duplicada e a placa de vídeo
+ * desliza; quando acaba a primeira volta, emenda sem pulo). Só anda se não couberem todos; tocar pausa.
+ */
+function CatBelt({ cats }: { cats: { id: string; name: string; todayVisits: number; alert: string | null; photo: number | null }[] }) {
+  const vp = useRef<HTMLDivElement>(null);
+  const half = useRef<HTMLDivElement>(null);
+  const [dur, setDur] = useState<number | null>(null);
+  const [paused, setPaused] = useState(false);
+  const pauseT = useRef(0);
+  useEffect(() => {
+    const measure = () => {
+      const v = vp.current;
+      const h = half.current;
+      if (!v || !h) return;
+      const w = h.scrollWidth;
+      setDur(w > v.clientWidth + 4 ? Math.max(14, w / 24) : null); // ~24 px por segundo
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (vp.current) ro.observe(vp.current);
+    if (half.current) ro.observe(half.current);
+    return () => ro.disconnect();
+  }, [cats.length]);
+  useEffect(() => () => window.clearTimeout(pauseT.current), []);
+  const hold = () => {
+    setPaused(true);
+    window.clearTimeout(pauseT.current);
+    pauseT.current = window.setTimeout(() => setPaused(false), 5000);
+  };
+  const items = cats.map((c) => (
+    <span key={c.id} className={c.alert ? 'warn' : ''}>
+      <i>{c.photo ? <img src={`/api/litter/cats/${c.id}/photo?v=${c.photo}`} alt="" /> : '🐱'}</i>
+      <small>
+        {c.name} <b>{c.todayVisits}</b>
+      </small>
+    </span>
+  ));
+  return (
+    <div className={`pn-belt-vp ${dur ? 'moving' : ''}`} ref={vp} onPointerDown={hold}>
+      <div className={`pn-belt ${dur ? 'run' : ''} ${paused ? 'paused' : ''}`} style={dur ? { ['--dur' as string]: `${dur}s` } : undefined}>
+        <div className="pn-belt-half" ref={half}>
+          {items}
+        </div>
+        {dur && (
+          <div className="pn-belt-half" aria-hidden>
+            {items}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

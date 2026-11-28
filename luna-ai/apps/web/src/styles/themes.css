@@ -652,11 +652,22 @@ html.painel .m-chip { background: #0d1424; }
 .pn-cats i img { width: 100%; height: 100%; object-fit: cover; }
 .pn-cats span.warn i { outline: 2px solid #fcd34d; outline-offset: 1px; }
 .pn-cats small { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+/* Esteira dos gatos: anda sozinha (transform na placa de vídeo), emenda sem pulo, tocar pausa */
+.pn-cats > .pn-belt-vp { overflow: hidden; scroll-snap-type: none; touch-action: pan-y; display: flex; align-items: center; margin: 2px -12px 0; padding: 6px 0 8px; }
+.pn-belt-vp.moving { -webkit-mask: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+.pn-belt { display: flex; width: max-content; }
+.pn-belt-half { display: flex; gap: 16px; padding: 0 8px 0 12px; }
+.pn-belt.run { animation: pn-belt var(--dur, 20s) linear infinite; will-change: transform; }
+.pn-belt.paused { animation-play-state: paused; }
+@keyframes pn-belt { to { transform: translate3d(-50%, 0, 0); } }
+/* Menos animação: sem esteira, rola com o dedo */
+html.calm-motion .pn-belt.run { animation: none; }
+html.calm-motion .pn-cats > .pn-belt-vp { overflow-x: auto; touch-action: pan-x; }
 /* Tablet deitado: o cartão dos gatos desce até a barra de baixo (sem o vão) e os círculos crescem */
 .pn-left .pn-cats { flex: 1 1 auto; min-height: 130px; display: flex; flex-direction: column; }
 .pn-cats > .pn-label { align-self: flex-start; text-align: left; }
 .pn-left .pn-cats ~ .pn-spacer { display: none; }
-.pn-left .pn-cats > div { flex: 1; align-items: center; gap: 16px; padding: 6px 6px 8px; margin: 2px -6px 0; }
+.pn-left .pn-cats > .pn-belt-vp { flex: 1; }
 .pn-left .pn-cats span { min-width: clamp(64px, 11vh, 96px); gap: 7px; scroll-margin-left: 6px; }
 .pn-left .pn-cats i { width: clamp(58px, 10vh, 88px); height: clamp(58px, 10vh, 88px); font-size: 30px; }
 .pn-left .pn-cats span.warn i { outline-width: 3px; outline-offset: 2px; }
