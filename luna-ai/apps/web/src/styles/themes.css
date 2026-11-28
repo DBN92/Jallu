@@ -652,6 +652,16 @@ html.painel .m-chip { background: #0d1424; }
 .pn-cats i img { width: 100%; height: 100%; object-fit: cover; }
 .pn-cats span.warn i { outline: 2px solid #fcd34d; outline-offset: 1px; }
 .pn-cats small { font-size: 11px; color: #cbd5e1; white-space: nowrap; }
+/* Tablet deitado: o cartão dos gatos desce até a barra de baixo (sem o vão) e os círculos crescem */
+.pn-left .pn-cats { flex: 1 1 auto; min-height: 130px; display: flex; flex-direction: column; }
+.pn-cats > .pn-label { align-self: flex-start; text-align: left; }
+.pn-left .pn-cats ~ .pn-spacer { display: none; }
+.pn-left .pn-cats > div { flex: 1; align-items: center; gap: 16px; padding: 6px 6px 8px; margin: 2px -6px 0; }
+.pn-left .pn-cats span { min-width: clamp(64px, 11vh, 96px); gap: 7px; scroll-margin-left: 6px; }
+.pn-left .pn-cats i { width: clamp(58px, 10vh, 88px); height: clamp(58px, 10vh, 88px); font-size: 30px; }
+.pn-left .pn-cats span.warn i { outline-width: 3px; outline-offset: 2px; }
+.pn-left .pn-cats small { font-size: 12.5px; }
+.pn-left .pn-cats .pn-warn { font-size: 12.5px; }
 .pn-cats small b { font-weight: 700; color: #e0f2fe; }
 .pn-warn { margin-top: 6px; font-size: 11.5px; line-height: 1.35; color: #fcd34d; }
 .pn-shop p:last-child { margin-top: 4px; font-size: 12.5px; color: #cbd5e1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -777,5 +787,8 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-knob b { font-size: 32px; }
   .pn-knob span { display: none; }
   .pn-left .pn-spacer { display: none; }
+  .pn-left .pn-cats { flex: none; min-height: 0; }
+  .pn-left .pn-cats i { width: 46px; height: 46px; font-size: 18px; }
+  .pn-left .pn-cats span { min-width: 54px; }
   .pn-talk { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; margin: 0; padding: 10px max(env(safe-area-inset-right), 18px) calc(env(safe-area-inset-bottom) + 10px) max(env(safe-area-inset-left), 18px); background: rgba(7, 11, 20, 0.96); border-top: 1px solid rgba(125, 211, 252, 0.12); }
 }
