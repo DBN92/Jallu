@@ -808,3 +808,18 @@ html.calm-motion .pn-dial, html.calm-motion .pn-key, html.calm-motion .pn-bar i 
   .pn-left .pn-cats span { min-width: 54px; }
   .pn-talk { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; margin: 0; padding: 10px max(env(safe-area-inset-right), 18px) calc(env(safe-area-inset-bottom) + 10px) max(env(safe-area-inset-left), 18px); background: rgba(7, 11, 20, 0.96); border-top: 1px solid rgba(125, 211, 252, 0.12); }
 }
+
+/* Painel: menu das outras telas chapado no rodapé (de ponta a ponta), no vidro azul-noite; a tela
+   atual acende em azul com um tracinho de luz em cima. A tela inicial do Painel tem a barra própria. */
+@media not ((orientation: landscape) and (max-height: 520px)) {
+  html.painel .dock-bg { left: 0; right: 0; top: 0; bottom: 0; width: auto; transform: none; border-radius: 0; border: 0; border-top: 1px solid rgba(125, 211, 252, 0.14);
+    background: linear-gradient(180deg, rgba(15, 24, 40, 0.97), rgba(7, 11, 20, 0.99)); box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35); }
+  html.painel nav.dock-nav { padding-top: 10px; padding-bottom: calc(max(env(safe-area-inset-bottom), 8px) + 4px); }
+  html.painel .dock-btn { position: relative; color: #7b8aa3 !important; }
+  html.painel .dock-btn i { background: transparent !important; }
+  html.painel .dock-btn i svg { color: #7b8aa3; transition: color 0.25s, filter 0.25s; }
+  html.painel .dock-btn > span { color: #7b8aa3; font-weight: 600; }
+  html.painel .dock-btn.active i svg { color: #a5f3fc; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8)); }
+  html.painel .dock-btn.active > span { color: #a5f3fc; }
+  html.painel .dock-btn.active::before { content: ''; position: absolute; top: -10px; left: 50%; width: 28px; height: 3px; margin-left: -14px; border-radius: 0 0 3px 3px; background: #a5f3fc; box-shadow: 0 0 10px #38bdf8; }
+}
