@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bed, Film, LayoutGrid, Moon, PowerOff, SendHorizontal, Sparkles, Sun, Video, X } from 'lucide-react';
+import { Bed, Film, LayoutGrid, Moon, Pause, Play, PowerOff, SendHorizontal, Sparkles, Sun, Video, X } from 'lucide-react';
 import type { CameraDto, DeviceDto, TvPanelDto, TvSceneIcon } from '@luna/shared/types';
 import { api, errorMessage } from '../services/api';
 import { useDevices } from '../stores/devices';
@@ -24,6 +24,15 @@ import type { ModernHomeProps } from './ModernHome';
 
 const SCENE_ICON: Record<TvSceneIcon, typeof Film> = { film: Film, moon: Moon, sun: Sun, off: PowerOff, bed: Bed, spark: Sparkles };
 const DIAL_KEY = 'luna.painel.dial';
+const CATS_KEY = 'luna.painel.gatosAndando';
+/** Esteira dos gatos andando sozinha (padrão) ou parada — escolha deste aparelho */
+function readCatsAuto() {
+  try {
+    return localStorage.getItem(CATS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 /** O anel do botão giratório começa em 210° (embaixo, à esquerda) e anda 300° no sentido do relógio */
 const ARC_FROM = 210;
 const ARC = 300;
@@ -80,6 +89,15 @@ export function PainelHome(p: ModernHomeProps) {
   const [menu, setMenu] = useState(false);
   const [wxTab, setWxTab] = useState<'h' | 'd'>('h');
   const [dialId, setDialId] = useState<string | null>(readDial);
+  const [catsAuto, setCatsAutoState] = useState(readCatsAuto);
+  const setCatsAuto = (on: boolean) => {
+    setCatsAutoState(on);
+    try {
+      localStorage.setItem(CATS_KEY, on ? '1' : '0');
+    } catch {
+      /* sem armazenamento: vale só agora */
+    }
+  };
 
   // O menu de baixo sai da tela inicial (fica no botão de menu do painel)
   useEffect(() => {
@@ -298,10 +316,15 @@ export function PainelHome(p: ModernHomeProps) {
         {vacuum?.vacuum && <PainelVacuum device={vacuum} onMsg={flash} />}
         {box && box.cats.length > 0 && (
           <div className="pn-card pn-cats">
-            <button className="pn-label" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
-              Caixa de areia · hoje {box.todayCount} ›
-            </button>
-            <CatBelt cats={box.cats} />
+            <div className="pn-cats-head">
+              <button className="pn-label" onClick={() => navigate(`/caixa-de-areia/${box.id}`)}>
+                Caixa de areia · hoje {box.todayCount} ›
+              </button>
+              <button className="pn-cats-mode" onClick={() => setCatsAuto(!catsAuto)} aria-label={catsAuto ? 'Deixar os gatos parados' : 'Deixar os gatos andando sozinhos'} title={catsAuto ? 'Parar' : 'Andar sozinho'}>
+                {catsAuto ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+            <CatBelt cats={box.cats} auto={catsAuto} />
             {catAlert?.alert && <p className="pn-warn">⚠ {catAlert.alert}</p>}
           </div>
         )}
@@ -594,7 +617,7 @@ function PainelVacuum({ device, onMsg }: { device: DeviceDto; onMsg: (m: string)
  * Gatos numa esteira que anda sozinha, devagar e sem fim (a lista vai duplicada e a placa de vídeo
  * desliza; quando acaba a primeira volta, emenda sem pulo). Só anda se não couberem todos; tocar pausa.
  */
-function CatBelt({ cats }: { cats: { id: string; name: string; todayVisits: number; alert: string | null; photo: number | null }[] }) {
+function CatBelt({ cats, auto }: { cats: { id: string; name: string; todayVisits: number; alert: string | null; photo: number | null }[]; auto: boolean }) {
   const vp = useRef<HTMLDivElement>(null);
   const half = useRef<HTMLDivElement>(null);
   const [dur, setDur] = useState<number | null>(null);
@@ -606,14 +629,14 @@ function CatBelt({ cats }: { cats: { id: string; name: string; todayVisits: numb
       const h = half.current;
       if (!v || !h) return;
       const w = h.scrollWidth;
-      setDur(w > v.clientWidth + 4 ? Math.max(14, w / 24) : null); // ~24 px por segundo
+      setDur(auto && w > v.clientWidth + 4 ? Math.max(14, w / 24) : null); // ~24 px por segundo
     };
     measure();
     const ro = new ResizeObserver(measure);
     if (vp.current) ro.observe(vp.current);
     if (half.current) ro.observe(half.current);
     return () => ro.disconnect();
-  }, [cats.length]);
+  }, [cats.length, auto]);
   useEffect(() => () => window.clearTimeout(pauseT.current), []);
   const hold = () => {
     setPaused(true);
@@ -629,7 +652,7 @@ function CatBelt({ cats }: { cats: { id: string; name: string; todayVisits: numb
     </span>
   ));
   return (
-    <div className={`pn-belt-vp ${dur ? 'moving' : ''}`} ref={vp} onPointerDown={hold}>
+    <div className={`pn-belt-vp ${dur ? 'moving' : auto ? '' : 'manual'}`} ref={vp} onPointerDown={dur ? hold : undefined}>
       <div className={`pn-belt ${dur ? 'run' : ''} ${paused ? 'paused' : ''}`} style={dur ? { ['--dur' as string]: `${dur}s` } : undefined}>
         <div className="pn-belt-half" ref={half}>
           {items}

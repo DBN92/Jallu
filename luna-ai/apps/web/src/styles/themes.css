@@ -660,6 +660,11 @@ html.painel .m-chip { background: #0d1424; }
 .pn-belt.run { animation: pn-belt var(--dur, 20s) linear infinite; will-change: transform; }
 .pn-belt.paused { animation-play-state: paused; }
 @keyframes pn-belt { to { transform: translate3d(-50%, 0, 0); } }
+/* Parado (escolha do aparelho) ou menos animação: rola com o dedo */
+.pn-cats > .pn-belt-vp.manual { overflow-x: auto; touch-action: pan-x; scrollbar-width: none; }
+.pn-cats > .pn-belt-vp.manual::-webkit-scrollbar { display: none; }
+.pn-cats-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pn-cats-mode { flex: none; width: 28px; height: 24px; border-radius: 8px; display: grid; place-items: center; border: 1px solid rgba(125, 211, 252, 0.22); color: rgba(224, 242, 254, 0.75); }
 /* Menos animação: sem esteira, rola com o dedo */
 html.calm-motion .pn-belt.run { animation: none; }
 html.calm-motion .pn-cats > .pn-belt-vp { overflow-x: auto; touch-action: pan-x; }
